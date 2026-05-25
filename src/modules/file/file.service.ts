@@ -1,0 +1,31 @@
+
+import { FileDAL } from './file.dal';
+import fs from 'fs';
+
+export class FileService {
+  private dal = new FileDAL();
+
+  list(businessId: string, moduleKey: string, page: number, size: number) {
+    const offset = (page - 1) * size;
+    const query: any = { businessId };
+    if (moduleKey) query.moduleKey = moduleKey; 
+    return this.dal.findAll(query, offset, size);
+  }
+  getById(id: string, businessId: string) { return this.dal.findById(id, businessId); }
+  
+  async saveAssetRecord(businessId: string, userId: string, file: Express.Multer.File) {
+    return this.dal.create({
+      businessId,
+      uploadedByUserId: userId,
+      originalName: file.originalname,
+      storedName: file.filename,
+      mimeType: file.mimetype,
+      sizeBytes: file.size,
+      storageProvider: 'local',
+      storagePath: file.path,
+      status: 'active'
+    });
+  }
+
+  softDelete(id: string, businessId: string) { return this.dal.softDelete(id, businessId); }
+}

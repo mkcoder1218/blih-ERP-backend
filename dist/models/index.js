@@ -1,0 +1,183 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.db = void 0;
+const sequelize_1 = require("sequelize");
+const sequelize_2 = require("../database/sequelize");
+const Business_1 = __importDefault(require("./Business"));
+const User_1 = __importDefault(require("./User"));
+const Role_1 = __importDefault(require("./Role"));
+const Permission_1 = __importDefault(require("./Permission"));
+const RolePermission_1 = __importDefault(require("./RolePermission"));
+const UserRole_1 = __importDefault(require("./UserRole"));
+const Plan_1 = __importDefault(require("./Plan"));
+const PlanModule_1 = __importDefault(require("./PlanModule"));
+const BusinessModule_1 = __importDefault(require("./BusinessModule"));
+const AuditLog_1 = __importDefault(require("./AuditLog"));
+const Department_1 = __importDefault(require("./Department"));
+const Position_1 = __importDefault(require("./Position"));
+const BusinessUserProfile_1 = __importDefault(require("./BusinessUserProfile"));
+const ApprovalWorkflow_1 = __importDefault(require("./ApprovalWorkflow"));
+const ApprovalStep_1 = __importDefault(require("./ApprovalStep"));
+const ApprovalRequest_1 = __importDefault(require("./ApprovalRequest"));
+const ApprovalAction_1 = __importDefault(require("./ApprovalAction"));
+const FormDefinition_1 = __importDefault(require("./FormDefinition"));
+const FormField_1 = __importDefault(require("./FormField"));
+const FormSubmission_1 = __importDefault(require("./FormSubmission"));
+const FileAsset_1 = __importDefault(require("./FileAsset"));
+const EntityAttachment_1 = __importDefault(require("./EntityAttachment"));
+const Notification_1 = __importDefault(require("./Notification"));
+const NotificationPreference_1 = __importDefault(require("./NotificationPreference"));
+const ActivityLog_1 = __importDefault(require("./ActivityLog"));
+const DashboardWidget_1 = __importDefault(require("./DashboardWidget"));
+const SavedView_1 = __importDefault(require("./SavedView"));
+const ModuleTemplate_1 = __importDefault(require("./ModuleTemplate"));
+const ModuleTemplateForm_1 = __importDefault(require("./ModuleTemplateForm"));
+const ModuleTemplateWorkflow_1 = __importDefault(require("./ModuleTemplateWorkflow"));
+const EmployeeRecord_1 = __importDefault(require("./EmployeeRecord"));
+const LeaveBalance_1 = __importDefault(require("./LeaveBalance"));
+const AttendanceRecord_1 = __importDefault(require("./AttendanceRecord"));
+const Lead_1 = __importDefault(require("./Lead"));
+const Client_1 = __importDefault(require("./Client"));
+const Deal_1 = __importDefault(require("./Deal"));
+const Interaction_1 = __importDefault(require("./Interaction"));
+const Project_1 = __importDefault(require("./Project"));
+const ProjectMilestone_1 = __importDefault(require("./ProjectMilestone"));
+const ProjectTask_1 = __importDefault(require("./ProjectTask"));
+const ProjectIssue_1 = __importDefault(require("./ProjectIssue"));
+const Invoice_1 = __importDefault(require("./Invoice"));
+const InvoiceItem_1 = __importDefault(require("./InvoiceItem"));
+const Payment_1 = __importDefault(require("./Payment"));
+const Expense_1 = __importDefault(require("./Expense"));
+const Budget_1 = __importDefault(require("./Budget"));
+const KnowledgeCategory_1 = __importDefault(require("./KnowledgeCategory"));
+const KnowledgeArticle_1 = __importDefault(require("./KnowledgeArticle"));
+const KnowledgeRevision_1 = __importDefault(require("./KnowledgeRevision"));
+const TrainingMaterial_1 = __importDefault(require("./TrainingMaterial"));
+const Objective_1 = __importDefault(require("./Objective"));
+const KeyResult_1 = __importDefault(require("./KeyResult"));
+const OKRProgressUpdate_1 = __importDefault(require("./OKRProgressUpdate"));
+const OKREvaluation_1 = __importDefault(require("./OKREvaluation"));
+const ClientPortalUser_1 = __importDefault(require("./ClientPortalUser"));
+const ClientPortalAccess_1 = __importDefault(require("./ClientPortalAccess"));
+const ClientRequest_1 = __importDefault(require("./ClientRequest"));
+const ClientFeedback_1 = __importDefault(require("./ClientFeedback"));
+const ReportDefinition_1 = __importDefault(require("./ReportDefinition"));
+const ReportRun_1 = __importDefault(require("./ReportRun"));
+const MetricSnapshot_1 = __importDefault(require("./MetricSnapshot"));
+const BusinessSetting_1 = __importDefault(require("./BusinessSetting"));
+const BusinessBranding_1 = __importDefault(require("./BusinessBranding"));
+const BusinessLocalization_1 = __importDefault(require("./BusinessLocalization"));
+const Subscription_1 = __importDefault(require("./Subscription"));
+const SubscriptionInvoice_1 = __importDefault(require("./SubscriptionInvoice"));
+const SubscriptionPayment_1 = __importDefault(require("./SubscriptionPayment"));
+const UsageLimit_1 = __importDefault(require("./UsageLimit"));
+const SupportAccessLog_1 = __importDefault(require("./SupportAccessLog"));
+const AdminImpersonationSession_1 = __importDefault(require("./AdminImpersonationSession"));
+const SystemHealthLog_1 = __importDefault(require("./SystemHealthLog"));
+const BackgroundJobLog_1 = __importDefault(require("./BackgroundJobLog"));
+const HRCase_1 = __importDefault(require("./HRCase"));
+const JobOpening_1 = __importDefault(require("./JobOpening"));
+const JobApplication_1 = __importDefault(require("./JobApplication"));
+const Interview_1 = __importDefault(require("./Interview"));
+const OnboardingTask_1 = __importDefault(require("./OnboardingTask"));
+const PerformanceReview_1 = __importDefault(require("./PerformanceReview"));
+const TrainingRecord_1 = __importDefault(require("./TrainingRecord"));
+const DisciplinaryCase_1 = __importDefault(require("./DisciplinaryCase"));
+const ExitProcess_1 = __importDefault(require("./ExitProcess"));
+const Proposal_1 = __importDefault(require("./Proposal"));
+const ProjectChangeRequest_1 = __importDefault(require("./ProjectChangeRequest"));
+const Vendor_1 = __importDefault(require("./Vendor"));
+exports.db = {
+    sequelize: sequelize_2.sequelize,
+    Business: (0, Business_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    User: (0, User_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Role: (0, Role_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Permission: (0, Permission_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    RolePermission: (0, RolePermission_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    UserRole: (0, UserRole_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Plan: (0, Plan_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PlanModule: (0, PlanModule_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    BusinessModule: (0, BusinessModule_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    AuditLog: (0, AuditLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Department: (0, Department_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Position: (0, Position_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    BusinessUserProfile: (0, BusinessUserProfile_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ApprovalWorkflow: (0, ApprovalWorkflow_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ApprovalStep: (0, ApprovalStep_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ApprovalRequest: (0, ApprovalRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ApprovalAction: (0, ApprovalAction_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    FormDefinition: (0, FormDefinition_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    FormField: (0, FormField_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    FormSubmission: (0, FormSubmission_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    FileAsset: (0, FileAsset_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    EntityAttachment: (0, EntityAttachment_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Notification: (0, Notification_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    NotificationPreference: (0, NotificationPreference_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ActivityLog: (0, ActivityLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    DashboardWidget: (0, DashboardWidget_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    SavedView: (0, SavedView_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ModuleTemplate: (0, ModuleTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ModuleTemplateForm: (0, ModuleTemplateForm_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ModuleTemplateWorkflow: (0, ModuleTemplateWorkflow_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    EmployeeRecord: (0, EmployeeRecord_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    LeaveBalance: (0, LeaveBalance_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    AttendanceRecord: (0, AttendanceRecord_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Lead: (0, Lead_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Client: (0, Client_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Deal: (0, Deal_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Interaction: (0, Interaction_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Project: (0, Project_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProjectMilestone: (0, ProjectMilestone_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProjectTask: (0, ProjectTask_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProjectIssue: (0, ProjectIssue_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Invoice: (0, Invoice_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    InvoiceItem: (0, InvoiceItem_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Payment: (0, Payment_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Expense: (0, Expense_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Budget: (0, Budget_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    KnowledgeCategory: (0, KnowledgeCategory_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    KnowledgeArticle: (0, KnowledgeArticle_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    KnowledgeRevision: (0, KnowledgeRevision_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    TrainingMaterial: (0, TrainingMaterial_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Objective: (0, Objective_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    KeyResult: (0, KeyResult_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    OKRProgressUpdate: (0, OKRProgressUpdate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    OKREvaluation: (0, OKREvaluation_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ClientPortalUser: (0, ClientPortalUser_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ClientPortalAccess: (0, ClientPortalAccess_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ClientRequest: (0, ClientRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ClientFeedback: (0, ClientFeedback_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ReportDefinition: (0, ReportDefinition_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ReportRun: (0, ReportRun_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    MetricSnapshot: (0, MetricSnapshot_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    BusinessSetting: (0, BusinessSetting_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    BusinessBranding: (0, BusinessBranding_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    BusinessLocalization: (0, BusinessLocalization_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Subscription: (0, Subscription_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    SubscriptionInvoice: (0, SubscriptionInvoice_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    SubscriptionPayment: (0, SubscriptionPayment_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    UsageLimit: (0, UsageLimit_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    SupportAccessLog: (0, SupportAccessLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    AdminImpersonationSession: (0, AdminImpersonationSession_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    SystemHealthLog: (0, SystemHealthLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    BackgroundJobLog: (0, BackgroundJobLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    HRCase: (0, HRCase_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    JobOpening: (0, JobOpening_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    JobApplication: (0, JobApplication_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Interview: (0, Interview_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    OnboardingTask: (0, OnboardingTask_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PerformanceReview: (0, PerformanceReview_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    TrainingRecord: (0, TrainingRecord_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    DisciplinaryCase: (0, DisciplinaryCase_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ExitProcess: (0, ExitProcess_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Proposal: (0, Proposal_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProjectChangeRequest: (0, ProjectChangeRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Vendor: (0, Vendor_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes)
+};
+Object.values(exports.db).forEach((model) => {
+    if (model && typeof model.associate === "function")
+        model.associate(exports.db);
+});
