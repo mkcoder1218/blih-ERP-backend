@@ -77,7 +77,8 @@ router.post("/select-workspace", authRateLimiter, validate(selectWorkspaceSchema
  */
 router.get("/me", authRequired, asyncHandler(controller.me));
 
-router.post("/refresh", authRateLimiter, asyncHandler(controller.refresh));
+router.post("/refresh", asyncHandler(controller.refresh));
+// router.post("/refresh", authRateLimiter, asyncHandler(controller.refresh));
 router.post("/logout", authRequired, asyncHandler(controller.logout));
 
 export const authRoutes = router;

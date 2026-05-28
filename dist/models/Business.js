@@ -9,6 +9,7 @@ exports.default = (sequelize, dataTypes) => {
         phone: { type: dataTypes.STRING(50), allowNull: true },
         status: { type: dataTypes.STRING(50), allowNull: false, defaultValue: "active" },
         planId: { type: dataTypes.UUID, allowNull: true },
+        sectorFocusId: { type: dataTypes.UUID, allowNull: true },
         settings: { type: dataTypes.JSONB, allowNull: false, defaultValue: {} }
     }, {
         tableName: "businesses",
@@ -19,6 +20,7 @@ exports.default = (sequelize, dataTypes) => {
         models.Business.hasMany(models.User, { foreignKey: "businessId" });
         models.Business.hasMany(models.Role, { foreignKey: "businessId" });
         models.Business.belongsTo(models.Plan, { foreignKey: "planId" });
+        models.Business.belongsTo(models.SectorFocus, { foreignKey: "sectorFocusId" });
         models.Business.hasMany(models.BusinessModule, { foreignKey: "businessId", as: "modules" });
         models.Business.hasMany(models.AuditLog, { foreignKey: "businessId" });
         models.Business.hasMany(models.Department, { foreignKey: "businessId" });

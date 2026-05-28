@@ -20,6 +20,10 @@ export class BaseDAL {
     return this.model.findAll({ where, ...options });
   }
 
+  findAndCount(where: Record<string, unknown> = {}, options: FindAllOptions = {}) {
+    return this.model.findAndCountAll({ where, ...options });
+  }
+
   async update(id: string, data: unknown, options: Options = {}) {
     const instance = await this.model.findByPk(id, options);
     if (!instance) return null;

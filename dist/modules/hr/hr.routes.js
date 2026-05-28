@@ -96,6 +96,21 @@ router.get('/records', auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(con
 router.get('/records/me', auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(controller.getRecord));
 /**
  * @openapi
+ * /api/v1/hr/records/onboard:
+ *   post:
+ *     tags: [hr]
+ *     summary: POST /records/onboard
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Success
+ *       400:
+ *         $ref: '#/components/responses/400'
+ */
+router.post('/records/onboard', auth_1.authRequired, (0, role_1.requireRole)('HR_MANAGER', 'BUSINESS_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.onboardEmployee));
+/**
+ * @openapi
  * /api/v1/hr/records/{userId}:
  *   get:
  *     tags: [hr]

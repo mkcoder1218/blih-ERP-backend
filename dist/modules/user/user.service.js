@@ -8,6 +8,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const env_1 = require("../../config/env");
 const models_1 = require("../../models");
 const user_dal_1 = require("./user.dal");
+const normalizeEmail_1 = require("../../utils/normalizeEmail");
 class UserService {
     constructor() {
         this.dal = new user_dal_1.UserDAL();
@@ -28,7 +29,7 @@ class UserService {
         const user = await models_1.db.User.create({
             businessId,
             fullName: data.fullName,
-            email: data.email,
+            email: (0, normalizeEmail_1.normalizeEmail)(data.email),
             password: hashed,
             phone: data.phone || null,
             status: data.status || "active",
@@ -53,6 +54,8 @@ class UserService {
         if (!user)
             return null;
         const update = { ...data };
+        if (update.email)
+            update.email = (0, normalizeEmail_1.normalizeEmail)(update.email);
         if (update.password) {
             update.password = await bcrypt_1.default.hash(update.password, env_1.env.bcryptSaltRounds);
         }

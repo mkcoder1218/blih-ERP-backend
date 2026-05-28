@@ -22,8 +22,8 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): BusinessUser
   BusinessUserProfile.associate = (models: any) => {
     models.BusinessUserProfile.belongsTo(models.Business, { foreignKey: "businessId" });
     models.BusinessUserProfile.belongsTo(models.User, { foreignKey: "userId" });
-    models.BusinessUserProfile.belongsTo(models.Department, { foreignKey: "departmentId" });
-    models.BusinessUserProfile.belongsTo(models.Position, { foreignKey: "positionId" });
+    models.BusinessUserProfile.belongsTo(models.Department, { foreignKey: "departmentId", as: "department" });
+    models.BusinessUserProfile.belongsTo(models.Position, { foreignKey: "positionId", as: "position" });
   };
   return BusinessUserProfile;
 };

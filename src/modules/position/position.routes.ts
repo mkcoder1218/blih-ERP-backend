@@ -1,7 +1,7 @@
 
 import { Router } from 'express';
 import { authRequired } from '../../middlewares/auth';
-import { requireRole } from '../../middlewares/role';
+import { requirePermission } from '../../middlewares/permission';
 import { validate } from '../../middlewares/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { createPositionSchema, updatePositionSchema } from '../../validators/position.validator';
@@ -97,7 +97,7 @@ router.get('/:id', asyncHandler(controller.get));
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post('/', requireRole('BUSINESS_ADMIN'), validate(createPositionSchema), asyncHandler(controller.create));
+router.post('/', requirePermission('position.create'), validate(createPositionSchema), asyncHandler(controller.create));
 /**
  * @openapi
  * /api/positions/{id}:
@@ -126,7 +126,7 @@ router.post('/', requireRole('BUSINESS_ADMIN'), validate(createPositionSchema), 
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.patch('/:id', requireRole('BUSINESS_ADMIN'), validate(updatePositionSchema), asyncHandler(controller.update));
+router.patch('/:id', requirePermission('position.update'), validate(updatePositionSchema), asyncHandler(controller.update));
 /**
  * @openapi
  * /api/positions/{id}:
@@ -155,6 +155,6 @@ router.patch('/:id', requireRole('BUSINESS_ADMIN'), validate(updatePositionSchem
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.delete('/:id', requireRole('BUSINESS_ADMIN'), asyncHandler(controller.remove));
+router.delete('/:id', requirePermission('position.delete'), asyncHandler(controller.remove));
 
 export const positionRoutes = router;

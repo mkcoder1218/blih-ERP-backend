@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { authRequired } from "../../middlewares/auth";
-import { requireRole } from "../../middlewares/role";
 import { requirePermission } from "../../middlewares/permission";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
@@ -43,7 +42,7 @@ router.use(authRequired);
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.get("/", requireRole("BUSINESS_ADMIN"), requirePermission("user.read"), asyncHandler(controller.list));
+router.get("/", requirePermission("user.read"), asyncHandler(controller.list));
 /**
  * @openapi
  * /api/v1/users/{id}:
@@ -72,7 +71,7 @@ router.get("/", requireRole("BUSINESS_ADMIN"), requirePermission("user.read"), a
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.get("/:id", requireRole("BUSINESS_ADMIN"), requirePermission("user.read"), asyncHandler(controller.get));
+router.get("/:id", requirePermission("user.read"), asyncHandler(controller.get));
 /**
  * @openapi
  * /api/v1/users:
@@ -95,7 +94,7 @@ router.get("/:id", requireRole("BUSINESS_ADMIN"), requirePermission("user.read")
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post("/", requireRole("BUSINESS_ADMIN"), requirePermission("user.create"), validate(createUserSchema), asyncHandler(controller.create));
+router.post("/", requirePermission("user.create"), validate(createUserSchema), asyncHandler(controller.create));
 /**
  * @openapi
  * /api/v1/users/{id}:
@@ -124,7 +123,7 @@ router.post("/", requireRole("BUSINESS_ADMIN"), requirePermission("user.create")
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.patch("/:id", requireRole("BUSINESS_ADMIN"), requirePermission("user.update"), validate(updateUserSchema), asyncHandler(controller.update));
+router.patch("/:id", requirePermission("user.update"), validate(updateUserSchema), asyncHandler(controller.update));
 /**
  * @openapi
  * /api/v1/users/{id}:
@@ -153,7 +152,6 @@ router.patch("/:id", requireRole("BUSINESS_ADMIN"), requirePermission("user.upda
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.delete("/:id", requireRole("BUSINESS_ADMIN"), requirePermission("user.delete"), asyncHandler(controller.remove));
+router.delete("/:id", requirePermission("user.delete"), asyncHandler(controller.remove));
 
 export const userRoutes = router;
-

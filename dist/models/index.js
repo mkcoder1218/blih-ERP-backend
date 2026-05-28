@@ -15,6 +15,9 @@ const UserRole_1 = __importDefault(require("./UserRole"));
 const Plan_1 = __importDefault(require("./Plan"));
 const PlanModule_1 = __importDefault(require("./PlanModule"));
 const BusinessModule_1 = __importDefault(require("./BusinessModule"));
+const SectorFocus_1 = __importDefault(require("./SectorFocus"));
+const ProfileTemplate_1 = __importDefault(require("./ProfileTemplate"));
+const ProfileDraft_1 = __importDefault(require("./ProfileDraft"));
 const AuditLog_1 = __importDefault(require("./AuditLog"));
 const Department_1 = __importDefault(require("./Department"));
 const Position_1 = __importDefault(require("./Position"));
@@ -90,6 +93,8 @@ const ExitProcess_1 = __importDefault(require("./ExitProcess"));
 const Proposal_1 = __importDefault(require("./Proposal"));
 const ProjectChangeRequest_1 = __importDefault(require("./ProjectChangeRequest"));
 const Vendor_1 = __importDefault(require("./Vendor"));
+const OfferLetterTemplate_1 = __importDefault(require("./OfferLetterTemplate"));
+const OfferLetter_1 = __importDefault(require("./OfferLetter"));
 exports.db = {
     sequelize: sequelize_2.sequelize,
     Business: (0, Business_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -100,6 +105,9 @@ exports.db = {
     UserRole: (0, UserRole_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Plan: (0, Plan_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     PlanModule: (0, PlanModule_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    SectorFocus: (0, SectorFocus_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProfileTemplate: (0, ProfileTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProfileDraft: (0, ProfileDraft_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     BusinessModule: (0, BusinessModule_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     AuditLog: (0, AuditLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Department: (0, Department_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -175,7 +183,9 @@ exports.db = {
     ExitProcess: (0, ExitProcess_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Proposal: (0, Proposal_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ProjectChangeRequest: (0, ProjectChangeRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
-    Vendor: (0, Vendor_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes)
+    Vendor: (0, Vendor_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    OfferLetterTemplate: (0, OfferLetterTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    OfferLetter: (0, OfferLetter_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes)
 };
 Object.values(exports.db).forEach((model) => {
     if (model && typeof model.associate === "function")

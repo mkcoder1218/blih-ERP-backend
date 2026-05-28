@@ -11,6 +11,8 @@ import definePlan from "./Plan";
 import definePlanModule from "./PlanModule";
 import defineBusinessModule from "./BusinessModule";
 import defineSectorFocus from "./SectorFocus";
+import defineProfileTemplate from "./ProfileTemplate";
+import defineProfileDraft from "./ProfileDraft";
 import defineAuditLog from "./AuditLog";
 import defineDepartment from "./Department";
 import definePosition from "./Position";
@@ -86,6 +88,9 @@ import defineExitProcess from "./ExitProcess";
 import defineProposal from "./Proposal";
 import defineProjectChangeRequest from "./ProjectChangeRequest";
 import defineVendor from "./Vendor";
+import defineOfferLetterTemplate from "./OfferLetterTemplate";
+import defineOfferLetter from "./OfferLetter";
+import defineRecruitmentTemplate from "./RecruitmentTemplate";
 
 export type DB = {
   sequelize: typeof sequelize;
@@ -98,6 +103,8 @@ export type DB = {
   Plan: any;
   PlanModule: any;
   SectorFocus: any;
+  ProfileTemplate: any;
+  ProfileDraft: any;
   BusinessModule: any;
   AuditLog: any;
   Department: any;
@@ -174,6 +181,9 @@ export type DB = {
   Proposal: any;
   ProjectChangeRequest: any;
   Vendor: any;
+  OfferLetterTemplate: any;
+  OfferLetter: any;
+  RecruitmentTemplate: any;
 };
 
 export const db: DB = {
@@ -187,6 +197,8 @@ export const db: DB = {
   Plan: definePlan(sequelize, DataTypes),
   PlanModule: definePlanModule(sequelize, DataTypes),
   SectorFocus: defineSectorFocus(sequelize, DataTypes),
+  ProfileTemplate: defineProfileTemplate(sequelize, DataTypes),
+  ProfileDraft: defineProfileDraft(sequelize, DataTypes),
   BusinessModule: defineBusinessModule(sequelize, DataTypes),
   AuditLog: defineAuditLog(sequelize, DataTypes),
   Department: defineDepartment(sequelize, DataTypes),
@@ -262,7 +274,10 @@ export const db: DB = {
   ExitProcess: defineExitProcess(sequelize, DataTypes),
   Proposal: defineProposal(sequelize, DataTypes),
   ProjectChangeRequest: defineProjectChangeRequest(sequelize, DataTypes),
-  Vendor: defineVendor(sequelize, DataTypes)
+  Vendor: defineVendor(sequelize, DataTypes),
+  OfferLetterTemplate: defineOfferLetterTemplate(sequelize, DataTypes),
+  OfferLetter: defineOfferLetter(sequelize, DataTypes),
+  RecruitmentTemplate: defineRecruitmentTemplate(sequelize, DataTypes)
 };
 
 Object.values(db).forEach((model: any) => {

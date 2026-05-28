@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import { env } from "../../config/env";
+import { Op } from "sequelize";
 import { db } from "../../models";
 import { UserDAL } from "./user.dal";
 import { normalizeEmail } from "../../utils/normalizeEmail";
@@ -11,8 +12,41 @@ export class UserService {
     this.dal = new UserDAL();
   }
 
-  list(businessId: string) {
-    return this.dal.findAll({ businessId }, { attributes: { exclude: ["password"] }, order: [["createdAt", "DESC"]] });
+  list(businessId: string, search: string = "", page: number = 1, size: number = 20, permission: string = "") {
+    const offset = (page - 1) * size;
+    const where: any = { businessId };
+    const options: any = { 
+      attributes: { exclude: ["password"] }, 
+      offset,
+      limit: size,
+      order: [["createdAt", "DESC"]] 
+    };
+    
+    if (search) {
+      where[Op.or] = [
+        { fullName: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    if (permission) {
+      options.distinct = true;
+      options.include = [
+        {
+          model: db.Role,
+          required: true,
+          through: { attributes: [] },
+          include: [{
+            model: db.Permission,
+            required: true,
+            where: { key: permission },
+            through: { attributes: [] }
+          }]
+        }
+      ];
+    }
+
+    return this.dal.findAndCount(where, options);
   }
 
   getById(id: string, businessId: string) {

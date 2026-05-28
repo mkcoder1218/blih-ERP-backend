@@ -22,7 +22,9 @@ export const authRateLimiter = rateLimit({
    legacyHeaders: false,
 });
 
-export const securityHeaders = helmet();
+export const securityHeaders = helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+});
 export const compressResponses = compression();
 export const preventParameterPollution = hpp();
 

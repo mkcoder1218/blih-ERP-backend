@@ -2,6 +2,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { PositionService } from './position.service';
 import { AuditLogService } from '../../services/auditLog.service';
+import { ok } from '../../utils/apiResponse';
 export class PositionController {
   private service = new PositionService();
   
@@ -18,21 +19,22 @@ export class PositionController {
     const page = parseInt(req.query.page as string) || 1;
     const size = parseInt(req.query.size as string) || 20;
 
-    res.json(await this.service.list(businessId, search, page, size, departmentId));
+    const { rows: positions, count } = await this.service.list(businessId, search, page, size, departmentId);
+    return ok(res, { positions, count }, 'Positions list');
   };
   
   get = async (req: Request, res: Response, next: NextFunction) => {
     const businessId = this.deriveBusinessId(req);
     const pos = await this.service.getById(req.params.id, businessId);
     if (!pos) return next({ statusCode: 404, message: 'Not found' });
-    res.json({ position: pos });
+    return ok(res, { position: pos }, 'Position details');
   };
 
   create = async (req: Request, res: Response) => {
     const businessId = this.deriveBusinessId(req);
     const pos = await this.service.create(businessId, req.body);
     await AuditLogService.log('CREATE', 'position', pos.id, null, pos, req);
-    res.status(201).json({ position: pos });
+    return ok(res, { position: pos }, 'Position created', 201);
   };
   
   update = async (req: Request, res: Response, next: NextFunction) => {
@@ -41,15 +43,15 @@ export class PositionController {
     const pos = await this.service.update(req.params.id, businessId, req.body);
     if (!pos) return next({ statusCode: 404, message: 'Not found' });
     await AuditLogService.log('UPDATE', 'position', pos.id, beforeData, pos, req);
-    res.json({ position: pos });
+    return ok(res, { position: pos }, 'Position updated');
   };
   
   remove = async (req: Request, res: Response, next: NextFunction) => {
     const businessId = this.deriveBusinessId(req);
     const beforeData = await this.service.getById(req.params.id, businessId);
-    const ok = await this.service.softDelete(req.params.id, businessId);
-    if (!ok) return next({ statusCode: 404, message: 'Not found' });
+    const okFlag = await this.service.softDelete(req.params.id, businessId);
+    if (!okFlag) return next({ statusCode: 404, message: 'Not found' });
     await AuditLogService.log('DELETE', 'position', req.params.id, beforeData, null, req);
-    res.json({ ok: true });
+    return ok(res, { ok: true }, 'Position removed');
   };
 }

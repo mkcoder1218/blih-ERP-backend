@@ -4,6 +4,7 @@ import { FileService } from './file.service';
 import { AuditLogService } from '../../services/auditLog.service';
 import path from 'path';
 import fs from 'fs';
+import { signDownloadToken, verifyDownloadToken } from '../../utils/jwt';
 
 export class FileController {
   private service = new FileService();
@@ -18,7 +19,6 @@ export class FileController {
 
     const data = await this.service.list(businessId, moduleKey, page, size);
     
-    // Hide pure local paths for safety unless super admin, map to secure download route
     const safeData = data.rows.map((r: any) => {
       const d = r.toJSON();
       if (!req.user!.isPlatformSuperAdmin) delete d.storagePath;
@@ -27,6 +27,19 @@ export class FileController {
     });
 
     res.json({ count: data.count, rows: safeData });
+  };
+
+  /** Issue a short-lived (60s) signed download token for a file. Requires auth. */
+  getDownloadToken = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const businessId = this.deriveBusinessId(req);
+      const asset = await this.service.getById(req.params.id, businessId);
+      if (!asset || asset.status !== 'active') return next({ statusCode: 404, message: 'File not found or inactive' });
+      const token = signDownloadToken(req.user!.id, businessId, asset.id);
+      res.json({ token });
+    } catch (err: any) {
+      next({ statusCode: 500, message: err.message });
+    }
   };
 
   uploadSingle = async (req: Request, res: Response, next: NextFunction) => {
@@ -65,14 +78,52 @@ export class FileController {
   };
 
   download = async (req: Request, res: Response, next: NextFunction) => {
-    const businessId = this.deriveBusinessId(req);
-    const asset = await this.service.getById(req.params.id, businessId);
-    if (!asset || asset.status !== 'active') return next({ statusCode: 404, message: 'File not found or inactive' });
-    
-    if (fs.existsSync(asset.storagePath)) {
-      res.download(asset.storagePath, asset.originalName);
-    } else {
-      next({ statusCode: 404, message: 'Physical file missing' });
+    try {
+      let fileId = req.params.id;
+      let businessId: string;
+
+      // Support token-based download (no Authorization header needed — works with IDM/browser direct open)
+      const queryToken = req.query.token as string | undefined;
+      if (queryToken) {
+        const payload = verifyDownloadToken(queryToken);
+        if (payload.fileId !== fileId) return next({ statusCode: 403, message: 'Token does not match file' });
+        businessId = payload.businessId;
+      } else {
+        // Fallback to normal auth (req.user set by authRequired middleware)
+        if (!req.user) return next({ statusCode: 401, message: 'Missing access token' });
+        businessId = this.deriveBusinessId(req);
+      }
+
+      console.log(`[DOWNLOAD] id=${fileId} businessId=${businessId} origin=${req.headers.origin ?? 'none'}`);
+
+      const asset = await this.service.getById(fileId, businessId);
+      console.log(`[DOWNLOAD] asset=${JSON.stringify(asset ? { id: asset.id, status: asset.status, storagePath: asset.storagePath } : null)}`);
+      if (!asset || asset.status !== 'active') return next({ statusCode: 404, message: 'File not found or inactive' });
+
+      if (!fs.existsSync(asset.storagePath)) {
+        console.log(`[DOWNLOAD] physical file missing at path: ${asset.storagePath}`);
+        return next({ statusCode: 404, message: 'Physical file missing' });
+      }
+
+      const origin = req.headers.origin;
+      if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Vary', 'Origin');
+      }
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(asset.originalName)}"`);
+      res.setHeader('Content-Type', 'application/octet-stream');
+
+      const fileStream = fs.createReadStream(asset.storagePath);
+      fileStream.on('error', (err) => {
+        console.error('[DOWNLOAD] stream error:', err);
+        next({ statusCode: 500, message: 'Failed to stream file' });
+      });
+      fileStream.pipe(res);
+    } catch (err: any) {
+      next({ statusCode: 401, message: err.message || 'Invalid download token' });
     }
   };
 

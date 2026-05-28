@@ -1,12 +1,14 @@
-
-import { Router } from 'express';
-import { authRequired } from '../../middlewares/auth';
-import { requireRole } from '../../middlewares/role';
-import { requireActiveModule } from '../../middlewares/requireActiveModule';
-import { asyncHandler } from '../../utils/asyncHandler';
-import { HRController } from './hr.controller';
-import { RecruitmentController } from './recruitment.controller';
-import { HRPerformanceController } from './performance.controller';
+import { Router } from "express";
+import { authRequired } from "../../middlewares/auth";
+import { requireRole } from "../../middlewares/role";
+import { requireAnyPermission } from "../../middlewares/permission";
+import { requireActiveModule } from "../../middlewares/requireActiveModule";
+import { asyncHandler } from "../../utils/asyncHandler";
+import { HRController } from "./hr.controller";
+import { RecruitmentController } from "./recruitment.controller";
+import { HRPerformanceController } from "./performance.controller";
+import { validate } from "../../middlewares/validate";
+import { updateEmployeeRecordSchema } from "../../validators/hrEmployeeRecord.validator";
 
 const router = Router();
 const controller = new HRController();
@@ -14,392 +16,182 @@ const recruitmentController = new RecruitmentController();
 const perfController = new HRPerformanceController();
 
 // Apply module boundary globally
-router.use(requireActiveModule('hr'));
+router.use(requireActiveModule("hr"));
 
 // Profile mapping
-/**
- * @openapi
- * /api/v1/hr/templates:
- *   post:
- *     tags: [hr]
- *     summary: POST /templates
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/templates', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), asyncHandler(controller.seedTemplates));
-/**
- * @openapi
- * /api/v1/hr/records:
- *   get:
- *     tags: [hr]
- *     summary: GET /records
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: size
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/records', authRequired, asyncHandler(controller.listRecords)); // Scope managed in controller
-/**
- * @openapi
- * /api/v1/hr/records/me:
- *   get:
- *     tags: [hr]
- *     summary: GET /records/me
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/records/me', authRequired, asyncHandler(controller.getRecord));
-/**
- * @openapi
- * /api/v1/hr/records/{userId}:
- *   get:
- *     tags: [hr]
- *     summary: GET /records/:userId
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/records/:userId', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN', 'DEPARTMENT_HEAD'), asyncHandler(controller.getRecord));
-
-// Self-mutating restricted attributes
-/**
- * @openapi
- * /api/v1/hr/records/me:
- *   patch:
- *     tags: [hr]
- *     summary: PATCH /records/me
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.patch('/records/me', authRequired, asyncHandler(controller.updateSelfRecord));
+router.post(
+  "/templates",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN"),
+  asyncHandler(controller.seedTemplates),
+);
+router.get("/records", authRequired, asyncHandler(controller.listRecords)); // Scope managed in controller
+router.get("/records/me", authRequired, asyncHandler(controller.getRecord));
+router.post(
+  "/records/onboard",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN"),
+  asyncHandler(controller.onboardEmployee),
+);
+router.get(
+  "/records/:userId",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  asyncHandler(controller.getRecord),
+);
+// Allow HR updates for users with explicit HR write permission or job lifecycle manage permission
+router.patch(
+  "/records/:userId",
+  authRequired,
+  requireAnyPermission("hr.write", "job.manage", "job.update"),
+  validate(updateEmployeeRecordSchema),
+  asyncHandler(controller.updateEmployeeRecord),
+);
+router.delete(
+  "/records/:userId",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN"),
+  asyncHandler(controller.deleteRecord),
+);
+router.get("/organogram", authRequired, asyncHandler(controller.getOrganogram));
+router.patch(
+  "/records/me",
+  authRequired,
+  asyncHandler(controller.updateSelfRecord),
+);
 
 export const hrRoutes = router;
 
+// Recruitment Private Routes
+router.post(
+  "/recruitment/templates",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN"),
+  asyncHandler(recruitmentController.createTemplate),
+);
+router.get(
+  "/recruitment/templates",
+  authRequired,
+  asyncHandler(recruitmentController.listTemplates),
+);
+router.post(
+  "/recruitment/templates/seed",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN"),
+  asyncHandler(recruitmentController.seedForms),
+);
+router.get(
+  "/recruitment/job-openings",
+  authRequired,
+  asyncHandler(recruitmentController.listOpenings),
+);
+router.post(
+  "/recruitment/job-openings",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN"),
+  asyncHandler(recruitmentController.createOpening),
+);
+router.get(
+  "/recruitment/job-requests",
+  authRequired,
+  requireAnyPermission("job.read", "job.manage"),
+  asyncHandler(recruitmentController.listJobRequests),
+);
+router.get(
+  "/recruitment/job-applications",
+  authRequired,
+  requireAnyPermission("job.read", "job.manage"),
+  asyncHandler(recruitmentController.listApplications),
+);
+router.post(
+  "/recruitment/job-requests/:id/approve",
+  authRequired,
+  requireAnyPermission("job.manage"),
+  asyncHandler(recruitmentController.approveJobRequest),
+);
+router.post(
+  "/recruitment/job-requests/:id/publish",
+  authRequired,
+  requireAnyPermission("job.manage"),
+  asyncHandler(recruitmentController.publishJob),
+);
+router.post(
+  "/recruitment/job-requests/:id/decline",
+  authRequired,
+  requireAnyPermission("job.manage"),
+  asyncHandler(recruitmentController.declineJobRequest),
+);
+router.patch(
+  "/recruitment/applications/:id/stage",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN"),
+  asyncHandler(recruitmentController.advanceApplicant),
+);
+router.post(
+  "/recruitment/interviews/schedule",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  asyncHandler(recruitmentController.scheduleInterview),
+);
+router.get(
+  "/recruitment/interviews",
+  authRequired,
+  asyncHandler(recruitmentController.listInterviews),
+);
 
-/**
- * @openapi
- * /api/v1/hr/recruitment/templates:
- *   post:
- *     tags: [hr]
- *     summary: POST /recruitment/templates
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/recruitment/templates', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), asyncHandler(recruitmentController.seedForms));
-/**
- * @openapi
- * /api/v1/hr/recruitment/job-openings:
- *   get:
- *     tags: [hr]
- *     summary: GET /recruitment/job-openings
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: size
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/recruitment/job-openings', authRequired, asyncHandler(recruitmentController.listOpenings));
-/**
- * @openapi
- * /api/v1/hr/recruitment/job-openings:
- *   post:
- *     tags: [hr]
- *     summary: POST /recruitment/job-openings
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/recruitment/job-openings', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), asyncHandler(recruitmentController.createOpening));
-/**
- * @openapi
- * /api/v1/hr/recruitment/applications/{id}/stage:
- *   patch:
- *     tags: [hr]
- *     summary: PATCH /recruitment/applications/:id/stage
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.patch('/recruitment/applications/:id/stage', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), asyncHandler(recruitmentController.advanceApplicant));
+import { upload } from "../../middlewares/upload";
+
+// ... (rest of imports)
 
 // Public application endpoint must skip auth
 export const publicRecruitmentRoutes = Router();
-publicRecruitmentRoutes.post('/job-openings/:jobOpeningId/apply', asyncHandler(recruitmentController.publicApply));
-
+publicRecruitmentRoutes.get(
+  "/jobs",
+  asyncHandler(recruitmentController.publicListJobs),
+);
+publicRecruitmentRoutes.get(
+  "/jobs/:id",
+  asyncHandler(recruitmentController.publicGetJob),
+);
+publicRecruitmentRoutes.post(
+  "/jobs/:id/view",
+  asyncHandler(recruitmentController.incrementJobView),
+);
+publicRecruitmentRoutes.post(
+  "/job-openings/:jobOpeningId/apply",
+  asyncHandler(recruitmentController.publicApply),
+);
+publicRecruitmentRoutes.post(
+  "/job-openings/:jobOpeningId/upload-resume",
+  upload.single("file"),
+  asyncHandler(recruitmentController.publicUploadResume),
+);
 
 // Performance / Exit
-/**
- * @openapi
- * /api/v1/hr/performance/templates:
- *   post:
- *     tags: [hr]
- *     summary: POST /performance/templates
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/performance/templates', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), asyncHandler(perfController.seedForms));
-
-// Training accessible by employees structuring bounds natively
-/**
- * @openapi
- * /api/v1/hr/training:
- *   post:
- *     tags: [hr]
- *     summary: POST /training
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/training', authRequired, asyncHandler(perfController.createTrainingRequest));
-
-// Strict Disciplinary limits natively handled in Controller
-/**
- * @openapi
- * /api/v1/hr/disciplinary:
- *   get:
- *     tags: [hr]
- *     summary: GET /disciplinary
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: size
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/disciplinary', authRequired, asyncHandler(perfController.listDisciplinary));
-
-// Exits
-/**
- * @openapi
- * /api/v1/hr/exit/resign:
- *   post:
- *     tags: [hr]
- *     summary: POST /exit/resign
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/exit/resign', authRequired, asyncHandler(perfController.submitResignation));
-/**
- * @openapi
- * /api/v1/hr/exit/{id}/status:
- *   patch:
- *     tags: [hr]
- *     summary: PATCH /exit/:id/status
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.patch('/exit/:id/status', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), asyncHandler(perfController.updateExitStatus));
+router.post(
+  "/performance/templates",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN"),
+  asyncHandler(perfController.seedForms),
+);
+router.post(
+  "/training",
+  authRequired,
+  asyncHandler(perfController.createTrainingRequest),
+);
+router.get(
+  "/disciplinary",
+  authRequired,
+  asyncHandler(perfController.listDisciplinary),
+);
+router.post(
+  "/exit/resign",
+  authRequired,
+  asyncHandler(perfController.submitResignation),
+);
+router.patch(
+  "/exit/:id/status",
+  authRequired,
+  requireRole("HR_MANAGER", "BUSINESS_ADMIN"),
+  asyncHandler(perfController.updateExitStatus),
+);

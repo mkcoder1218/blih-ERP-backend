@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { RoleService } from "./role.service";
 import { AuditLogService } from "../../services/auditLog.service";
+import { ok } from "../../utils/apiResponse";
 
 export class RoleController {
   private service: RoleService;
@@ -10,8 +11,15 @@ export class RoleController {
   }
 
   list = async (req: Request, res: Response) => {
-    const roles = await this.service.list(req.user!.businessId);
-    res.json({ roles });
+    let businessId: string | undefined = req.user!.businessId;
+    
+    if (req.user!.isPlatformSuperAdmin) {
+      // Super admin can filter by businessId or see all if not provided
+      businessId = (req.query.businessId as string) || undefined;
+    }
+
+    const roles = await this.service.list(businessId);
+    return ok(res, { roles, count: roles.length }, "Roles list");
   };
 
   get = async (req: Request, res: Response, next: NextFunction) => {
@@ -20,13 +28,13 @@ export class RoleController {
     if (!req.user!.isPlatformSuperAdmin && role.businessId !== req.user!.businessId) {
       return next({ statusCode: 403, message: "Forbidden (tenant)" });
     }
-    res.json({ role });
+    return ok(res, { role }, "Role details");
   };
 
   create = async (req: Request, res: Response) => {
     const role = await this.service.create(req.user!.businessId, req.body);
     await AuditLogService.log("CREATE", "role", role.id, null, role, req);
-    res.status(201).json({ role });
+    return ok(res, { role }, "Role created", 201);
   };
 
   update = async (req: Request, res: Response, next: NextFunction) => {
@@ -34,15 +42,15 @@ export class RoleController {
     const role = await this.service.update(req.params.id, req.user!.businessId, req.body);
     if (!role) return next({ statusCode: 404, message: "Role not found" });
     await AuditLogService.log("UPDATE", "role", req.params.id, beforeData, role, req);
-    res.json({ role });
+    return ok(res, { role }, "Role updated");
   };
 
   remove = async (req: Request, res: Response, next: NextFunction) => {
     const beforeData = await this.service.getById(req.params.id);
-    const ok = await this.service.softDelete(req.params.id, req.user!.businessId);
-    if (!ok) return next({ statusCode: 404, message: "Role not found" });
+    const okFlag = await this.service.softDelete(req.params.id, req.user!.businessId);
+    if (!okFlag) return next({ statusCode: 404, message: "Role not found" });
     await AuditLogService.log("DELETE", "role", req.params.id, beforeData, null, req);
-    res.json({ ok: true });
+    return ok(res, { ok: true }, "Role removed");
   };
 }
 

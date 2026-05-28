@@ -10,21 +10,24 @@ const models_1 = require("../../models");
 const jwt_1 = require("../../utils/jwt");
 const apiResponse_1 = require("../../utils/apiResponse");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const normalizeEmail_1 = require("../../utils/normalizeEmail");
+const sequelize_1 = require("sequelize");
 class AuthController {
     constructor() {
         this.register = async (req, res, next) => {
             const { businessId, fullName, email, password, phone } = req.body;
+            const normalizedEmail = (0, normalizeEmail_1.normalizeEmail)(email);
             const business = await models_1.db.Business.findByPk(businessId);
             if (!business)
                 return next({ statusCode: 404, message: "Business not found" });
-            const existing = await models_1.db.User.findOne({ where: { businessId, email } });
+            const existing = await models_1.db.User.findOne({ where: { businessId, email: normalizedEmail } });
             if (existing)
                 return next({ statusCode: 409, message: "Email already exists" });
             const hashed = await bcrypt_1.default.hash(password, env_1.env.bcryptSaltRounds);
             const user = await models_1.db.User.create({
                 businessId,
                 fullName,
-                email,
+                email: normalizedEmail,
                 password: hashed,
                 phone: phone || null,
                 status: "active",
@@ -45,8 +48,9 @@ class AuthController {
         };
         this.login = async (req, res, next) => {
             const { email, password } = req.body;
+            const normalizedEmail = (0, normalizeEmail_1.normalizeEmail)(email);
             const matches = await models_1.db.User.findAll({
-                where: { email },
+                where: models_1.db.sequelize.where(models_1.db.sequelize.fn("lower", models_1.db.sequelize.col("User.email")), normalizedEmail),
                 include: [{ model: models_1.db.Business, attributes: ["id", "name", "slug", "status"] }]
             });
             if (!matches.length)
@@ -80,7 +84,13 @@ class AuthController {
         };
         this.selectWorkspace = async (req, res, next) => {
             const { businessId, email, password } = req.body;
-            const user = await models_1.db.User.findOne({ where: { businessId, email } });
+            const normalizedEmail = (0, normalizeEmail_1.normalizeEmail)(email);
+            const user = await models_1.db.User.findOne({
+                where: {
+                    businessId,
+                    [sequelize_1.Op.and]: [models_1.db.sequelize.where(models_1.db.sequelize.fn("lower", models_1.db.sequelize.col("User.email")), normalizedEmail)]
+                }
+            });
             if (!user)
                 return next({ statusCode: 401, message: "Invalid credentials" });
             return this.finishLoginForUser(user, password, res, next);

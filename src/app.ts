@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import { addRequestId } from "./middlewares/requestId";
 import { globalRateLimiter, authRateLimiter, securityHeaders, compressResponses, preventParameterPollution, sanitizePayload } from "./middlewares/security";
 import { env } from "./config/env";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 
 import { notFound } from "./middlewares/notFound";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -31,6 +31,7 @@ import { dashboardRoutes } from "./modules/dashboardWidget/widget.routes";
 import { savedViewRoutes } from "./modules/savedView/view.routes";
 import { moduleTemplateRoutes } from "./modules/moduleTemplate/template.routes";
 import { hrRoutes, publicRecruitmentRoutes } from "./modules/hr/hr.routes";
+import { offerLetterRoutes, publicOfferLetterRoutes } from "./modules/hr/offerLetter.routes";
 import { crmRoutes, publicCRMRoutes } from "./modules/crm/crm.routes";
 import { projectsRoutes } from "./modules/projects/projects.routes";
 import { financeRoutes } from "./modules/finance/finance.routes";
@@ -41,12 +42,42 @@ import { reportingRoutes } from "./modules/reporting/reporting.routes";
 import { settingsRoutes } from "./modules/settings/settings.routes";
 import { subscriptionRoutes } from "./modules/subscription/subscription.routes";
 import { adminOpsRoutes } from "./modules/adminOps/adminOps.routes";
+import { peopleRoutes } from "./modules/people/people.routes";
+import { permissionRoutes } from "./modules/permission/permission.routes";
 
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 
 const app = express();
 
+// CORS must be first — before helmet, rate limiter, and everything else.
+// The browser sends a preflight OPTIONS request before any authenticated request;
+// if CORS headers aren't on that response the browser blocks the actual request.
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    console.log(`[CORS] incoming origin: '${origin ?? 'none'}'`);
+    // Allow requests with no origin (curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    // In development allow all localhost origins regardless of port
+    if (env.nodeEnv !== "production" && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+      console.log(`[CORS] allowed (localhost dev): ${origin}`);
+      return callback(null, true);
+    }
+    // In production check against the explicit allowlist
+    if (env.corsOrigins.includes(origin)) {
+      console.log(`[CORS] allowed (allowlist): ${origin}`);
+      return callback(null, true);
+    }
+    console.log(`[CORS] BLOCKED: '${origin}' not in [${env.corsOrigins.join(", ")}]`);
+    callback(new Error(`CORS: origin '${origin}' not allowed`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
+  exposedHeaders: ["Content-Disposition"],
+};
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // explicitly handle preflight for all routes
 
 app.use(addRequestId);
 app.use(securityHeaders);
@@ -56,11 +87,12 @@ app.use(sanitizePayload);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({ origin: env.corsOrigins }));
 
 app.use(`/api/${env.apiVersion}`, globalRateLimiter);
 
 const apiRouter = Router();
+
+apiRouter.use("/hr/public/offers", publicOfferLetterRoutes); // TOP PRIORITY
 
 apiRouter.get("/status", (req, res) => {
    res.json({ status: "OK", version: env.apiVersion });
@@ -73,6 +105,7 @@ apiRouter.use("/plans", planRoutes);
 apiRouter.use("/sector-focuses", sectorFocusRoutes);
 apiRouter.use("/hr/public", publicRecruitmentRoutes);
 apiRouter.use("/hr", hrRoutes);
+apiRouter.use("/offer-letters", offerLetterRoutes);
 apiRouter.use("/crm/public", publicCRMRoutes);
 apiRouter.use("/crm", crmRoutes);
 apiRouter.use("/projects", projectsRoutes);
@@ -84,6 +117,12 @@ apiRouter.use("/reporting", reportingRoutes);
 apiRouter.use("/settings", settingsRoutes);
 apiRouter.use("/subscription", subscriptionRoutes);
 apiRouter.use("/admin-ops", adminOpsRoutes);
+apiRouter.use("/people", peopleRoutes);
+apiRouter.use("/files", fileRoutes);
+apiRouter.use("/departments", departmentRoutes);
+apiRouter.use("/positions", positionRoutes);
+apiRouter.use("/roles", roleRoutes);
+apiRouter.use("/permissions", permissionRoutes);
 
 app.use(`/api/${env.apiVersion}`, apiRouter);
 

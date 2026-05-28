@@ -26,3 +26,19 @@ export function signRefreshToken(user: { id: string; businessId: string; isPlatf
     expiresIn: env.jwtRefreshExpiresIn as any
   });
 }
+
+/** Sign a short-lived (60s) download token scoped to a specific file asset. */
+export function signDownloadToken(userId: string, businessId: string, fileId: string): string {
+  return jwt.sign(
+    { type: "download", fileId, businessId },
+    env.jwtAccessSecret,
+    { subject: userId, expiresIn: "60s" }
+  );
+}
+
+/** Verify a download token. Returns the payload or throws. */
+export function verifyDownloadToken(token: string): { fileId: string; businessId: string; sub: string } {
+  const decoded = jwt.verify(token, env.jwtAccessSecret) as any;
+  if (decoded?.type !== "download") throw new Error("Invalid download token");
+  return { fileId: decoded.fileId, businessId: decoded.businessId, sub: decoded.sub };
+}

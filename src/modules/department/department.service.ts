@@ -11,7 +11,10 @@ export class DepartmentService {
     return this.dal.findAll(query, offset, size);
   }
   getById(id: string, businessId: string) { return this.dal.findById(id, businessId); }
-  create(businessId: string, data: any) { return this.dal.create({ ...data, businessId }); }
+  create(businessId: string, data: any) {
+    const key = data.key || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    return this.dal.create({ ...data, key, businessId });
+  }
   update(id: string, businessId: string, data: any) { return this.dal.update(id, businessId, data); }
   softDelete(id: string, businessId: string) { return this.dal.softDelete(id, businessId); }
 }

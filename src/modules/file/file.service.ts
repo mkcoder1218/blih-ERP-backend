@@ -13,17 +13,18 @@ export class FileService {
   }
   getById(id: string, businessId: string) { return this.dal.findById(id, businessId); }
   
-  async saveAssetRecord(businessId: string, userId: string, file: Express.Multer.File) {
+  async saveAssetRecord(businessId: string, userId: string | null, file: Express.Multer.File, extraMetadata: Record<string, unknown> = {}) {
     return this.dal.create({
       businessId,
-      uploadedByUserId: userId,
+      uploadedByUserId: userId || null,
       originalName: file.originalname,
       storedName: file.filename,
       mimeType: file.mimetype,
       sizeBytes: file.size,
       storageProvider: 'local',
       storagePath: file.path,
-      status: 'active'
+      status: 'active',
+      metadata: extraMetadata,
     });
   }
 

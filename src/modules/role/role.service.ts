@@ -24,8 +24,12 @@ export class RoleService {
     return role;
   }
 
-  list(businessId: string) {
-    return this.dal.findAll({ businessId }, { order: [["createdAt", "DESC"]] });
+  list(businessId?: string) {
+    const where: any = { deletedAt: null };
+    if (businessId) {
+      where.businessId = businessId;
+    }
+    return this.dal.findAll(where, { order: [["createdAt", "DESC"]] });
   }
 
   getById(id: string) {

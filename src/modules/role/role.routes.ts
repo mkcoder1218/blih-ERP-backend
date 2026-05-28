@@ -43,7 +43,7 @@ router.use(authRequired);
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.get("/", requireRole("BUSINESS_ADMIN"), requirePermission("role.read"), asyncHandler(controller.list));
+router.get("/", requireRole("BUSINESS_ADMIN", "PLATFORM_SUPER_ADMIN"), requirePermission("role.read"), asyncHandler(controller.list));
 /**
  * @openapi
  * /api/roles/{id}:

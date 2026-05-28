@@ -1,7 +1,7 @@
 
 import { Router } from 'express';
 import { authRequired } from '../../middlewares/auth';
-import { requireRole } from '../../middlewares/role';
+import { requirePermission } from '../../middlewares/permission';
 import { validate } from '../../middlewares/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { createDepartmentSchema, updateDepartmentSchema } from '../../validators/department.validator';
@@ -97,7 +97,7 @@ router.get('/:id', asyncHandler(controller.get));
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post('/', requireRole('BUSINESS_ADMIN'), validate(createDepartmentSchema), asyncHandler(controller.create));
+router.post('/', requirePermission('department.create'), validate(createDepartmentSchema), asyncHandler(controller.create));
 /**
  * @openapi
  * /api/departments/{id}:
@@ -126,7 +126,7 @@ router.post('/', requireRole('BUSINESS_ADMIN'), validate(createDepartmentSchema)
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.patch('/:id', requireRole('BUSINESS_ADMIN'), validate(updateDepartmentSchema), asyncHandler(controller.update));
+router.patch('/:id', requirePermission('department.update'), validate(updateDepartmentSchema), asyncHandler(controller.update));
 /**
  * @openapi
  * /api/departments/{id}:
@@ -155,6 +155,6 @@ router.patch('/:id', requireRole('BUSINESS_ADMIN'), validate(updateDepartmentSch
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.delete('/:id', requireRole('BUSINESS_ADMIN'), asyncHandler(controller.remove));
+router.delete('/:id', requirePermission('department.delete'), asyncHandler(controller.remove));
 
 export const departmentRoutes = router;

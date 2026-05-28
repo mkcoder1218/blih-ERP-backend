@@ -10,5 +10,6 @@ class PlanService {
     getById(id) { return this.dal.findById(id); }
     create(data) { return this.dal.create(data); }
     update(id, data) { return this.dal.update(id, data); }
+    remove(id) { return this.dal.softDelete(id); }
 }
 exports.PlanService = PlanService;

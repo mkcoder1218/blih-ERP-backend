@@ -10,8 +10,13 @@ export class UserController {
   }
 
   list = async (req: Request, res: Response) => {
-    const users = await this.service.list(req.user!.businessId);
-    res.json({ users });
+    const search = (req.query.search as string) || "";
+    const page = parseInt(req.query.page as string) || 1;
+    const size = parseInt(req.query.size as string) || 20;
+    const permission = (req.query.permission as string) || "";
+    
+    const result = await this.service.list(req.user!.businessId, search, page, size, permission);
+    res.json(result);
   };
 
   get = async (req: Request, res: Response, next: NextFunction) => {

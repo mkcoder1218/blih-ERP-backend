@@ -124,4 +124,5 @@ router.post('/', (0, role_1.requireRole)('PLATFORM_SUPER_ADMIN'), (0, validate_1
  *         $ref: '#/components/responses/500'
  */
 router.patch('/:id', (0, role_1.requireRole)('PLATFORM_SUPER_ADMIN'), (0, validate_1.validate)(plan_validator_1.updatePlanSchema), (0, asyncHandler_1.asyncHandler)(controller.update));
+router.delete('/:id', (0, role_1.requireRole)('PLATFORM_SUPER_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.remove));
 exports.planRoutes = router;

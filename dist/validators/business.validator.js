@@ -12,6 +12,7 @@ exports.createBusinessSchema = joi_1.default.object({
     phone: joi_1.default.string().max(50).required(),
     status: joi_1.default.string().valid("active", "inactive").optional(),
     planId: joi_1.default.string().uuid().required(),
+    sectorFocusId: joi_1.default.string().uuid().optional().allow(null, ""),
     settings: joi_1.default.object().optional()
 });
 exports.updateBusinessSchema = joi_1.default.object({
@@ -21,5 +22,6 @@ exports.updateBusinessSchema = joi_1.default.object({
     phone: joi_1.default.string().max(50).optional().allow(null, ""),
     status: joi_1.default.string().valid("active", "inactive").optional(),
     planId: joi_1.default.string().uuid().optional(),
+    sectorFocusId: joi_1.default.string().uuid().optional().allow(null, ""),
     settings: joi_1.default.object().optional()
 }).min(1);
