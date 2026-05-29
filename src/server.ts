@@ -4,11 +4,15 @@ import { env } from "./config/env";
 import { initDatabase } from "./database";
 import { initJobs } from "./jobs/registry";
 import { seedPlatformSuperAdminFromEnv } from "./database/platformAdminSeed";
+import { initializeSocket } from "./services/realtime/socket";
 
 async function start() {
   await initDatabase();
   await seedPlatformSuperAdminFromEnv();
   const server = http.createServer(app);
+
+  // Initialize WebSocket service
+  initializeSocket(server);
   
   initJobs();
 

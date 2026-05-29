@@ -32,6 +32,7 @@ import { savedViewRoutes } from "./modules/savedView/view.routes";
 import { moduleTemplateRoutes } from "./modules/moduleTemplate/template.routes";
 import { hrRoutes, publicRecruitmentRoutes } from "./modules/hr/hr.routes";
 import { offerLetterRoutes, publicOfferLetterRoutes } from "./modules/hr/offerLetter.routes";
+import { candidateOnboardingRoutes, publicCandidateOnboardingRoutes } from "./modules/hr/candidateOnboarding.routes";
 import { crmRoutes, publicCRMRoutes } from "./modules/crm/crm.routes";
 import { projectsRoutes } from "./modules/projects/projects.routes";
 import { financeRoutes } from "./modules/finance/finance.routes";
@@ -88,11 +89,14 @@ app.use(sanitizePayload);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(`/api/${env.apiVersion}`, globalRateLimiter);
+// TODO: re-enable rate limiting before production
+// app.use(`/api/${env.apiVersion}`, globalRateLimiter);
 
 const apiRouter = Router();
 
-apiRouter.use("/hr/public/offers", publicOfferLetterRoutes); // TOP PRIORITY
+apiRouter.use("/hr/public/offers", publicOfferLetterRoutes); // canonical public path
+apiRouter.use("/offer-letters", publicOfferLetterRoutes);   // legacy path — keeps old stored links working
+apiRouter.use("/hr/public/onboarding", publicCandidateOnboardingRoutes); // public candidate onboarding
 
 apiRouter.get("/status", (req, res) => {
    res.json({ status: "OK", version: env.apiVersion });
@@ -104,6 +108,7 @@ apiRouter.use("/businesses", businessRoutes);
 apiRouter.use("/plans", planRoutes);
 apiRouter.use("/sector-focuses", sectorFocusRoutes);
 apiRouter.use("/hr/public", publicRecruitmentRoutes);
+apiRouter.use("/hr/onboarding", candidateOnboardingRoutes);
 apiRouter.use("/hr", hrRoutes);
 apiRouter.use("/offer-letters", offerLetterRoutes);
 apiRouter.use("/crm/public", publicCRMRoutes);
@@ -119,6 +124,7 @@ apiRouter.use("/subscription", subscriptionRoutes);
 apiRouter.use("/admin-ops", adminOpsRoutes);
 apiRouter.use("/people", peopleRoutes);
 apiRouter.use("/files", fileRoutes);
+apiRouter.use("/notifications", notificationRoutes);
 apiRouter.use("/departments", departmentRoutes);
 apiRouter.use("/positions", positionRoutes);
 apiRouter.use("/roles", roleRoutes);

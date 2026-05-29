@@ -54,8 +54,8 @@ router.post("/register", validate(registerSchema), asyncHandler(controller.regis
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post("/login", authRateLimiter, validate(loginSchema), asyncHandler(controller.login));
-router.post("/select-workspace", authRateLimiter, validate(selectWorkspaceSchema), asyncHandler(controller.selectWorkspace));
+router.post("/login", validate(loginSchema), asyncHandler(controller.login));
+router.post("/select-workspace", validate(selectWorkspaceSchema), asyncHandler(controller.selectWorkspace));
 
 /**
  * @openapi

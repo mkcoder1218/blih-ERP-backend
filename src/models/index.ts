@@ -91,6 +91,10 @@ import defineVendor from "./Vendor";
 import defineOfferLetterTemplate from "./OfferLetterTemplate";
 import defineOfferLetter from "./OfferLetter";
 import defineRecruitmentTemplate from "./RecruitmentTemplate";
+import defineSkill from "./Skill";
+import defineInterviewSkill from "./InterviewSkill";
+import defineInterviewerNote from "./InterviewerNote";
+import defineCandidateOnboarding from "./CandidateOnboarding";
 
 export type DB = {
   sequelize: typeof sequelize;
@@ -184,6 +188,10 @@ export type DB = {
   OfferLetterTemplate: any;
   OfferLetter: any;
   RecruitmentTemplate: any;
+  Skill: any;
+  InterviewSkill: any;
+  InterviewerNote: any;
+  CandidateOnboarding: any;
 };
 
 export const db: DB = {
@@ -277,7 +285,11 @@ export const db: DB = {
   Vendor: defineVendor(sequelize, DataTypes),
   OfferLetterTemplate: defineOfferLetterTemplate(sequelize, DataTypes),
   OfferLetter: defineOfferLetter(sequelize, DataTypes),
-  RecruitmentTemplate: defineRecruitmentTemplate(sequelize, DataTypes)
+  RecruitmentTemplate: defineRecruitmentTemplate(sequelize, DataTypes),
+  Skill: defineSkill(sequelize, DataTypes),
+  InterviewSkill: defineInterviewSkill(sequelize, DataTypes),
+  InterviewerNote: defineInterviewerNote(sequelize, DataTypes),
+  CandidateOnboarding: defineCandidateOnboarding(sequelize, DataTypes),
 };
 
 Object.values(db).forEach((model: any) => {

@@ -12,37 +12,10 @@ const controller = new RoleController();
 
 router.use(authRequired);
 
-/**
- * @openapi
- * /api/roles:
- *   get:
- *     tags: [role]
- *     summary: GET index
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: size
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
+// Domain-scoped endpoint — any authenticated user with a domain role can call this
+// Must be before /:id to avoid route collision
+router.get("/my-domain", requirePermission("role.read"), asyncHandler(controller.listMyDomain));
+
 router.get("/", requireRole("BUSINESS_ADMIN", "PLATFORM_SUPER_ADMIN"), requirePermission("role.read"), asyncHandler(controller.list));
 /**
  * @openapi

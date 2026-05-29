@@ -467,11 +467,24 @@ export class HRController {
                let finalHtml = renderedHtml.renderedContent;
                if (!finalHtml.includes(acceptUrl)) {
                  finalHtml += `
-                   <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
-                     <p style="color: #64748b; font-size: 14px;">To officially accept this job offer, please click the button below:</p>
-                     <a href="${acceptUrl}" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-                       Accept Job Offer
-                     </a>
+                   <div style="margin-top:40px;padding-top:24px;border-top:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">
+                     <p style="color:#64748b;font-size:14px;margin-bottom:20px;">
+                       To officially accept this job offer, please click the button below:
+                     </p>
+                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+                       <tr>
+                         <td style="border-radius:8px;background:#2563eb;">
+                           <a href="${acceptUrl}"
+                              target="_blank"
+                              style="display:inline-block;padding:14px 32px;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px;background:#2563eb;border:1px solid #2563eb;mso-padding-alt:0;text-align:center;">
+                             ✓ Accept Job Offer
+                           </a>
+                         </td>
+                       </tr>
+                     </table>
+                     <p style="color:#94a3b8;font-size:12px;margin-top:16px;">
+                       Or copy this link: <a href="${acceptUrl}" style="color:#2563eb;">${acceptUrl}</a>
+                     </p>
                    </div>
                  `;
                }

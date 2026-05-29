@@ -24,7 +24,11 @@ export default (
       status: { type: dataTypes.STRING(50), defaultValue: "scheduled" }, // scheduled, completed, cancelled, no_show
       feedback: { type: dataTypes.JSONB, defaultValue: {} },
       duration: { type: dataTypes.INTEGER, defaultValue: 60 },
-      sessions: { type: dataTypes.INTEGER, defaultValue: 1 },
+      currentSession: { type: dataTypes.INTEGER, defaultValue: 1 },
+      totalSessions: { type: dataTypes.INTEGER, defaultValue: 1 },
+      candidateAcceptedAt: { type: dataTypes.DATE, allowNull: true },
+      candidateDeclinedAt: { type: dataTypes.DATE, allowNull: true },
+      acceptanceToken: { type: dataTypes.STRING(255), allowNull: true },
       type: { type: dataTypes.STRING, defaultValue: "Face to Face" },
       venue: { type: dataTypes.STRING },
       department: { type: dataTypes.STRING },
@@ -51,6 +55,10 @@ export default (
         as: "interviewer",
       });
     }
+    models.Interview.hasMany(models.InterviewSkill, { 
+      foreignKey: "interviewId",
+      as: "skills"
+    });
   };
   return Interview;
 };

@@ -14,12 +14,23 @@ export class RoleController {
     let businessId: string | undefined = req.user!.businessId;
     
     if (req.user!.isPlatformSuperAdmin) {
-      // Super admin can filter by businessId or see all if not provided
       businessId = (req.query.businessId as string) || undefined;
     }
 
     const roles = await this.service.list(businessId);
     return ok(res, { roles, count: roles.length }, "Roles list");
+  };
+
+  /**
+   * GET /api/v1/roles/my-domain
+   * Returns only the roles the caller is authorized to manage based on their role domain.
+   * HR_MANAGER → hr domain roles, FINANCE_MANAGER → finance domain roles, etc.
+   * BUSINESS_ADMIN → all roles.
+   */
+  listMyDomain = async (req: Request, res: Response) => {
+    const callerRoleKeys: string[] = req.user!.roles || [];
+    const roles = await this.service.listForCaller(req.user!.businessId, callerRoleKeys);
+    return ok(res, { roles, count: roles.length }, "Domain roles list");
   };
 
   get = async (req: Request, res: Response, next: NextFunction) => {
@@ -38,16 +49,18 @@ export class RoleController {
   };
 
   update = async (req: Request, res: Response, next: NextFunction) => {
+    const callerRoleKeys: string[] = req.user!.roles || [];
     const beforeData = await this.service.getById(req.params.id);
-    const role = await this.service.update(req.params.id, req.user!.businessId, req.body);
+    const role = await this.service.update(req.params.id, req.user!.businessId, req.body, callerRoleKeys);
     if (!role) return next({ statusCode: 404, message: "Role not found" });
     await AuditLogService.log("UPDATE", "role", req.params.id, beforeData, role, req);
     return ok(res, { role }, "Role updated");
   };
 
   remove = async (req: Request, res: Response, next: NextFunction) => {
+    const callerRoleKeys: string[] = req.user!.roles || [];
     const beforeData = await this.service.getById(req.params.id);
-    const okFlag = await this.service.softDelete(req.params.id, req.user!.businessId);
+    const okFlag = await this.service.softDelete(req.params.id, req.user!.businessId, callerRoleKeys);
     if (!okFlag) return next({ statusCode: 404, message: "Role not found" });
     await AuditLogService.log("DELETE", "role", req.params.id, beforeData, null, req);
     return ok(res, { ok: true }, "Role removed");

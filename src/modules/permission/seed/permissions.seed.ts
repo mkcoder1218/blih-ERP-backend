@@ -16,7 +16,8 @@ export const SYSTEM_PERMISSIONS = [
   // Recruitment & Jobs (Expanded)
   { module: "job", action: "read", key: "job.read", description: "View job listings and pipelines" },
   { module: "job", action: "manage", key: "job.manage", description: "Complete control over job lifecycle" },
-  { module: "job", action: "post", key: "job:post", description: "Post and publish job openings" },
+  { module: "job", action: "post", key: "job.post", description: "Post and publish job openings" },
+  { module: "job", action: "update", key: "job.update", description: "Edit existing job openings" },
   { module: "job", action: "archive", key: "job.archive", description: "Archive or close job listings" },
   { module: "job_template", action: "read", key: "job_template.read", description: "View recruitment templates" },
   { module: "job_template", action: "manage", key: "job_template.manage", description: "Create and edit recruitment forms and templates" },
@@ -24,8 +25,8 @@ export const SYSTEM_PERMISSIONS = [
   // Applicants & Interviews
   { module: "applicant", action: "read", key: "applicant.read", description: "View candidate profiles and resumes" },
   { module: "applicant", action: "manage", key: "applicant.manage", description: "Process candidates through pipeline stages" },
-  { module: "interview", action: "schedule", key: "interview.schedule", description: "Schedule and manage interview slots" },
-  { module: "interview", action: "feedback", key: "interview.feedback", description: "Submit and view interview evaluations" },
+  { module: "interview", action: "schedule", key: "interview.schedule", description: "Schedule, update, and cancel interview slots" },
+  { module: "interview", action: "feedback", key: "interview.feedback", description: "Submit interview evaluations, complete sessions, and manage skills" },
   
   // Offers & Onboarding
   { module: "offer", action: "create", key: "offer.create", description: "Generate offer letters for candidates" },

@@ -28,4 +28,5 @@ export const offerLetterRoutes = router;
 // Public routes for candidates
 const publicRouter = Router();
 publicRouter.get('/:id/accept', asyncHandler(controller.acceptOffer));
+publicRouter.get('/:id/reject', asyncHandler(controller.rejectOffer));
 export const publicOfferLetterRoutes = publicRouter;

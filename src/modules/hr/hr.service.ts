@@ -85,62 +85,169 @@ export class HRService {
   }
 
   async getOrganogram(businessId: string) {
-    // 1. Fetch all active users and their related HR/Profile data
+    // ── 1. All active users ───────────────────────────────────────────────────
     const users = await db.User.findAll({
       where: { businessId, status: 'active' },
+      attributes: ['id', 'fullName', 'email', 'isPlatformSuperAdmin'],
       include: [
-        { model: db.BusinessUserProfile, required: false, include: [
-          { model: db.Department, as: 'department', attributes: ['id', 'name'] },
-          { model: db.Position, as: 'position', attributes: ['id', 'title'] }
-        ] }
-      ]
+        {
+          model: db.BusinessUserProfile,
+          required: false,
+          include: [
+            { model: db.Department, as: 'department', attributes: ['id', 'name'] },
+            { model: db.Position,   as: 'position',   attributes: ['id', 'title'] },
+          ],
+        },
+        {
+          model: db.Role,
+          through: { attributes: [] },
+          attributes: ['id', 'key', 'name'],
+        },
+      ],
     });
 
-    // 2. Fetch all employee records to get the reporting relationships (managerUserId)
+    // ── 2. Employee records ───────────────────────────────────────────────────
     const records = await db.EmployeeRecord.findAll({
       where: { businessId },
-      attributes: ['userId', 'managerUserId', 'departmentId', 'positionId'],
-      include: [
-        { model: db.Department, as: 'department', attributes: ['id', 'name'] },
-        { model: db.Position, as: 'position', attributes: ['id', 'title'] }
-      ]
+      attributes: ['userId', 'managerUserId', 'employmentStatus'],
+      paranoid: true,
+    });
+    const recordMap = new Map<string, any>();
+    records.forEach((r: any) => {
+      const existing = recordMap.get(r.userId);
+      if (!existing || r.employmentStatus === 'active') recordMap.set(r.userId, r);
     });
 
-    const recordMap = new Map();
-    records.forEach(r => recordMap.set(r.userId, r));
+    // ── 3. Submitted onboardings — track hired-via-onboarding employees ───────
+    // These users have employmentStatus='onboarding' in their record but ARE hired.
+    // We use the onboarding's initializedById / offer's reportingManagerId as their manager.
+    const submittedOnboardings = await db.CandidateOnboarding.findAll({
+      where: { businessId, status: ['SUBMITTED_FOR_REVIEW', 'COMPLETED'] },
+      attributes: ['candidateEmail', 'initializedById', 'offerId'],
+    });
 
-    const nodeMap = new Map();
+    // email (lowercase) → managerId
+    const onboardingManagerByEmail = new Map<string, string | null>();
+    for (const ob of submittedOnboardings) {
+      const email = (ob.candidateEmail || '').toLowerCase();
+      if (!email) continue;
+      let managerId: string | null = ob.initializedById || null;
+      if (ob.offerId) {
+        try {
+          const offer = await db.OfferLetter.findOne({
+            where: { id: ob.offerId },
+            attributes: ['reportingManagerId', 'createdById'],
+          });
+          managerId = offer?.reportingManagerId || ob.initializedById || offer?.createdById || null;
+        } catch { /* offer may not exist */ }
+      }
+      onboardingManagerByEmail.set(email, managerId);
+    }
+
+    // ── 4. Role priority ──────────────────────────────────────────────────────
+    const ROLE_PRIORITY: Record<string, number> = {
+      BUSINESS_ADMIN:  0,
+      HR_MANAGER:      1,
+      FINANCE_MANAGER: 1,
+      CRM_MANAGER:     1,
+      PROJECT_MANAGER: 1,
+      DEPARTMENT_HEAD: 2,
+      EMPLOYEE:        3,
+    };
+
+    const getUserRole = (user: any) => {
+      if (user.isPlatformSuperAdmin) return { key: 'PLATFORM_ADMIN', label: 'Platform Admin', priority: -1 };
+      const roles: any[] = user.Roles || [];
+      let best = { key: 'EMPLOYEE', label: 'Employee', priority: 3 };
+      roles.forEach((r: any) => {
+        const p = ROLE_PRIORITY[r.key] ?? 3;
+        if (p < best.priority) best = { key: r.key, label: r.name || r.key, priority: p };
+      });
+      return best;
+    };
+
+    // ── 5. Build node map ─────────────────────────────────────────────────────
+    const nodeMap = new Map<string, any>();
+
+    users.forEach((u: any) => {
+      const profile  = u.BusinessUserProfile;
+      const record   = recordMap.get(u.id);
+      const role     = getUserRole(u);
+      const email    = (u.email || '').toLowerCase();
+      const hiredViaOnboarding = onboardingManagerByEmail.has(email);
+
+      // Exclude users who:
+      //   - have no record OR record is 'onboarding'
+      //   - AND are plain employees (no elevated role)
+      //   - AND were NOT hired via a submitted onboarding
+      const isPreHireOnly =
+        (!record || record.employmentStatus === 'onboarding') &&
+        role.priority >= 3 &&
+        !hiredViaOnboarding;
+
+      if (isPreHireOnly) return;
+
+      // Manager resolution: explicit record → onboarding-derived
+      const managerId =
+        record?.managerUserId ||
+        (hiredViaOnboarding ? (onboardingManagerByEmail.get(email) ?? null) : null);
+
+      nodeMap.set(u.id, {
+        id:           u.id,
+        name:         u.fullName,
+        title:        profile?.position?.title || role.label,
+        department:   profile?.department?.name || role.label,
+        roleKey:      role.key,
+        rolePriority: role.priority,
+        managerId,
+        children:     [],
+      });
+    });
+
+    // ── 6. Pass 1 — wire explicit manager links ───────────────────────────────
+    const unlinked: any[] = [];
     const tree: any[] = [];
 
-    // 3. Create nodes for every user
-    users.forEach((u: any) => {
-      const record = recordMap.get(u.id);
-      const profile = u.BusinessUserProfile;
-      
-      const node = {
-        id: u.id,
-        name: u.fullName,
-        title: record?.position?.title || profile?.position?.title || (u.isPlatformSuperAdmin ? 'Platform Admin' : 'Staff'),
-        department: record?.department?.name || profile?.department?.name || 'General',
-        managerId: record?.managerUserId || null,
-        avatar: null,
-        children: []
-      };
-      nodeMap.set(node.id, node);
-    });
-
-    // 4. Build the tree
     nodeMap.forEach(node => {
-      if (node.managerId && nodeMap.has(node.managerId) && node.managerId !== node.id) {
+      if (node.managerId && node.managerId !== node.id && nodeMap.has(node.managerId)) {
         nodeMap.get(node.managerId).children.push(node);
       } else {
-        tree.push(node);
+        unlinked.push(node);
       }
     });
 
-    // 5. If we have multiple roots but one is clearly an Admin/CEO, we could potentially group others under them, 
-    // but usually multiple roots are shown side-by-side in a recursive tree if they don't report to anyone.
-    
+    // ── 7. Pass 2 — priority-based fallback for unlinked nodes ───────────────
+    unlinked.sort((a, b) => a.rolePriority - b.rolePriority);
+
+    const findBestParent = (node: any): any | null => {
+      const candidates: any[] = [];
+      nodeMap.forEach(c => {
+        if (c.id !== node.id && c.rolePriority < node.rolePriority) candidates.push(c);
+      });
+      if (!candidates.length) return null;
+      const closestPriority = Math.max(...candidates.map(c => c.rolePriority));
+      const closest = candidates.filter(c => c.rolePriority === closestPriority);
+      closest.sort((a, b) => a.children.length - b.children.length);
+      return closest[0];
+    };
+
+    unlinked.forEach(node => {
+      const parent = findBestParent(node);
+      if (parent) parent.children.push(node);
+      else tree.push(node);
+    });
+
+    // ── 8. Sort every level by priority then name ─────────────────────────────
+    const sortLevel = (nodes: any[]) => {
+      nodes.sort((a, b) =>
+        a.rolePriority !== b.rolePriority
+          ? a.rolePriority - b.rolePriority
+          : a.name.localeCompare(b.name)
+      );
+      nodes.forEach(n => sortLevel(n.children));
+    };
+    sortLevel(tree);
+
     return tree;
   }
 }

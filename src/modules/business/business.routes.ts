@@ -133,4 +133,12 @@ router.delete(
   asyncHandler(controller.remove)
 );
 
+// Permanent purge — removes the business and ALL associated data irreversibly
+router.delete(
+  "/:id/purge",
+  requireRole("PLATFORM_SUPER_ADMIN"),
+  requirePermission("business.delete"),
+  asyncHandler(controller.purge)
+);
+
 export const businessRoutes = router;

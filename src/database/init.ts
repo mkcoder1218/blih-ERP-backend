@@ -137,6 +137,11 @@ export async function initDatabase() {
       await ensurePeopleProfileSchema();
       await ensureRecruitmentSchema();
       await ensureFileAssetPublicUploadSchema();
+      await ensureInterviewSkillsSchema();
+      await ensureInterviewerNotesSchema();
+      await ensureRolesDomainSchema();
+      await ensureOfferLettersSchema();
+      await ensureCandidateOnboardingSchema();
     }
 
     const canSeed = await tableExists("permissions");
@@ -243,5 +248,297 @@ async function ensureFileAssetPublicUploadSchema() {
     console.log("file_assets.uploadedByUserId patched to allow NULL for public uploads.");
   } catch (err) {
     console.error("ensureFileAssetPublicUploadSchema failed:", err);
+  }
+}
+
+async function ensureInterviewSkillsSchema() {
+  const qi = sequelize.getQueryInterface();
+  const { DataTypes } = require("sequelize");
+
+  // Create skills table
+  const hasSkills = await tableExists("skills");
+  if (!hasSkills) {
+    await qi.createTable("skills", {
+      id: { type: DataTypes.UUID, allowNull: false, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+      businessId: { type: DataTypes.UUID, allowNull: true }, // null = global skill
+      name: { type: DataTypes.STRING(100), allowNull: false },
+      category: { type: DataTypes.STRING(50), allowNull: true },
+      status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "active" },
+      createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      deletedAt: { type: DataTypes.DATE, allowNull: true }
+    } as any);
+    
+    await qi.addIndex("skills", ["businessId"], { name: "skills_businessId_idx" } as any);
+    await qi.addIndex("skills", ["name", "businessId"], { name: "skills_name_businessId_unique", unique: true } as any);
+    
+    await qi.addConstraint("skills", {
+      fields: ["businessId"],
+      type: "foreign key",
+      name: "skills_businessId_fkey",
+      references: { table: "businesses", field: "id" },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE"
+    } as any);
+  }
+
+  // Create interview_skills table
+  const hasInterviewSkills = await tableExists("interview_skills");
+  if (!hasInterviewSkills) {
+    await qi.createTable("interview_skills", {
+      id: { type: DataTypes.UUID, allowNull: false, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+      businessId: { type: DataTypes.UUID, allowNull: false },
+      interviewId: { type: DataTypes.UUID, allowNull: false },
+      skillId: { type: DataTypes.UUID, allowNull: false },
+      requiredRating: { type: DataTypes.INTEGER, allowNull: false },
+      actualRating: { type: DataTypes.INTEGER, allowNull: true },
+      createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      deletedAt: { type: DataTypes.DATE, allowNull: true }
+    } as any);
+    
+    await qi.addIndex("interview_skills", ["interviewId"], { name: "interview_skills_interviewId_idx" } as any);
+    await qi.addIndex("interview_skills", ["skillId"], { name: "interview_skills_skillId_idx" } as any);
+    await qi.addIndex("interview_skills", ["businessId"], { name: "interview_skills_businessId_idx" } as any);
+    
+    await qi.addConstraint("interview_skills", {
+      fields: ["businessId"],
+      type: "foreign key",
+      name: "interview_skills_businessId_fkey",
+      references: { table: "businesses", field: "id" },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE"
+    } as any);
+    
+    await qi.addConstraint("interview_skills", {
+      fields: ["interviewId"],
+      type: "foreign key",
+      name: "interview_skills_interviewId_fkey",
+      references: { table: "hr_interviews", field: "id" },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE"
+    } as any);
+    
+    await qi.addConstraint("interview_skills", {
+      fields: ["skillId"],
+      type: "foreign key",
+      name: "interview_skills_skillId_fkey",
+      references: { table: "skills", field: "id" },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE"
+    } as any);
+  }
+
+  // Update hr_interviews table with new columns if they don't exist
+  const interviewDesc: any = await qi.describeTable("hr_interviews");
+
+  const interviewColsToAdd: Array<[string, any]> = [
+    ["currentSession",      { type: DataTypes.INTEGER,      allowNull: false, defaultValue: 1 }],
+    ["totalSessions",       { type: DataTypes.INTEGER,      allowNull: false, defaultValue: 1 }],
+    ["candidateAcceptedAt", { type: DataTypes.DATE,         allowNull: true }],
+    ["candidateDeclinedAt", { type: DataTypes.DATE,         allowNull: true }],
+    ["acceptanceToken",     { type: DataTypes.STRING(255),  allowNull: true }],
+    ["interviewerUserId",   { type: DataTypes.UUID,         allowNull: true }],
+    ["type",                { type: DataTypes.STRING(100),  allowNull: true, defaultValue: "Face to Face" }],
+    ["venue",               { type: DataTypes.STRING(500),  allowNull: true }],
+    ["department",          { type: DataTypes.STRING(255),  allowNull: true }],
+    ["panel",               { type: DataTypes.JSONB,        allowNull: true, defaultValue: [] }],
+    ["questions",           { type: DataTypes.JSONB,        allowNull: true, defaultValue: [] }],
+    ["additionalNotes",     { type: DataTypes.TEXT,         allowNull: true }],
+    ["score",               { type: DataTypes.FLOAT,        allowNull: true }],
+  ];
+
+  for (const [col, def] of interviewColsToAdd) {
+    if (!interviewDesc[col]) {
+      await qi.addColumn("hr_interviews", col, def as any);
+      console.log(`hr_interviews: added column "${col}"`);
+    }
+  }
+}
+
+async function ensureInterviewerNotesSchema() {
+  const qi = sequelize.getQueryInterface();
+  const { DataTypes } = require("sequelize");
+
+  const hasTable = await tableExists("interview_notes");
+  if (hasTable) return;
+
+  await qi.createTable("interview_notes", {
+    id:             { type: DataTypes.UUID,    allowNull: false, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    businessId:     { type: DataTypes.UUID,    allowNull: false },
+    interviewId:    { type: DataTypes.UUID,    allowNull: false },
+    interviewerId:  { type: DataTypes.UUID,    allowNull: false },
+    questions:      { type: DataTypes.JSONB,   allowNull: false, defaultValue: [] },
+    notes:          { type: DataTypes.TEXT,    allowNull: true },
+    skillRatings:   { type: DataTypes.JSONB,   allowNull: false, defaultValue: [] },
+    candidateScore: { type: DataTypes.FLOAT,   allowNull: true },
+    createdAt:      { type: DataTypes.DATE,    allowNull: false, defaultValue: DataTypes.NOW },
+    updatedAt:      { type: DataTypes.DATE,    allowNull: false, defaultValue: DataTypes.NOW },
+    deletedAt:      { type: DataTypes.DATE,    allowNull: true },
+  } as any);
+
+  await qi.addIndex("interview_notes", ["interviewId"],   { name: "interview_notes_interviewId_idx" } as any);
+  await qi.addIndex("interview_notes", ["interviewerId"], { name: "interview_notes_interviewerId_idx" } as any);
+  await qi.addIndex("interview_notes", ["interviewId", "interviewerId"], { name: "interview_notes_unique_idx", unique: true } as any);
+
+  await qi.addConstraint("interview_notes", {
+    fields: ["businessId"], type: "foreign key",
+    name: "interview_notes_businessId_fkey",
+    references: { table: "businesses", field: "id" },
+    onDelete: "CASCADE", onUpdate: "CASCADE",
+  } as any);
+  await qi.addConstraint("interview_notes", {
+    fields: ["interviewId"], type: "foreign key",
+    name: "interview_notes_interviewId_fkey",
+    references: { table: "hr_interviews", field: "id" },
+    onDelete: "CASCADE", onUpdate: "CASCADE",
+  } as any);
+  await qi.addConstraint("interview_notes", {
+    fields: ["interviewerId"], type: "foreign key",
+    name: "interview_notes_interviewerId_fkey",
+    references: { table: "users", field: "id" },
+    onDelete: "CASCADE", onUpdate: "CASCADE",
+  } as any);
+
+  console.log("interview_notes table created.");
+}
+
+async function ensureRolesDomainSchema() {
+  try {
+    const qi = sequelize.getQueryInterface();
+    const { DataTypes } = require("sequelize");
+
+    const hasTable = await tableExists("roles");
+    if (!hasTable) return;
+
+    const desc: any = await qi.describeTable("roles");
+
+    if (!desc["domain"]) {
+      await qi.addColumn("roles", "domain", {
+        type: DataTypes.STRING(60),
+        allowNull: true,
+        defaultValue: null,
+      } as any);
+      console.log('roles: added column "domain"');
+    }
+  } catch (err) {
+    console.error("ensureRolesDomainSchema failed:", err);
+  }
+}
+
+async function ensureOfferLettersSchema() {
+  try {
+    const qi = sequelize.getQueryInterface();
+    const { DataTypes } = require("sequelize");
+
+    const hasTable = await tableExists("offer_letters");
+    if (!hasTable) return;
+
+    const desc: any = await qi.describeTable("offer_letters");
+
+    // Columns added after initial table creation
+    const colsToAdd: Array<[string, any]> = [
+      ["reportingManagerId", { type: DataTypes.UUID,    allowNull: true, defaultValue: null }],
+      ["rejectedAt",         { type: DataTypes.DATE,    allowNull: true }],
+      ["workLocation",       { type: DataTypes.STRING,  allowNull: true }],
+    ];
+
+    for (const [col, def] of colsToAdd) {
+      if (!desc[col]) {
+        await qi.addColumn("offer_letters", col, def as any);
+        console.log(`offer_letters: added column "${col}"`);
+      }
+    }
+
+    // Also make roleId, positionId, departmentId, salary, startDate, employmentType nullable if they aren't already
+    for (const col of ["roleId", "positionId", "departmentId", "salary", "startDate", "employmentType"]) {
+      if (desc[col] && desc[col].allowNull === false) {
+        const colType = col === "startDate"
+          ? DataTypes.DATEONLY
+          : DataTypes.STRING;
+        await qi.changeColumn("offer_letters", col, {
+          type: colType,
+          allowNull: true,
+        } as any);
+        console.log(`offer_letters: made "${col}" nullable`);
+      }
+    }
+  } catch (err) {
+    console.error("ensureOfferLettersSchema failed:", err);
+  }
+}
+
+async function ensureCandidateOnboardingSchema() {
+  try {
+    const qi = sequelize.getQueryInterface();
+    const { DataTypes } = require("sequelize");
+
+    // Create candidate_onboardings table
+    const hasTable = await tableExists("candidate_onboardings");
+    if (!hasTable) {
+      await qi.createTable("candidate_onboardings", {
+        id: { type: DataTypes.UUID, allowNull: false, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+        onboardingId: { type: DataTypes.STRING(64), allowNull: false, unique: true },
+        businessId: { type: DataTypes.UUID, allowNull: false },
+        offerId: { type: DataTypes.UUID, allowNull: false },
+        candidateEmail: { type: DataTypes.STRING, allowNull: false },
+        candidateName: { type: DataTypes.STRING, allowNull: false },
+        status: {
+          type: DataTypes.ENUM(
+            "PENDING_CANDIDATE_COMPLETION",
+            "IN_PROGRESS",
+            "SUBMITTED_FOR_REVIEW",
+            "COMPLETED",
+            "CANCELLED"
+          ),
+          allowNull: false,
+          defaultValue: "PENDING_CANDIDATE_COMPLETION",
+        },
+        sections: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+        resources: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+        requiredDocuments: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+        requiredPolicies: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+        candidateData: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+        resourceResponses: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+        progress: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+        submittedAt: { type: DataTypes.DATE, allowNull: true },
+        initializedById: { type: DataTypes.UUID, allowNull: true },
+        metadata: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+        createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+        updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+        deletedAt: { type: DataTypes.DATE, allowNull: true },
+      } as any);
+
+      await qi.addIndex("candidate_onboardings", ["businessId"], { name: "candidate_onboardings_businessId_idx" } as any);
+      await qi.addIndex("candidate_onboardings", ["onboardingId"], { name: "candidate_onboardings_onboardingId_unique", unique: true } as any);
+      await qi.addIndex("candidate_onboardings", ["offerId"], { name: "candidate_onboardings_offerId_idx" } as any);
+
+      await qi.addConstraint("candidate_onboardings", {
+        fields: ["businessId"],
+        type: "foreign key",
+        name: "candidate_onboardings_businessId_fkey",
+        references: { table: "businesses", field: "id" },
+        onDelete: "CASCADE",
+        onUpdate: "CASCADE",
+      } as any);
+
+      console.log("candidate_onboardings table created.");
+    }
+
+    // Add onboardingInitialized column to offer_letters if missing
+    const hasOfferLetters = await tableExists("offer_letters");
+    if (hasOfferLetters) {
+      const offerDesc: any = await qi.describeTable("offer_letters");
+      if (!offerDesc["onboardingInitialized"]) {
+        await qi.addColumn("offer_letters", "onboardingInitialized", {
+          type: DataTypes.BOOLEAN,
+          allowNull: false,
+          defaultValue: false,
+        } as any);
+        console.log('offer_letters: added column "onboardingInitialized"');
+      }
+    }
+  } catch (err) {
+    console.error("ensureCandidateOnboardingSchema failed:", err);
   }
 }

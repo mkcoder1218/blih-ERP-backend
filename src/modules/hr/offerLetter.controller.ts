@@ -96,7 +96,12 @@ export class OfferLetterController {
 
   createOfferLetter = async (req: Request, res: Response) => {
     try {
-      const payload = { ...req.body, businessId: req.user!.businessId, createdById: req.user!.id };
+      const body = { ...req.body };
+      // Sanitize empty UUID strings to null so Postgres doesn't choke
+      for (const field of ['departmentId', 'roleId', 'positionId', 'reportingManagerId']) {
+        if (body[field] === '' || body[field] === undefined) body[field] = null;
+      }
+      const payload = { ...body, businessId: req.user!.businessId, createdById: req.user!.id };
       const letter = await db.OfferLetter.create(payload);
       successResponse(res, letter, "Offer draft created", 201);
     } catch (e: any) { errorResponse(res, e.message); }
@@ -131,16 +136,82 @@ export class OfferLetterController {
       const { templateId, data } = req.body;
       const template = await db.OfferLetterTemplate.findOne({ where: { id: templateId, businessId: req.user!.businessId } });
       if (!template) return errorResponse(res, "Template not found", 404);
-      
-      const renderedHtml = renderOfferLetter(template.bodyHtml, data);
-      const renderedText = renderOfferLetter(template.bodyText, data);
-      const renderedSubject = renderOfferLetter(template.subject, data);
+
+      // Allow the caller to pass an edited body/subject (from the inline editor)
+      const bodyHtml    = data?.overrideBodyHtml ?? template.bodyHtml;
+      const bodyText    = data?.overrideSubject   ? '' : (template.bodyText || '');
+      const subject     = data?.overrideSubject   ?? template.subject;
+
+      // Strip the override keys from the render data so they don't appear as {{...}}
+      const renderData: Record<string, string> = { ...data };
+      delete renderData.overrideBodyHtml;
+      delete renderData.overrideSubject;
+
+      // Add common aliases so templates using {{name}} or {{positionTitle}} work too
+      renderData.name          = renderData.candidateName  || renderData.name          || '';
+      renderData.positionTitle = renderData.positionName   || renderData.positionTitle || renderData.roleName || '';
+      renderData.department    = renderData.departmentName || renderData.department    || '';
+      renderData.position      = renderData.positionName   || renderData.position      || '';
+      renderData.role          = renderData.roleName       || renderData.role          || '';
+      renderData.email         = renderData.candidateEmail || renderData.email         || '';
+      renderData.phone         = renderData.candidatePhone || renderData.phone         || '';
+      renderData.company       = renderData.companyName    || renderData.company       || '';
+      // acceptUrl/rejectUrl are generated at send-time — use placeholder hrefs for preview
+      renderData.acceptUrl = renderData.acceptUrl || '#accept-preview';
+      renderData.rejectUrl = renderData.rejectUrl || '#reject-preview';
+
+      const renderedHtml    = renderOfferLetter(bodyHtml,  renderData);
+      const renderedText    = renderOfferLetter(bodyText,  renderData);
+      const renderedSubject = renderOfferLetter(subject,   renderData);
+
+      // If the template doesn't include styled accept/reject buttons, append preview placeholders.
+      // We check for the table-based button pattern (used in the failsafe send block).
+      // A bare {{acceptUrl}} link in the template body is NOT sufficient — we still append.
+      let previewHtml = renderedHtml.renderedContent;
+      const hasStyledButtons = previewHtml.includes('role="presentation"') && 
+                               (previewHtml.includes('Accept') || previewHtml.includes('accept'));
+      if (!hasStyledButtons) {
+        previewHtml += `
+          <div style="margin-top:40px;padding-top:24px;border-top:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">
+            <p style="color:#64748b;font-size:13px;margin-bottom:20px;font-style:italic;">
+              ↓ The candidate will see these buttons in the actual email
+            </p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+              <tr>
+                <td style="padding-right:12px;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                    <tr>
+                      <td style="border-radius:8px;background:#16a34a;">
+                        <span style="display:inline-block;padding:14px 32px;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;border-radius:8px;background:#16a34a;">
+                          ✓ Accept Offer
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+                <td style="padding-left:12px;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                    <tr>
+                      <td style="border-radius:8px;background:#ffffff;border:2px solid #dc2626;">
+                        <span style="display:inline-block;padding:12px 32px;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;color:#dc2626;border-radius:8px;">
+                          ✗ Decline Offer
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </div>
+        `;
+      }
       
       successResponse(res, {
-        html: renderedHtml.renderedContent,
+        html: previewHtml,
         text: renderedText.renderedContent,
         subject: renderedSubject.renderedContent,
         missingVariables: [...new Set([...renderedHtml.missingVariables, ...renderedText.missingVariables, ...renderedSubject.missingVariables])]
+          .filter((v: string) => v !== 'acceptUrl' && v !== 'rejectUrl')
       });
     } catch (e: any) { errorResponse(res, e.message); }
   };
@@ -171,31 +242,111 @@ export class OfferLetterController {
       const template = await db.OfferLetterTemplate.findOne({ where: { id: letter.templateId } });
       if (!template) return errorResponse(res, "Template linked is not found", 404);
 
+      // Build the public accept/reject URLs — must match the route mounted in app.ts
+      // Public offer routes are at: /api/v1/hr/public/offers/:id/accept|reject
+      const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
+      const acceptUrl = `${backendUrl}/api/v1/hr/public/offers/${letter.id}/accept`;
+      const rejectUrl = `${backendUrl}/api/v1/hr/public/offers/${letter.id}/reject`;
+
+      // Merge both URLs into render data so templates can use {{acceptUrl}} and {{rejectUrl}}
+      // Also add common aliases so templates using {{name}} or {{positionTitle}} work too
+      // Resolve reportingManager name from user if reportingManagerId is provided
+      let reportingManagerName = data?.reportingManager || '';
+      if (data?.reportingManagerId) {
+        const mgr = await db.User.findByPk(data.reportingManagerId, { attributes: ['fullName'] });
+        if (mgr) reportingManagerName = mgr.fullName;
+      }
+
+      const renderData: Record<string, string> = {
+        ...(data || {}),
+        acceptUrl,
+        rejectUrl,
+        reportingManager: reportingManagerName,
+        // aliases for common template variable names
+        name:          data?.candidateName  || data?.name          || '',
+        positionTitle: data?.positionName   || data?.positionTitle || data?.roleName || '',
+        department:    data?.departmentName || data?.department    || '',
+        position:      data?.positionName   || data?.position      || '',
+        role:          data?.roleName       || data?.role          || '',
+        email:         data?.candidateEmail || data?.email         || '',
+        phone:         data?.candidatePhone || data?.phone         || '',
+        company:       data?.companyName    || data?.company       || '',
+      };
+
       // Render
-      const renderedHtml = renderOfferLetter(template.bodyHtml, data);
-      const renderedText = renderOfferLetter(template.bodyText, data);
-      const renderedSubject = renderOfferLetter(template.subject, data);
+      const renderedHtml = renderOfferLetter(template.bodyHtml, renderData);
+      const renderedText = renderOfferLetter(template.bodyText, renderData);
+      const renderedSubject = renderOfferLetter(template.subject, renderData);
       
       const missing = [...new Set([...renderedHtml.missingVariables, ...renderedText.missingVariables, ...renderedSubject.missingVariables])];
-      if (missing.length > 0) {
-        return errorResponse(res, `Missing template variables: ${missing.join(', ')}`, 400);
+      // acceptUrl and rejectUrl are injected above — if still missing it means the renderer
+      // didn't find them, which shouldn't happen. Only block on truly missing data fields.
+      const blockingMissing = missing.filter(v => v !== 'acceptUrl' && v !== 'rejectUrl');
+      if (blockingMissing.length > 0) {
+        return errorResponse(res, `Missing template variables: ${blockingMissing.join(', ')}`, 400);
+      }
+
+      // Failsafe: if template didn't include the action buttons, append them
+      let finalHtml = renderedHtml.renderedContent;
+      const hasBothButtons = finalHtml.includes(acceptUrl) && finalHtml.includes(rejectUrl);
+      if (!hasBothButtons) {
+        finalHtml += `
+          <div style="margin-top:40px;padding-top:24px;border-top:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">
+            <p style="color:#64748b;font-size:14px;margin-bottom:24px;">
+              Please respond to this job offer by clicking one of the buttons below:
+            </p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+              <tr>
+                <td style="padding-right:12px;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                    <tr>
+                      <td style="border-radius:8px;background:#16a34a;">
+                        <a href="${acceptUrl}"
+                           target="_blank"
+                           style="display:inline-block;padding:14px 32px;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px;background:#16a34a;border:1px solid #16a34a;mso-padding-alt:0;text-align:center;">
+                          ✓ Accept Offer
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+                <td style="padding-left:12px;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                    <tr>
+                      <td style="border-radius:8px;background:#ffffff;border:2px solid #dc2626;">
+                        <a href="${rejectUrl}"
+                           target="_blank"
+                           style="display:inline-block;padding:12px 32px;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;color:#dc2626;text-decoration:none;border-radius:8px;mso-padding-alt:0;text-align:center;">
+                          ✗ Decline Offer
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#94a3b8;font-size:11px;margin-top:20px;">
+              Accept: <a href="${acceptUrl}" style="color:#16a34a;">${acceptUrl}</a><br/>
+              Decline: <a href="${rejectUrl}" style="color:#dc2626;">${rejectUrl}</a>
+            </p>
+          </div>
+        `;
       }
 
       await letter.update({
-        renderedHtml: renderedHtml.renderedContent,
+        renderedHtml: finalHtml,
         renderedText: renderedText.renderedContent,
         renderedSubject: renderedSubject.renderedContent
       });
 
-      // Optionally Generate PDF directly before sending
-      const pdfPath = await generateOfferLetterPdf(renderedHtml.renderedContent, req.user!.businessId, letter.id);
+      // Generate PDF and send email
+      const pdfPath = await generateOfferLetterPdf(finalHtml, req.user!.businessId, letter.id);
       await letter.update({ pdfPath });
 
-      // Send Email
       await sendOfferLetterEmail(
         letter.candidateEmail,
         renderedSubject.renderedContent,
-        renderedHtml.renderedContent,
+        finalHtml,
         renderedText.renderedContent,
         pdfPath
       );
@@ -253,15 +404,97 @@ export class OfferLetterController {
 
       await transaction.commit();
       res.send(`
-        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-          <h1 style="color: #2563eb;">Congratulations!</h1>
-          <p>You have successfully accepted the job offer.</p>
-          <p>Your account is now active. You can log in to the portal using the email and password provided in your onboarding email.</p>
-          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 20px;">Go to Login</a>
-        </div>
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"><title>Offer Accepted</title></head>
+        <body style="font-family:Arial,sans-serif;background:#f0fdf4;margin:0;padding:0;min-height:100vh;display:flex;align-items:center;justify-content:center;">
+          <div style="text-align:center;padding:60px 40px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);max-width:520px;margin:40px auto;">
+            <div style="width:72px;height:72px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
+              <span style="font-size:36px;">🎉</span>
+            </div>
+            <h1 style="color:#16a34a;font-size:26px;margin:0 0 12px;font-weight:800;">Offer Accepted!</h1>
+            <p style="color:#64748b;font-size:15px;line-height:1.7;margin:0 0 12px;">
+              Congratulations, <strong style="color:#1e293b;">${letter.candidateName}</strong>! You have successfully accepted the job offer.
+            </p>
+            <p style="color:#64748b;font-size:14px;line-height:1.7;margin:0 0 32px;padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
+              Your HR team will be in touch shortly with your personalised onboarding link.<br/>
+              Please check your email — your onboarding journey is about to begin!
+            </p>
+            <div style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 24px;">
+              <p style="color:#15803d;font-size:13px;font-weight:600;margin:0;">
+                ✓ Your offer has been accepted &amp; recorded
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
       `);
     } catch (e: any) {
       if (transaction) await transaction.rollback();
+      errorResponse(res, e.message);
+    }
+  };
+
+  rejectOffer = async (req: Request, res: Response) => {
+    console.log(`[OfferReject] Attempting to reject offer for ID: ${req.params.id}`);
+    try {
+      const { id } = req.params;
+      const letter = await db.OfferLetter.findByPk(id);
+
+      if (!letter) return errorResponse(res, "Offer letter not found", 404);
+
+      if (letter.status === 'REJECTED') {
+        return res.send(`
+          <!DOCTYPE html>
+          <html>
+          <head><meta charset="utf-8"><title>Already Declined</title></head>
+          <body style="font-family:Arial,sans-serif;background:#fef2f2;margin:0;padding:0;min-height:100vh;">
+            <div style="text-align:center;padding:60px 40px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);max-width:480px;margin:40px auto;">
+              <p style="color:#64748b;font-size:15px;">This offer has already been declined.</p>
+            </div>
+          </body>
+          </html>
+        `);
+      }
+
+      if (letter.status === 'ACCEPTED') {
+        return res.send(`
+          <!DOCTYPE html>
+          <html>
+          <head><meta charset="utf-8"><title>Already Accepted</title></head>
+          <body style="font-family:Arial,sans-serif;background:#f0fdf4;margin:0;padding:0;min-height:100vh;">
+            <div style="text-align:center;padding:60px 40px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);max-width:480px;margin:40px auto;">
+              <p style="color:#64748b;font-size:15px;">This offer has already been accepted and cannot be declined.</p>
+            </div>
+          </body>
+          </html>
+        `);
+      }
+
+      await letter.update({
+        status: 'REJECTED',
+        rejectedAt: new Date(),
+      });
+
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"><title>Offer Declined</title></head>
+        <body style="font-family:Arial,sans-serif;background:#fef2f2;margin:0;padding:0;min-height:100vh;">
+          <div style="text-align:center;padding:60px 40px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);max-width:480px;margin:40px auto;">
+            <div style="width:64px;height:64px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
+              <span style="font-size:32px;">✗</span>
+            </div>
+            <h1 style="color:#dc2626;font-size:24px;margin:0 0 12px;">Offer Declined</h1>
+            <p style="color:#64748b;font-size:15px;line-height:1.6;margin:0 0 8px;">
+              You have declined this job offer. We appreciate your time and wish you the best in your career journey.
+            </p>
+            <p style="color:#94a3b8;font-size:13px;">The hiring team has been notified of your decision.</p>
+          </div>
+        </body>
+        </html>
+      `);
+    } catch (e: any) {
       errorResponse(res, e.message);
     }
   };

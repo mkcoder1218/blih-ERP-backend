@@ -7,14 +7,15 @@ interface OfferLetterAttributes {
   candidateName: string;
   candidateEmail: string;
   candidatePhone?: string;
-  departmentId: string;
-  roleId: string;
-  positionId: string;
-  salary: string;
-  startDate: Date | string;
-  employmentType: string;
+  departmentId?: string | null;
+  roleId?: string | null;
+  positionId?: string | null;
+  salary?: string | null;
+  startDate?: Date | string | null;
+  employmentType?: string | null;
   workLocation?: string;
   reportingManager?: string;
+  reportingManagerId?: string | null;
   status: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED';
   renderedSubject?: string;
   renderedHtml?: string;
@@ -25,10 +26,11 @@ interface OfferLetterAttributes {
   acceptedAt?: Date;
   rejectedAt?: Date;
   rejectionReason?: string;
+  onboardingInitialized?: boolean;
   createdById: string;
 }
 
-interface OfferLetterCreationAttributes extends Optional<OfferLetterAttributes, 'id' | 'status' | 'candidatePhone' | 'workLocation' | 'reportingManager' | 'renderedSubject' | 'renderedHtml' | 'renderedText' | 'pdfUrl' | 'pdfPath' | 'sentAt' | 'acceptedAt' | 'rejectedAt' | 'rejectionReason'> {}
+interface OfferLetterCreationAttributes extends Optional<OfferLetterAttributes, 'id' | 'status' | 'candidatePhone' | 'departmentId' | 'roleId' | 'positionId' | 'salary' | 'startDate' | 'employmentType' | 'workLocation' | 'reportingManager' | 'reportingManagerId' | 'renderedSubject' | 'renderedHtml' | 'renderedText' | 'pdfUrl' | 'pdfPath' | 'sentAt' | 'acceptedAt' | 'rejectedAt' | 'rejectionReason' | 'onboardingInitialized'> {}
 
 export class OfferLetter extends Model<OfferLetterAttributes, OfferLetterCreationAttributes> implements OfferLetterAttributes {
   public id!: string;
@@ -37,14 +39,15 @@ export class OfferLetter extends Model<OfferLetterAttributes, OfferLetterCreatio
   public candidateName!: string;
   public candidateEmail!: string;
   public candidatePhone?: string;
-  public departmentId!: string;
-  public roleId!: string;
-  public positionId!: string;
+  public departmentId?: string | null;
+  public roleId?: string | null;
+  public positionId?: string | null;
   public salary!: string;
   public startDate!: Date;
   public employmentType!: string;
   public workLocation?: string;
   public reportingManager?: string;
+  public reportingManagerId?: string | null;
   public status!: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED';
   public renderedSubject?: string;
   public renderedHtml?: string;
@@ -100,27 +103,27 @@ export default (sequelize: Sequelize, dt: typeof DataTypes) => {
       },
       departmentId: {
         type: dt.UUID,
-        allowNull: false,
+        allowNull: true,
       },
       roleId: {
         type: dt.UUID,
-        allowNull: false,
+        allowNull: true,
       },
       positionId: {
         type: dt.UUID,
-        allowNull: false,
+        allowNull: true,
       },
       salary: {
         type: dt.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       startDate: {
         type: dt.DATEONLY,
-        allowNull: false,
+        allowNull: true,
       },
       employmentType: {
         type: dt.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       workLocation: {
         type: dt.STRING,
@@ -128,6 +131,10 @@ export default (sequelize: Sequelize, dt: typeof DataTypes) => {
       },
       reportingManager: {
         type: dt.STRING,
+        allowNull: true,
+      },
+      reportingManagerId: {
+        type: dt.UUID,
         allowNull: true,
       },
       status: {
@@ -170,6 +177,11 @@ export default (sequelize: Sequelize, dt: typeof DataTypes) => {
       rejectionReason: {
         type: dt.TEXT,
         allowNull: true,
+      },
+      onboardingInitialized: {
+        type: dt.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       createdById: {
         type: dt.UUID,

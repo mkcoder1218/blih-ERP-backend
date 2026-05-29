@@ -42,4 +42,23 @@ export class BusinessController {
     await AuditLogService.log("DELETE", "business", req.params.id, beforeData, null, req);
     return ok(res, { ok: true }, "Business deleted");
   };
+
+  /**
+   * DELETE /api/v1/businesses/:id/purge
+   * Permanently removes the business and ALL associated data.
+   * Only callable by PLATFORM_SUPER_ADMIN.
+   */
+  purge = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const beforeData = await this.service.getById(req.params.id);
+      if (!beforeData) return next({ statusCode: 404, message: "Business not found" });
+
+      await this.service.purge(req.params.id);
+
+      await AuditLogService.log("PURGE", "business", req.params.id, beforeData, null, req);
+      return ok(res, { ok: true }, "Business and all associated data permanently deleted");
+    } catch (e: any) {
+      return next({ statusCode: 500, message: e.message });
+    }
+  };
 }
