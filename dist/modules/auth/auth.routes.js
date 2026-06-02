@@ -7,7 +7,6 @@ const asyncHandler_1 = require("../../utils/asyncHandler");
 const auth_validator_1 = require("../../validators/auth.validator");
 const auth_controller_1 = require("./auth.controller");
 const auth_1 = require("../../middlewares/auth");
-const security_1 = require("../../middlewares/security");
 const router = (0, express_1.Router)();
 const controller = new auth_controller_1.AuthController();
 /**
@@ -55,8 +54,8 @@ router.post("/register", (0, validate_1.validate)(auth_validator_1.registerSchem
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post("/login", security_1.authRateLimiter, (0, validate_1.validate)(auth_validator_1.loginSchema), (0, asyncHandler_1.asyncHandler)(controller.login));
-router.post("/select-workspace", security_1.authRateLimiter, (0, validate_1.validate)(auth_validator_1.selectWorkspaceSchema), (0, asyncHandler_1.asyncHandler)(controller.selectWorkspace));
+router.post("/login", (0, validate_1.validate)(auth_validator_1.loginSchema), (0, asyncHandler_1.asyncHandler)(controller.login));
+router.post("/select-workspace", (0, validate_1.validate)(auth_validator_1.selectWorkspaceSchema), (0, asyncHandler_1.asyncHandler)(controller.selectWorkspace));
 /**
  * @openapi
  * /api/v1/auth/me:
@@ -76,6 +75,7 @@ router.post("/select-workspace", security_1.authRateLimiter, (0, validate_1.vali
  *         $ref: '#/components/responses/500'
  */
 router.get("/me", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(controller.me));
-router.post("/refresh", security_1.authRateLimiter, (0, asyncHandler_1.asyncHandler)(controller.refresh));
+router.post("/refresh", (0, asyncHandler_1.asyncHandler)(controller.refresh));
+// router.post("/refresh", authRateLimiter, asyncHandler(controller.refresh));
 router.post("/logout", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(controller.logout));
 exports.authRoutes = router;

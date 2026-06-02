@@ -45,12 +45,17 @@ const notFound_1 = require("./middlewares/notFound");
 const errorHandler_1 = require("./middlewares/errorHandler");
 const auth_routes_1 = require("./modules/auth/auth.routes");
 const business_routes_1 = require("./modules/business/business.routes");
+const role_routes_1 = require("./modules/role/role.routes");
 const user_routes_1 = require("./modules/user/user.routes");
 const plan_routes_1 = require("./modules/plan/plan.routes");
 const sectorFocus_routes_1 = require("./modules/sectorFocus/sectorFocus.routes");
+const department_routes_1 = require("./modules/department/department.routes");
+const position_routes_1 = require("./modules/position/position.routes");
 const file_routes_1 = require("./modules/file/file.routes");
+const notification_routes_1 = require("./modules/notification/notification.routes");
 const hr_routes_1 = require("./modules/hr/hr.routes");
 const offerLetter_routes_1 = require("./modules/hr/offerLetter.routes");
+const candidateOnboarding_routes_1 = require("./modules/hr/candidateOnboarding.routes");
 const crm_routes_1 = require("./modules/crm/crm.routes");
 const projects_routes_1 = require("./modules/projects/projects.routes");
 const finance_routes_1 = require("./modules/finance/finance.routes");
@@ -62,9 +67,42 @@ const settings_routes_1 = require("./modules/settings/settings.routes");
 const subscription_routes_1 = require("./modules/subscription/subscription.routes");
 const adminOps_routes_1 = require("./modules/adminOps/adminOps.routes");
 const people_routes_1 = require("./modules/people/people.routes");
+const permission_routes_1 = require("./modules/permission/permission.routes");
+const attendanceMe_routes_1 = require("./modules/attendanceMe/attendanceMe.routes");
+const attendanceHr_routes_1 = require("./modules/attendanceHr/attendanceHr.routes");
+const lateReasons_routes_1 = require("./modules/attendanceHrLateReasons/lateReasons.routes");
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const swagger_1 = require("./config/swagger");
 const app = (0, express_1.default)();
+// CORS must be first — before helmet, rate limiter, and everything else.
+// The browser sends a preflight OPTIONS request before any authenticated request;
+// if CORS headers aren't on that response the browser blocks the actual request.
+const corsOptions = {
+    origin: (origin, callback) => {
+        console.log(`[CORS] incoming origin: '${origin ?? 'none'}'`);
+        // Allow requests with no origin (curl, Postman, server-to-server)
+        if (!origin)
+            return callback(null, true);
+        // In development allow all localhost origins regardless of port
+        if (env_1.env.nodeEnv !== "production" && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+            console.log(`[CORS] allowed (localhost dev): ${origin}`);
+            return callback(null, true);
+        }
+        // In production check against the explicit allowlist
+        if (env_1.env.corsOrigins.includes(origin)) {
+            console.log(`[CORS] allowed (allowlist): ${origin}`);
+            return callback(null, true);
+        }
+        console.log(`[CORS] BLOCKED: '${origin}' not in [${env_1.env.corsOrigins.join(", ")}]`);
+        callback(new Error(`CORS: origin '${origin}' not allowed`));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
+    exposedHeaders: ["Content-Disposition"],
+};
+app.use((0, cors_1.default)(corsOptions));
+app.options("*", (0, cors_1.default)(corsOptions)); // explicitly handle preflight for all routes
 app.use(requestId_1.addRequestId);
 app.use(security_1.securityHeaders);
 app.use(security_1.compressResponses);
@@ -72,9 +110,12 @@ app.use(security_1.preventParameterPollution);
 app.use(security_1.sanitizePayload);
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
-app.use((0, cors_1.default)({ origin: env_1.env.corsOrigins }));
-app.use(`/api/${env_1.env.apiVersion}`, security_1.globalRateLimiter);
+// TODO: re-enable rate limiting before production
+// app.use(`/api/${env.apiVersion}`, globalRateLimiter);
 const apiRouter = (0, express_1.Router)();
+apiRouter.use("/hr/public/offers", offerLetter_routes_1.publicOfferLetterRoutes); // canonical public path
+apiRouter.use("/offer-letters", offerLetter_routes_1.publicOfferLetterRoutes); // legacy path — keeps old stored links working
+apiRouter.use("/hr/public/onboarding", candidateOnboarding_routes_1.publicCandidateOnboardingRoutes); // public candidate onboarding
 apiRouter.get("/status", (req, res) => {
     res.json({ status: "OK", version: env_1.env.apiVersion });
 });
@@ -84,6 +125,7 @@ apiRouter.use("/businesses", business_routes_1.businessRoutes);
 apiRouter.use("/plans", plan_routes_1.planRoutes);
 apiRouter.use("/sector-focuses", sectorFocus_routes_1.sectorFocusRoutes);
 apiRouter.use("/hr/public", hr_routes_1.publicRecruitmentRoutes);
+apiRouter.use("/hr/onboarding", candidateOnboarding_routes_1.candidateOnboardingRoutes);
 apiRouter.use("/hr", hr_routes_1.hrRoutes);
 apiRouter.use("/offer-letters", offerLetter_routes_1.offerLetterRoutes);
 apiRouter.use("/crm/public", crm_routes_1.publicCRMRoutes);
@@ -99,6 +141,14 @@ apiRouter.use("/subscription", subscription_routes_1.subscriptionRoutes);
 apiRouter.use("/admin-ops", adminOps_routes_1.adminOpsRoutes);
 apiRouter.use("/people", people_routes_1.peopleRoutes);
 apiRouter.use("/files", file_routes_1.fileRoutes);
+apiRouter.use("/notifications", notification_routes_1.notificationRoutes);
+apiRouter.use("/departments", department_routes_1.departmentRoutes);
+apiRouter.use("/positions", position_routes_1.positionRoutes);
+apiRouter.use("/roles", role_routes_1.roleRoutes);
+apiRouter.use("/permissions", permission_routes_1.permissionRoutes);
+apiRouter.use("/attendance", attendanceMe_routes_1.attendanceMeRoutes);
+apiRouter.use("/attendance/hr", attendanceHr_routes_1.attendanceHrRoutes);
+apiRouter.use("/attendance/hr/late-reasons", lateReasons_routes_1.attendanceHrLateReasonsRoutes);
 app.use(`/api/${env_1.env.apiVersion}`, apiRouter);
 // Health stays out of versioning
 app.get('/health', (req, res) => res.json({ status: 'UP' }));

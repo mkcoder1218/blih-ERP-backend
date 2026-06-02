@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.userRoutes = void 0;
 const express_1 = require("express");
 const auth_1 = require("../../middlewares/auth");
-const role_1 = require("../../middlewares/role");
 const permission_1 = require("../../middlewares/permission");
 const validate_1 = require("../../middlewares/validate");
 const asyncHandler_1 = require("../../utils/asyncHandler");
@@ -43,7 +42,7 @@ router.use(auth_1.authRequired);
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.get("/", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, permission_1.requirePermission)("user.read"), (0, asyncHandler_1.asyncHandler)(controller.list));
+router.get("/", (0, permission_1.requirePermission)("user.read"), (0, asyncHandler_1.asyncHandler)(controller.list));
 /**
  * @openapi
  * /api/v1/users/{id}:
@@ -72,7 +71,7 @@ router.get("/", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, permission_1.requ
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.get("/:id", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, permission_1.requirePermission)("user.read"), (0, asyncHandler_1.asyncHandler)(controller.get));
+router.get("/:id", (0, permission_1.requirePermission)("user.read"), (0, asyncHandler_1.asyncHandler)(controller.get));
 /**
  * @openapi
  * /api/v1/users:
@@ -95,7 +94,7 @@ router.get("/:id", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, permission_1.r
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post("/", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, permission_1.requirePermission)("user.create"), (0, validate_1.validate)(user_validator_1.createUserSchema), (0, asyncHandler_1.asyncHandler)(controller.create));
+router.post("/", (0, permission_1.requirePermission)("user.create"), (0, validate_1.validate)(user_validator_1.createUserSchema), (0, asyncHandler_1.asyncHandler)(controller.create));
 /**
  * @openapi
  * /api/v1/users/{id}:
@@ -124,7 +123,7 @@ router.post("/", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, permission_1.req
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.patch("/:id", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, permission_1.requirePermission)("user.update"), (0, validate_1.validate)(user_validator_1.updateUserSchema), (0, asyncHandler_1.asyncHandler)(controller.update));
+router.patch("/:id", (0, permission_1.requirePermission)("user.update"), (0, validate_1.validate)(user_validator_1.updateUserSchema), (0, asyncHandler_1.asyncHandler)(controller.update));
 /**
  * @openapi
  * /api/v1/users/{id}:
@@ -153,5 +152,5 @@ router.patch("/:id", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, permission_1
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.delete("/:id", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, permission_1.requirePermission)("user.delete"), (0, asyncHandler_1.asyncHandler)(controller.remove));
+router.delete("/:id", (0, permission_1.requirePermission)("user.delete"), (0, asyncHandler_1.asyncHandler)(controller.remove));
 exports.userRoutes = router;

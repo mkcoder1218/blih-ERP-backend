@@ -45,6 +45,9 @@ import { subscriptionRoutes } from "./modules/subscription/subscription.routes";
 import { adminOpsRoutes } from "./modules/adminOps/adminOps.routes";
 import { peopleRoutes } from "./modules/people/people.routes";
 import { permissionRoutes } from "./modules/permission/permission.routes";
+import { attendanceMeRoutes } from "./modules/attendanceMe/attendanceMe.routes";
+import { attendanceHrRoutes } from "./modules/attendanceHr/attendanceHr.routes";
+import { attendanceHrLateReasonsRoutes } from "./modules/attendanceHrLateReasons/lateReasons.routes";
 
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -129,6 +132,9 @@ apiRouter.use("/departments", departmentRoutes);
 apiRouter.use("/positions", positionRoutes);
 apiRouter.use("/roles", roleRoutes);
 apiRouter.use("/permissions", permissionRoutes);
+apiRouter.use("/attendance", attendanceMeRoutes);
+apiRouter.use("/attendance/hr", attendanceHrRoutes);
+apiRouter.use("/attendance/hr/late-reasons", attendanceHrLateReasonsRoutes);
 
 app.use(`/api/${env.apiVersion}`, apiRouter);
 

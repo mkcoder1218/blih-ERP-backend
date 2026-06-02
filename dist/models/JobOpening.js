@@ -14,6 +14,7 @@ exports.default = (sequelize, dataTypes) => {
         status: { type: dataTypes.STRING(50), defaultValue: 'draft' }, // draft, open, paused, closed
         priority: { type: dataTypes.STRING(50), defaultValue: 'medium' },
         description: { type: dataTypes.TEXT, allowNull: false },
+        views: { type: dataTypes.INTEGER, defaultValue: 0 },
         metadata: { type: dataTypes.JSONB, defaultValue: {} }
     }, { tableName: "hr_job_openings", timestamps: true, paranoid: true });
     JobOpening.associate = (models) => {

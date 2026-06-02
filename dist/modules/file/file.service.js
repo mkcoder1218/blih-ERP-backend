@@ -14,17 +14,18 @@ class FileService {
         return this.dal.findAll(query, offset, size);
     }
     getById(id, businessId) { return this.dal.findById(id, businessId); }
-    async saveAssetRecord(businessId, userId, file) {
+    async saveAssetRecord(businessId, userId, file, extraMetadata = {}) {
         return this.dal.create({
             businessId,
-            uploadedByUserId: userId,
+            uploadedByUserId: userId || null,
             originalName: file.originalname,
             storedName: file.filename,
             mimeType: file.mimetype,
             sizeBytes: file.size,
             storageProvider: 'local',
             storagePath: file.path,
-            status: 'active'
+            status: 'active',
+            metadata: extraMetadata,
         });
     }
     softDelete(id, businessId) { return this.dal.softDelete(id, businessId); }

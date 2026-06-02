@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const env_1 = require("../../config/env");
+const sequelize_1 = require("sequelize");
 const models_1 = require("../../models");
 const user_dal_1 = require("./user.dal");
 const normalizeEmail_1 = require("../../utils/normalizeEmail");
@@ -13,8 +14,38 @@ class UserService {
     constructor() {
         this.dal = new user_dal_1.UserDAL();
     }
-    list(businessId) {
-        return this.dal.findAll({ businessId }, { attributes: { exclude: ["password"] }, order: [["createdAt", "DESC"]] });
+    list(businessId, search = "", page = 1, size = 20, permission = "") {
+        const offset = (page - 1) * size;
+        const where = { businessId };
+        const options = {
+            attributes: { exclude: ["password"] },
+            offset,
+            limit: size,
+            order: [["createdAt", "DESC"]]
+        };
+        if (search) {
+            where[sequelize_1.Op.or] = [
+                { fullName: { [sequelize_1.Op.iLike]: `%${search}%` } },
+                { email: { [sequelize_1.Op.iLike]: `%${search}%` } }
+            ];
+        }
+        if (permission) {
+            options.distinct = true;
+            options.include = [
+                {
+                    model: models_1.db.Role,
+                    required: true,
+                    through: { attributes: [] },
+                    include: [{
+                            model: models_1.db.Permission,
+                            required: true,
+                            where: { key: permission },
+                            through: { attributes: [] }
+                        }]
+                }
+            ];
+        }
+        return this.dal.findAndCount(where, options);
     }
     getById(id, businessId) {
         return models_1.db.User.findOne({

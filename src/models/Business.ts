@@ -108,6 +108,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): BusinessMode
     models.Business.hasMany(models.ProjectIssue, { foreignKey: "businessId" });
     models.Business.hasMany(models.ProjectChangeRequest, { foreignKey: "businessId" });
     models.Business.hasMany(models.Vendor, { foreignKey: "businessId" });
+    models.Business.hasOne(models.BusinessAttendanceSettings, { foreignKey: "businessId", as: "attendanceSettings" });
   };
 
   return Business;

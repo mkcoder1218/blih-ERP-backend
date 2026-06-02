@@ -5,13 +5,16 @@ import { requirePermission } from "../../middlewares/permission";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { createBusinessSchema, updateBusinessSchema } from "../../validators/business.validator";
+import { upsertAttendanceSettingsSchema } from "../../validators/attendanceSettings.validator";
 import { BusinessController } from "./business.controller";
 import { createBusinessAdminSchema } from "../../validators/businessAdmin.validator";
 import { BusinessAdminController } from "./businessAdmin.controller";
+import { AttendanceSettingsController } from "../attendanceSettings/attendanceSettings.controller";
 
 const router = Router();
 const controller = new BusinessController();
 const adminController = new BusinessAdminController();
+const attendanceSettingsController = new AttendanceSettingsController();
 
 router.use(authRequired);
 
@@ -125,6 +128,21 @@ router.patch(
   requirePermission("business.update"),
   validate(updateBusinessSchema),
   asyncHandler(controller.update)
+);
+
+router.get(
+  "/:businessId/attendance-settings",
+  requireRole("PLATFORM_SUPER_ADMIN"),
+  requirePermission("business.read"),
+  asyncHandler(attendanceSettingsController.get)
+);
+
+router.put(
+  "/:businessId/attendance-settings",
+  requireRole("PLATFORM_SUPER_ADMIN"),
+  requirePermission("business.update"),
+  validate(upsertAttendanceSettingsSchema),
+  asyncHandler(attendanceSettingsController.upsert)
 );
 router.delete(
   "/:id",

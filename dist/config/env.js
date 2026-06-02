@@ -6,7 +6,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.env = void 0;
 const path_1 = __importDefault(require("path"));
 const dotenv_1 = __importDefault(require("dotenv"));
-dotenv_1.default.config({ path: process.env.ENV_FILE || path_1.default.resolve(process.cwd(), ".env") });
+// When running compiled JS from `dist`, `process.cwd()` may not be the project root
+// (e.g. when started by a process manager). Resolve `.env` relative to this file
+// so dev flags like `DB_SYNC=true` reliably apply.
+const defaultEnvPath = path_1.default.resolve(__dirname, "../../.env");
+dotenv_1.default.config({ path: process.env.ENV_FILE || defaultEnvPath });
 function requireEnv(name) {
     const value = process.env[name];
     if (!value)
@@ -23,7 +27,8 @@ exports.env = {
     corsOrigins: (process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:5173").split(","),
     rateLimitWindowMins: Number(process.env.RATE_LIMIT_WINDOW_MINUTES || 15),
     rateLimitMaxReqs: Number(process.env.RATE_LIMIT_MAX_REQUESTS || 100),
-    authRateLimitMaxReqs: Number(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || 10),
+    // authRateLimitMaxReqs: Number(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || 10),
+    authRateLimitMaxReqs: Number(1111111111111111111111111111111111111111),
     jobWorkerEnabled: toBool(process.env.JOB_WORKER_ENABLED, false),
     jobTimezone: process.env.JOB_TIMEZONE || "UTC",
     nodeEnv: process.env.NODE_ENV || "development",

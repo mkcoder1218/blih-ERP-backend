@@ -14,6 +14,9 @@ class BaseDAL {
     findAll(where = {}, options = {}) {
         return this.model.findAll({ where, ...options });
     }
+    findAndCount(where = {}, options = {}) {
+        return this.model.findAndCountAll({ where, ...options });
+    }
     async update(id, data, options = {}) {
         const instance = await this.model.findByPk(id, options);
         if (!instance)

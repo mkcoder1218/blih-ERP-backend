@@ -95,10 +95,18 @@ import defineSkill from "./Skill";
 import defineInterviewSkill from "./InterviewSkill";
 import defineInterviewerNote from "./InterviewerNote";
 import defineCandidateOnboarding from "./CandidateOnboarding";
+import defineBusinessAttendanceSettings from "./BusinessAttendanceSettings";
+import defineAttendanceEvent from "./AttendanceEvent";
+import defineAttendanceLateReason from "./AttendanceLateReason";
+import defineAttendanceLateExplanation from "./AttendanceLateExplanation";
 
 export type DB = {
   sequelize: typeof sequelize;
   Business: any;
+  BusinessAttendanceSettings: any;
+  AttendanceEvent: any;
+  AttendanceLateReason: any;
+  AttendanceLateExplanation: any;
   User: any;
   Role: any;
   Permission: any;
@@ -197,6 +205,10 @@ export type DB = {
 export const db: DB = {
   sequelize,
   Business: defineBusiness(sequelize, DataTypes),
+  BusinessAttendanceSettings: defineBusinessAttendanceSettings(sequelize, DataTypes),
+  AttendanceEvent: defineAttendanceEvent(sequelize, DataTypes),
+  AttendanceLateReason: defineAttendanceLateReason(sequelize, DataTypes),
+  AttendanceLateExplanation: defineAttendanceLateExplanation(sequelize, DataTypes),
   User: defineUser(sequelize, DataTypes),
   Role: defineRole(sequelize, DataTypes),
   Permission: definePermission(sequelize, DataTypes),

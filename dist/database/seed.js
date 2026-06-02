@@ -23,7 +23,8 @@ exports.BASE_PERMISSIONS = [
     { module: "role", action: "create", key: "role.create", description: "Create role" },
     { module: "role", action: "read", key: "role.read", description: "Read role" },
     { module: "role", action: "update", key: "role.update", description: "Update role" },
-    { module: "role", action: "delete", key: "role.delete", description: "Delete role" }
+    { module: "role", action: "delete", key: "role.delete", description: "Delete role" },
+    { module: "attendance", action: "read", key: "attendance.read", description: "View attendance monitoring data" }
 ];
 exports.DEFAULT_PLANS = [
     { key: "free", name: "Free", priceMonthly: 0, userLimit: 5, modules: ["hr", "projects"] },

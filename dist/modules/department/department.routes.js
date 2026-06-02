@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.departmentRoutes = void 0;
 const express_1 = require("express");
 const auth_1 = require("../../middlewares/auth");
-const role_1 = require("../../middlewares/role");
+const permission_1 = require("../../middlewares/permission");
 const validate_1 = require("../../middlewares/validate");
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const department_validator_1 = require("../../validators/department.validator");
@@ -96,7 +96,7 @@ router.get('/:id', (0, asyncHandler_1.asyncHandler)(controller.get));
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post('/', (0, role_1.requireRole)('BUSINESS_ADMIN'), (0, validate_1.validate)(department_validator_1.createDepartmentSchema), (0, asyncHandler_1.asyncHandler)(controller.create));
+router.post('/', (0, permission_1.requirePermission)('department.create'), (0, validate_1.validate)(department_validator_1.createDepartmentSchema), (0, asyncHandler_1.asyncHandler)(controller.create));
 /**
  * @openapi
  * /api/departments/{id}:
@@ -125,7 +125,7 @@ router.post('/', (0, role_1.requireRole)('BUSINESS_ADMIN'), (0, validate_1.valid
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.patch('/:id', (0, role_1.requireRole)('BUSINESS_ADMIN'), (0, validate_1.validate)(department_validator_1.updateDepartmentSchema), (0, asyncHandler_1.asyncHandler)(controller.update));
+router.patch('/:id', (0, permission_1.requirePermission)('department.update'), (0, validate_1.validate)(department_validator_1.updateDepartmentSchema), (0, asyncHandler_1.asyncHandler)(controller.update));
 /**
  * @openapi
  * /api/departments/{id}:
@@ -154,5 +154,5 @@ router.patch('/:id', (0, role_1.requireRole)('BUSINESS_ADMIN'), (0, validate_1.v
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.delete('/:id', (0, role_1.requireRole)('BUSINESS_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.remove));
+router.delete('/:id', (0, permission_1.requirePermission)('department.delete'), (0, asyncHandler_1.asyncHandler)(controller.remove));
 exports.departmentRoutes = router;

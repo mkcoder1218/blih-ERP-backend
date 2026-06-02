@@ -95,9 +95,22 @@ const ProjectChangeRequest_1 = __importDefault(require("./ProjectChangeRequest")
 const Vendor_1 = __importDefault(require("./Vendor"));
 const OfferLetterTemplate_1 = __importDefault(require("./OfferLetterTemplate"));
 const OfferLetter_1 = __importDefault(require("./OfferLetter"));
+const RecruitmentTemplate_1 = __importDefault(require("./RecruitmentTemplate"));
+const Skill_1 = __importDefault(require("./Skill"));
+const InterviewSkill_1 = __importDefault(require("./InterviewSkill"));
+const InterviewerNote_1 = __importDefault(require("./InterviewerNote"));
+const CandidateOnboarding_1 = __importDefault(require("./CandidateOnboarding"));
+const BusinessAttendanceSettings_1 = __importDefault(require("./BusinessAttendanceSettings"));
+const AttendanceEvent_1 = __importDefault(require("./AttendanceEvent"));
+const AttendanceLateReason_1 = __importDefault(require("./AttendanceLateReason"));
+const AttendanceLateExplanation_1 = __importDefault(require("./AttendanceLateExplanation"));
 exports.db = {
     sequelize: sequelize_2.sequelize,
     Business: (0, Business_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    BusinessAttendanceSettings: (0, BusinessAttendanceSettings_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    AttendanceEvent: (0, AttendanceEvent_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    AttendanceLateReason: (0, AttendanceLateReason_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    AttendanceLateExplanation: (0, AttendanceLateExplanation_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     User: (0, User_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Role: (0, Role_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Permission: (0, Permission_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -185,7 +198,12 @@ exports.db = {
     ProjectChangeRequest: (0, ProjectChangeRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Vendor: (0, Vendor_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     OfferLetterTemplate: (0, OfferLetterTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
-    OfferLetter: (0, OfferLetter_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes)
+    OfferLetter: (0, OfferLetter_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    RecruitmentTemplate: (0, RecruitmentTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Skill: (0, Skill_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    InterviewSkill: (0, InterviewSkill_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    InterviewerNote: (0, InterviewerNote_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    CandidateOnboarding: (0, CandidateOnboarding_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
 };
 Object.values(exports.db).forEach((model) => {
     if (model && typeof model.associate === "function")

@@ -24,6 +24,12 @@ exports.default = (sequelize, dataTypes) => {
             models.EmployeeRecord.belongsTo(models.User, { foreignKey: "userId", as: "user" });
             models.EmployeeRecord.belongsTo(models.User, { foreignKey: "managerUserId", as: "manager" });
         }
+        if (models.Department) {
+            models.EmployeeRecord.belongsTo(models.Department, { foreignKey: "departmentId", as: "department" });
+        }
+        if (models.Position) {
+            models.EmployeeRecord.belongsTo(models.Position, { foreignKey: "positionId", as: "position" });
+        }
     };
     return EmployeeRecord;
 };

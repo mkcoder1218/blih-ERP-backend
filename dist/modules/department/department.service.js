@@ -15,7 +15,10 @@ class DepartmentService {
         return this.dal.findAll(query, offset, size);
     }
     getById(id, businessId) { return this.dal.findById(id, businessId); }
-    create(businessId, data) { return this.dal.create({ ...data, businessId }); }
+    create(businessId, data) {
+        const key = data.key || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+        return this.dal.create({ ...data, key, businessId });
+    }
     update(id, businessId, data) { return this.dal.update(id, businessId, data); }
     softDelete(id, businessId) { return this.dal.softDelete(id, businessId); }
 }

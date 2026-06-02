@@ -1,6 +1,6 @@
 import { RoleDAL } from "./role.dal";
 import { db } from "../../models";
-import { ROLE_DOMAIN_MAP } from "../../models/Role";
+import { ROLE_DOMAIN_MAP, roleDomainsForKey, roleHasAllDomains } from "../../models/Role";
 import { Op } from "sequelize";
 
 export class RoleService {
@@ -42,24 +42,29 @@ export class RoleService {
    */
   async listForCaller(businessId: string, callerRoleKeys: string[]) {
     // Check if caller has unrestricted access
-    const isAdmin = callerRoleKeys.some(k => ROLE_DOMAIN_MAP[k] === "*");
+    const isAdmin = callerRoleKeys.some(k => roleHasAllDomains(k));
     if (isAdmin) {
       return this.list(businessId);
     }
 
     // Collect all domains the caller owns
-    const ownedDomains = callerRoleKeys
-      .map(k => ROLE_DOMAIN_MAP[k])
-      .filter(Boolean);
+    const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap(k => roleDomainsForKey(k))));
 
     if (ownedDomains.length === 0) {
       return []; // no domain ownership → no roles to manage
     }
 
+    const ownedRoleKeys = Object.entries(ROLE_DOMAIN_MAP)
+      .filter(([key]) => roleDomainsForKey(key).some((domain) => ownedDomains.includes(domain)))
+      .map(([key]) => key);
+
     const where: any = {
       businessId,
       deletedAt: null,
-      domain: { [Op.in]: ownedDomains },
+      [Op.or]: [
+        { domain: { [Op.in]: ownedDomains } },
+        { key: { [Op.in]: ownedRoleKeys } }
+      ],
     };
 
     return this.dal.findAll(where, { order: [["createdAt", "DESC"]] });
@@ -76,9 +81,9 @@ export class RoleService {
 
     // Domain check: non-admins can only update roles in their domain
     if (callerRoleKeys) {
-      const isAdmin = callerRoleKeys.some(k => ROLE_DOMAIN_MAP[k] === "*");
+      const isAdmin = callerRoleKeys.some(k => roleHasAllDomains(k));
       if (!isAdmin) {
-        const ownedDomains = callerRoleKeys.map(k => ROLE_DOMAIN_MAP[k]).filter(Boolean);
+        const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap(k => roleDomainsForKey(k))));
         if (role.domain && !ownedDomains.includes(role.domain)) {
           throw Object.assign(new Error("You can only update roles in your domain"), { statusCode: 403 });
         }
@@ -107,9 +112,9 @@ export class RoleService {
 
     // Domain check
     if (callerRoleKeys) {
-      const isAdmin = callerRoleKeys.some(k => ROLE_DOMAIN_MAP[k] === "*");
+      const isAdmin = callerRoleKeys.some(k => roleHasAllDomains(k));
       if (!isAdmin) {
-        const ownedDomains = callerRoleKeys.map(k => ROLE_DOMAIN_MAP[k]).filter(Boolean);
+        const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap(k => roleDomainsForKey(k))));
         if (role.domain && !ownedDomains.includes(role.domain)) {
           throw Object.assign(new Error("You can only delete roles in your domain"), { statusCode: 403 });
         }
@@ -120,4 +125,3 @@ export class RoleService {
     return true;
   }
 }
-

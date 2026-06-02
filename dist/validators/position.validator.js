@@ -8,7 +8,7 @@ const joi_1 = __importDefault(require("joi"));
 exports.createPositionSchema = joi_1.default.object({
     departmentId: joi_1.default.string().uuid().required(),
     title: joi_1.default.string().max(120).required(),
-    key: joi_1.default.string().max(120).required(),
+    key: joi_1.default.string().max(120).optional(),
     level: joi_1.default.number().min(1).optional(),
     description: joi_1.default.string().allow(null, '').optional(),
     status: joi_1.default.string().valid('active', 'inactive').optional()

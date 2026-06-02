@@ -1,25 +1,24 @@
-import { JobRunner } from '../src/jobs/runner';
-import { db } from '../src/models';
+import { JobRunner } from "../src/jobs/runner";
+import { db } from "../src/models";
 
-describe('Background Job Worker Foundation', () => {
-
+describe("Background Job Worker Foundation", () => {
   beforeAll(async () => {
-    await db.sequelize.sync({ force: true });
+    await db.sequelize.sync({ alter: true });
   });
 
   afterAll(async () => {
     await db.sequelize.close();
   });
 
-  it('successfully registers and catches synchronous execution block', async () => {
+  it("successfully registers and catches synchronous execution block", async () => {
     let fired = false;
     JobRunner.register({
-       name: 'TestMockJob',
-       type: 'maintenance',
-       cronExpression: '* * * * * *', // Every second, just to evaluate registration natively
-       handler: async () => {
-          fired = true;
-       }
+      name: "TestMockJob",
+      type: "maintenance",
+      cronExpression: "* * * * * *", // Every second, just to evaluate registration natively
+      handler: async () => {
+        fired = true;
+      },
     });
 
     // We don't practically wait for cron to hit in standard unit suites since it pollutes timelines,

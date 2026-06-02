@@ -1,5 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.ROLE_DOMAIN_MAP = void 0;
+// Maps each system role key to the domain it owns.
+// A user with one of these roles can only manage roles in their domain.
+exports.ROLE_DOMAIN_MAP = {
+    HR_MANAGER: "hr",
+    FINANCE_MANAGER: "finance",
+    IT_MANAGER: "it",
+    SALES_MANAGER: "sales",
+    PROJECT_MANAGER: "project",
+    BUSINESS_ADMIN: "*", // can manage all domains
+    PLATFORM_SUPER_ADMIN: "*",
+};
 exports.default = (sequelize, dataTypes) => {
     const Role = sequelize.define("Role", {
         id: { type: dataTypes.UUID, defaultValue: dataTypes.UUIDV4, primaryKey: true },
@@ -7,7 +19,10 @@ exports.default = (sequelize, dataTypes) => {
         name: { type: dataTypes.STRING(120), allowNull: false },
         key: { type: dataTypes.STRING(120), allowNull: false },
         description: { type: dataTypes.STRING(255), allowNull: true },
-        isSystemRole: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false }
+        isSystemRole: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+        // domain groups roles so managers can only manage roles in their domain
+        // e.g. "hr", "finance", "it", "sales", "project", or null (unrestricted)
+        domain: { type: dataTypes.STRING(60), allowNull: true, defaultValue: null },
     }, {
         tableName: "roles",
         timestamps: true,

@@ -23,7 +23,9 @@ exports.authRateLimiter = (0, express_rate_limit_1.default)({
     standardHeaders: true,
     legacyHeaders: false,
 });
-exports.securityHeaders = (0, helmet_1.default)();
+exports.securityHeaders = (0, helmet_1.default)({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+});
 exports.compressResponses = (0, compression_1.default)();
 exports.preventParameterPollution = (0, hpp_1.default)();
 // Simple Sanitizer mitigating payload pollution where express-mongo-sanitize isn't applicable

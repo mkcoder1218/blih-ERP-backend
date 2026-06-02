@@ -6,8 +6,12 @@ const auditLog_service_1 = require("../../services/auditLog.service");
 class UserController {
     constructor() {
         this.list = async (req, res) => {
-            const users = await this.service.list(req.user.businessId);
-            res.json({ users });
+            const search = req.query.search || "";
+            const page = parseInt(req.query.page) || 1;
+            const size = parseInt(req.query.size) || 20;
+            const permission = req.query.permission || "";
+            const result = await this.service.list(req.user.businessId, search, page, size, permission);
+            res.json(result);
         };
         this.get = async (req, res, next) => {
             const user = await this.service.getById(req.params.id, req.user.businessId);

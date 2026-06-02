@@ -1,7 +1,11 @@
 import path from "path";
 import dotenv from "dotenv";
 
-dotenv.config({ path: process.env.ENV_FILE || path.resolve(process.cwd(), ".env") });
+// When running compiled JS from `dist`, `process.cwd()` may not be the project root
+// (e.g. when started by a process manager). Resolve `.env` relative to this file
+// so dev flags like `DB_SYNC=true` reliably apply.
+const defaultEnvPath = path.resolve(__dirname, "../../.env");
+dotenv.config({ path: process.env.ENV_FILE || defaultEnvPath });
 
 function requireEnv(name: string): string {
   const value = process.env[name];

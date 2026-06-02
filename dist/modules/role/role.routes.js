@@ -12,38 +12,10 @@ const role_controller_1 = require("./role.controller");
 const router = (0, express_1.Router)();
 const controller = new role_controller_1.RoleController();
 router.use(auth_1.authRequired);
-/**
- * @openapi
- * /api/roles:
- *   get:
- *     tags: [role]
- *     summary: GET index
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: size
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get("/", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, permission_1.requirePermission)("role.read"), (0, asyncHandler_1.asyncHandler)(controller.list));
+// Domain-scoped endpoint — any authenticated user with a domain role can call this
+// Must be before /:id to avoid route collision
+router.get("/my-domain", (0, permission_1.requirePermission)("role.read"), (0, asyncHandler_1.asyncHandler)(controller.listMyDomain));
+router.get("/", (0, role_1.requireRole)("BUSINESS_ADMIN", "PLATFORM_SUPER_ADMIN"), (0, permission_1.requirePermission)("role.read"), (0, asyncHandler_1.asyncHandler)(controller.list));
 /**
  * @openapi
  * /api/roles/{id}:

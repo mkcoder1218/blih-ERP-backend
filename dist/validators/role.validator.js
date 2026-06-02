@@ -9,11 +9,13 @@ exports.createRoleSchema = joi_1.default.object({
     name: joi_1.default.string().min(2).max(120).required(),
     key: joi_1.default.string().min(2).max(120).regex(/^[A-Z0-9_]+$/).required(),
     description: joi_1.default.string().max(255).optional().allow(null, ""),
+    domain: joi_1.default.string().max(60).optional().allow(null, ""),
     permissionKeys: joi_1.default.array().items(joi_1.default.string().max(170)).default([])
 });
 exports.updateRoleSchema = joi_1.default.object({
     name: joi_1.default.string().min(2).max(120).optional(),
     key: joi_1.default.string().min(2).max(120).regex(/^[A-Z0-9_]+$/).optional(),
     description: joi_1.default.string().max(255).optional().allow(null, ""),
+    domain: joi_1.default.string().max(60).optional().allow(null, ""),
     permissionKeys: joi_1.default.array().items(joi_1.default.string().max(170)).optional()
 }).min(1);

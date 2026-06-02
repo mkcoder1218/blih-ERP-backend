@@ -5,6 +5,7 @@ const performance_service_1 = require("./performance.service");
 const response_1 = require("../../utils/response");
 const auditLog_service_1 = require("../../services/auditLog.service");
 const models_1 = require("../../models");
+const notification_service_1 = require("../notification/notification.service");
 class HRPerformanceController {
     constructor() {
         this.service = new performance_service_1.HRPerformanceService();
@@ -16,7 +17,6 @@ class HRPerformanceController {
         this.createTrainingRequest = async (req, res) => {
             try {
                 const payload = { ...req.body, businessId: req.user.businessId };
-                // Employee submits for self
                 if (!payload.employeeUserId)
                     payload.employeeUserId = req.user.id;
                 if (!payload.requestedByUserId)
@@ -29,10 +29,9 @@ class HRPerformanceController {
                 (0, response_1.errorResponse)(res, e.message);
             }
         };
-        // Disciplinary Restrictions
+        // Disciplinary
         this.listDisciplinary = async (req, res) => {
             try {
-                // Enforce Role bounds strictly avoiding standard "my team" leakage for grievance paths internally via Service Logic Checks.
                 await this.service.restrictDisciplinaryAccess(req.user.businessId, req.user);
                 const limit = Number(req.query.limit || 20);
                 const offset = Number(req.query.offset || 0);
@@ -43,20 +42,106 @@ class HRPerformanceController {
                 (0, response_1.errorResponse)(res, e.message, 403);
             }
         };
-        // Exit Workflow
+        // ── Exit Workflow ─────────────────────────────────────────────────────────
+        // GET /hr/exit — list all exit processes (HR admin view)
+        this.listExitProcesses = async (req, res) => {
+            try {
+                const businessId = req.user.businessId;
+                const limit = Number(req.query.limit || 50);
+                const offset = Number(req.query.offset || 0);
+                const status = req.query.status;
+                const where = { businessId };
+                if (status)
+                    where.status = status;
+                const result = await models_1.db.ExitProcess.findAndCountAll({
+                    where,
+                    limit,
+                    offset,
+                    order: [['createdAt', 'DESC']],
+                    include: [
+                        {
+                            model: models_1.db.User,
+                            as: 'employee',
+                            attributes: ['id', 'fullName', 'email'],
+                            include: [{
+                                    model: models_1.db.BusinessUserProfile,
+                                    required: false,
+                                    include: [
+                                        { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },
+                                        { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] },
+                                    ],
+                                }],
+                        },
+                        {
+                            model: models_1.db.User,
+                            as: 'initiator',
+                            attributes: ['id', 'fullName', 'email'],
+                        },
+                    ],
+                });
+                (0, response_1.successResponse)(res, { rows: result.rows, count: result.count });
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        // POST /hr/exit/resign — employee submits offboarding request with rich text letter
         this.submitResignation = async (req, res) => {
             try {
-                const { effectiveDate, reason } = req.body;
+                const { effectiveDate, reason, letterHtml, noticePeriodDays } = req.body;
+                const businessId = req.user.businessId;
+                if (!effectiveDate) {
+                    return (0, response_1.errorResponse)(res, 'effectiveDate is required', 400);
+                }
                 const ex = await models_1.db.ExitProcess.create({
-                    businessId: req.user.businessId,
+                    businessId,
                     initiatedByUserId: req.user.id,
                     employeeUserId: req.user.id,
                     exitType: 'resignation',
                     effectiveDate,
-                    reason
+                    reason: reason || null,
+                    status: 'pending',
+                    clearanceData: {
+                        letterHtml: letterHtml || null,
+                        noticePeriodDays: noticePeriodDays || 30,
+                    },
                 });
                 await auditLog_service_1.AuditLogService.log('SUBMIT_RESIGNATION', 'hr_exit_processes', String(ex.id), null, {}, req);
-                (0, response_1.successResponse)(res, ex, "Resignation structured.", 201);
+                // Notify all HR managers and business admins
+                try {
+                    const adminUsers = await models_1.db.User.findAll({
+                        where: { businessId, status: 'active' },
+                        include: [{
+                                model: models_1.db.Role,
+                                through: { attributes: [] },
+                                where: { key: ['BUSINESS_ADMIN', 'HR_MANAGER'] },
+                                required: true,
+                            }],
+                        attributes: ['id'],
+                    });
+                    const adminIds = adminUsers
+                        .map((u) => u.id)
+                        .filter((id) => id !== req.user.id);
+                    if (adminIds.length > 0) {
+                        const employee = await models_1.db.User.findByPk(req.user.id, { attributes: ['fullName'] });
+                        await notification_service_1.InternalNotifier.sendBulk({
+                            businessId,
+                            recipientUserIds: adminIds,
+                            senderUserId: req.user.id,
+                            moduleKey: 'hr',
+                            type: 'exit_submitted',
+                            title: 'New Offboarding Request',
+                            message: `${employee?.fullName || 'An employee'} has submitted an offboarding/resignation request. Last working day: ${new Date(effectiveDate).toLocaleDateString()}.`,
+                            entityType: 'ExitProcess',
+                            entityId: String(ex.id),
+                            priority: 'high',
+                        });
+                    }
+                }
+                catch (notifErr) {
+                    console.error('[ExitProcess] Failed to send admin notifications:', notifErr);
+                }
+                (0, response_1.successResponse)(res, ex, 'Offboarding request submitted successfully.', 201);
             }
             catch (e) {
                 (0, response_1.errorResponse)(res, e.message);

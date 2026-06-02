@@ -2,6 +2,7 @@ import { BusinessDAL } from "./business.dal";
 import { slugify } from "../../utils/slugify";
 import { TemplateService } from "../moduleTemplate/template.service";
 import { db } from "../../models";
+import { roleDomainForKey } from "../../models/Role";
 
 export class BusinessService {
   private templateService = new TemplateService();
@@ -53,7 +54,7 @@ export class BusinessService {
       const globalRole = await db.Role.findOne({ where: { businessId: null, key } });
       const [role] = await db.Role.findOrCreate({
         where: { businessId: business.id, key },
-        defaults: { businessId: business.id, key, name: key.replace(/_/g, " "), description: null, isSystemRole: false }
+        defaults: { businessId: business.id, key, name: key.replace(/_/g, " "), description: null, isSystemRole: false, domain: roleDomainForKey(key) }
       });
       if (globalRole) {
         const perms = await globalRole.getPermissions();
