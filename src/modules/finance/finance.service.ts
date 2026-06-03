@@ -1,8 +1,475 @@
 
 import { db } from '../../models';
 import { InternalNotifier } from '../notification/notification.service';
+import { Op } from 'sequelize';
 
 export class FinanceService {
+  private money(value: any) {
+    return Number(value || 0);
+  }
+
+  private salaryFromRecord(record: any) {
+    return this.money(record?.salaryInfo?.baseSalary ?? record?.salaryInfo?.monthlySalary ?? record?.salaryInfo?.salary ?? 0);
+  }
+
+  private monthKey(date: Date) {
+    return date.toLocaleString('en-US', { month: 'short' });
+  }
+
+  private startOfMonth(date = new Date()) {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  }
+
+  private async employees(businessId: string) {
+    return db.EmployeeRecord.findAll({
+      where: { businessId, employmentStatus: { [Op.ne]: 'terminated' } },
+      include: [
+        { model: db.User, as: 'user', attributes: ['id', 'fullName', 'email'] },
+        { model: db.Department, as: 'department', attributes: ['id', 'name'] },
+        { model: db.Position, as: 'position', attributes: ['id', 'title'] }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+  }
+
+  private async performanceMap(businessId: string) {
+    const reviews = await db.PerformanceReview.findAll({
+      where: { businessId, score: { [Op.ne]: null } },
+      order: [['periodEnd', 'DESC']]
+    });
+    const map = new Map<string, number>();
+    for (const review of reviews) {
+      if (!map.has(review.employeeUserId)) map.set(review.employeeUserId, this.money(review.score));
+    }
+    return map;
+  }
+
+  async getWorkforceDashboard(businessId: string, query: any = {}) {
+    const [employees, perf, budgets, expenses, payrollRecords, salaryRequests, reallocations, benefits, enrollments, notifications, auditLogs] = await Promise.all([
+      this.employees(businessId),
+      this.performanceMap(businessId),
+      db.Budget.findAll({ where: { businessId }, include: [{ model: db.Department, attributes: ['id', 'name'] }] }),
+      db.Expense.findAll({
+        where: { businessId },
+        include: [
+          { model: db.User, as: 'requester', attributes: ['id', 'fullName', 'email'] },
+          { model: db.Department, attributes: ['id', 'name'] }
+        ],
+        order: [['expenseDate', 'DESC']]
+      }),
+      db.PayrollRecord.findAll({
+        where: { businessId },
+        include: [
+          { model: db.User, as: 'employee', attributes: ['id', 'fullName', 'email'] },
+          { model: db.Department, as: 'department', attributes: ['id', 'name'] }
+        ],
+        order: [['periodEnd', 'DESC']]
+      }),
+      db.SalaryAdjustmentRequest.findAll({
+        where: { businessId },
+        include: [
+          { model: db.User, as: 'employee', attributes: ['id', 'fullName', 'email'] },
+          { model: db.User, as: 'requester', attributes: ['id', 'fullName', 'email'] },
+          { model: db.Department, as: 'department', attributes: ['id', 'name'] }
+        ],
+        order: [['createdAt', 'DESC']]
+      }),
+      db.BudgetReallocationRequest.findAll({ where: { businessId }, order: [['createdAt', 'DESC']] }),
+      db.FinanceBenefit.findAll({ where: { businessId }, include: [{ model: db.Department, as: 'department', attributes: ['id', 'name'] }] }),
+      db.FinanceBenefitEnrollment.findAll({ where: { businessId }, include: [{ model: db.Department, as: 'department', attributes: ['id', 'name'] }] }),
+      db.Notification.findAll({ where: { businessId, moduleKey: 'finance' }, order: [['createdAt', 'DESC']], limit: 8 }),
+      db.AuditLog.findAll({ where: { businessId, entityType: { [Op.in]: ['finance_salary', 'finance_payroll', 'finance_expense', 'finance_budget', 'finance_benefit'] } }, order: [['createdAt', 'DESC']], limit: 20 })
+    ]);
+
+    const employeeRows = employees.map((employee: any) => {
+      const annualSalary = this.salaryFromRecord(employee);
+      return {
+        id: employee.id,
+        userId: employee.userId,
+        name: employee.user?.fullName || 'Unassigned employee',
+        email: employee.user?.email,
+        departmentId: employee.departmentId,
+        department: employee.department?.name || 'Unassigned',
+        role: employee.position?.title || employee.employmentType || 'Employee',
+        salary: annualSalary,
+        performance: perf.get(employee.userId) ?? null,
+        hireDate: employee.hireDate,
+        employmentType: employee.employmentType,
+        salaryInfo: employee.salaryInfo || {}
+      };
+    });
+
+    const salaryTotal = employeeRows.reduce((sum, row) => sum + row.salary, 0);
+    const avgSalary = employeeRows.length ? salaryTotal / employeeRows.length : 0;
+    const activePayroll = payrollRecords.length ? payrollRecords : employeeRows.map((row) => {
+      const monthlyGross = row.salary / 12;
+      const pension = monthlyGross * 0.06;
+      const tax = monthlyGross * 0.25;
+      return {
+        id: `employee-${row.id}`,
+        employeeUserId: row.userId,
+        departmentId: row.departmentId,
+        employee: { fullName: row.name, email: row.email },
+        department: { name: row.department },
+        periodStart: null,
+        periodEnd: null,
+        payDate: null,
+        baseSalary: row.salary,
+        pension,
+        grossPay: monthlyGross,
+        tax,
+        netPay: monthlyGross - pension - tax,
+        overtime: 0,
+        bonus: 0,
+        commission: 0,
+        currency: 'USD',
+        status: 'derived'
+      };
+    });
+
+    const currentMonth = this.startOfMonth();
+    const currentMonthExpenses = expenses.filter((expense: any) => new Date(expense.expenseDate) >= currentMonth);
+    const pendingExpenses = expenses.filter((expense: any) => expense.status === 'pending_approval');
+    const pendingSalary = salaryRequests.filter((request: any) => request.status === 'pending');
+    const pendingReallocations = reallocations.filter((request: any) => request.status === 'pending');
+    const totalBudget = budgets.reduce((sum: number, b: any) => sum + this.money(b.allocatedAmount), 0);
+    const totalBudgetUsed = budgets.reduce((sum: number, b: any) => sum + this.money(b.usedAmount), 0);
+
+    const deptBudgetUtilization = budgets.map((budget: any) => ({
+      id: budget.id,
+      name: budget.Department?.name || budget.name,
+      allocated: this.money(budget.allocatedAmount),
+      spent: this.money(budget.usedAmount),
+      remaining: Math.max(this.money(budget.allocatedAmount) - this.money(budget.usedAmount), 0),
+      utilization: this.money(budget.allocatedAmount) ? (this.money(budget.usedAmount) / this.money(budget.allocatedAmount)) * 100 : 0
+    }));
+
+    const deptSalaryMap = new Map<string, any>();
+    for (const employee of employeeRows) {
+      const key = employee.department || 'Unassigned';
+      const current = deptSalaryMap.get(key) || { name: key, count: 0, total: 0, amount: 0 };
+      current.count += 1;
+      current.total += employee.salary;
+      current.amount = current.count ? current.total / current.count : 0;
+      deptSalaryMap.set(key, current);
+    }
+
+    const payrollTrend = this.lastMonths(7).map(({ label, start, end }) => {
+      const amount = payrollRecords
+        .filter((record: any) => record.periodEnd && new Date(record.periodEnd) >= start && new Date(record.periodEnd) < end)
+        .reduce((sum: number, record: any) => sum + this.money(record.grossPay), 0);
+      return { name: label, amount: amount || (label === this.monthKey(new Date()) ? activePayroll.reduce((sum: number, record: any) => sum + this.money(record.grossPay), 0) : 0) };
+    });
+
+    const expenseTrend = this.lastMonths(6).map(({ label, start, end }) => ({
+      month: label,
+      amount: expenses
+        .filter((expense: any) => new Date(expense.expenseDate) >= start && new Date(expense.expenseDate) < end)
+        .reduce((sum: number, expense: any) => sum + this.money(expense.amount), 0)
+    }));
+
+    const expenseCategoryTotals = new Map<string, number>();
+    for (const expense of expenses) {
+      expenseCategoryTotals.set(expense.category, (expenseCategoryTotals.get(expense.category) || 0) + this.money(expense.amount));
+    }
+    const expenseCategorySum = Array.from(expenseCategoryTotals.values()).reduce((a, b) => a + b, 0);
+
+    const benefitValue = enrollments.reduce((sum: number, enrollment: any) => sum + this.money(enrollment.value), 0);
+    const activeEnrollments = enrollments.filter((enrollment: any) => enrollment.status === 'active');
+    const benefitsByDepartment = new Map<string, any>();
+    for (const enrollment of enrollments) {
+      const name = enrollment.department?.name || 'Unassigned';
+      const current = benefitsByDepartment.get(name) || { name, value: 0, employees: 0 };
+      current.value += this.money(enrollment.value);
+      current.employees += 1;
+      benefitsByDepartment.set(name, current);
+    }
+
+    return {
+      overview: {
+        totals: {
+          pendingApprovalAmount: [...pendingSalary, ...pendingExpenses, ...pendingReallocations].reduce((sum: number, item: any) => sum + this.money(item.amount ?? (this.money(item.requestedSalary) - this.money(item.currentSalary))), 0),
+          pendingApprovals: pendingSalary.length + pendingExpenses.length + pendingReallocations.length,
+          monthlyExpenses: currentMonthExpenses.reduce((sum: number, expense: any) => sum + this.money(expense.amount), 0),
+          monthlyExpenseItems: currentMonthExpenses.length,
+          totalBudget,
+          totalBudgetDeltaPercent: totalBudget ? ((totalBudget - totalBudgetUsed) / totalBudget) * 100 : 0
+        },
+        notifications: notifications.map((n: any) => ({ id: n.id, title: n.title, message: n.message, date: n.createdAt, priority: n.priority, type: n.type })),
+        pendingApprovals: [
+          ...pendingSalary.map((request: any) => this.formatSalaryRequest(request)),
+          ...pendingExpenses.map((expense: any) => this.formatExpenseRequest(expense)),
+          ...pendingReallocations.map((request: any) => this.formatReallocationRequest(request))
+        ],
+        payrollTrend,
+        departmentBudgetUtilization: deptBudgetUtilization
+      },
+      salary: {
+        totals: {
+          avgSalary,
+          totalPayroll: salaryTotal,
+          pendingRequests: pendingSalary.length,
+          avgIncreasePercent: pendingSalary.length ? pendingSalary.reduce((sum: number, r: any) => sum + ((this.money(r.requestedSalary) - this.money(r.currentSalary)) / Math.max(this.money(r.currentSalary), 1)) * 100, 0) / pendingSalary.length : 0
+        },
+        requests: salaryRequests.map((request: any) => this.formatSalaryRequest(request)),
+        performanceComparison: employeeRows.filter((row) => row.performance !== null && row.salary > 0).map((row) => ({ x: Math.round(row.salary / 1000), y: row.performance, name: row.role })),
+        departmentSalary: Array.from(deptSalaryMap.values()),
+        employees: employeeRows,
+        auditLogs: auditLogs.map((log: any) => ({ id: log.id, action: log.action, entityType: log.entityType, entityId: log.entityId, beforeData: log.beforeData, afterData: log.afterData, date: log.createdAt }))
+      },
+      payroll: {
+        records: activePayroll.map((record: any) => this.formatPayrollRecord(record)),
+        schedule: this.buildPayrollSchedule(activePayroll),
+        monthlySummaries: this.buildPayrollSummaries(activePayroll),
+        history: payrollRecords.map((record: any) => this.formatPayrollRecord(record))
+      },
+      budget: {
+        totals: { allocated: totalBudget, spent: totalBudgetUsed, remaining: Math.max(totalBudget - totalBudgetUsed, 0), utilization: totalBudget ? (totalBudgetUsed / totalBudget) * 100 : 0 },
+        departmentBudgetUtilization: deptBudgetUtilization,
+        allocations: budgets.map((budget: any) => ({
+          id: budget.id,
+          name: budget.name,
+          department: budget.Department?.name,
+          periodType: budget.periodType,
+          periodStart: budget.periodStart,
+          periodEnd: budget.periodEnd,
+          allocated: this.money(budget.allocatedAmount),
+          spent: this.money(budget.usedAmount),
+          remaining: Math.max(this.money(budget.allocatedAmount) - this.money(budget.usedAmount), 0),
+          utilization: this.money(budget.allocatedAmount) ? (this.money(budget.usedAmount) / this.money(budget.allocatedAmount)) * 100 : 0,
+          status: budget.status,
+          metadata: budget.metadata || {}
+        })),
+        reallocationRequests: reallocations.map((request: any) => this.formatReallocationRequest(request)),
+        annualSummaries: this.buildAnnualBudgetSummaries(budgets)
+      },
+      expense: {
+        totals: {
+          totalExpense: expenses.reduce((sum: number, expense: any) => sum + this.money(expense.amount), 0),
+          pendingApprovals: pendingExpenses.length,
+          unexpected: expenses.filter((expense: any) => expense.metadata?.unexpected === true).length,
+          thisMonth: currentMonthExpenses.reduce((sum: number, expense: any) => sum + this.money(expense.amount), 0)
+        },
+        breakdown: Array.from(expenseCategoryTotals.entries()).map(([name, amount], index) => ({ name, amount, value: expenseCategorySum ? (amount / expenseCategorySum) * 100 : 0, color: ['#1d4ed8', '#3b82f6', '#93c5fd', '#60a5fa', '#bfdbfe'][index % 5] })),
+        trend: expenseTrend,
+        requests: pendingExpenses.map((expense: any) => this.formatExpenseRequest(expense)),
+        recent: expenses.slice(0, 12).map((expense: any) => this.formatExpenseRequest(expense)),
+        unexpected: expenses.filter((expense: any) => expense.metadata?.unexpected === true).map((expense: any) => this.formatExpenseRequest(expense)),
+        history: this.buildExpenseHistory(expenses)
+      },
+      benefits: {
+        totals: { totalValue: benefitValue, avgPerEmployee: activeEnrollments.length ? benefitValue / activeEnrollments.length : 0, activeEnrollments: activeEnrollments.length },
+        benefits: benefits.map((benefit: any) => ({ id: benefit.id, name: benefit.name, category: benefit.category, monthlyBudget: this.money(benefit.monthlyBudget), annualBudget: this.money(benefit.annualBudget), employerSharePercent: benefit.employerSharePercent, employeeSharePercent: benefit.employeeSharePercent, perEmployeeMax: benefit.perEmployeeMax, department: benefit.department?.name, status: benefit.status, metadata: benefit.metadata || {} })),
+        enrollments: enrollments.map((enrollment: any) => ({ id: enrollment.id, benefitId: enrollment.benefitId, employeeUserId: enrollment.employeeUserId, department: enrollment.department?.name, value: this.money(enrollment.value), status: enrollment.status, enrolledAt: enrollment.enrolledAt })),
+        departmentValues: Array.from(benefitsByDepartment.values()).map((d: any) => ({ ...d, avg: d.employees ? d.value / d.employees : 0 }))
+      },
+      meta: { generatedAt: new Date().toISOString(), query }
+    };
+  }
+
+  private lastMonths(count: number) {
+    const now = new Date();
+    return Array.from({ length: count }, (_, index) => {
+      const month = new Date(now.getFullYear(), now.getMonth() - (count - index - 1), 1);
+      const next = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+      return { label: this.monthKey(month), start: month, end: next };
+    });
+  }
+
+  private formatSalaryRequest(request: any) {
+    const increase = this.money(request.requestedSalary) - this.money(request.currentSalary);
+    return {
+      id: request.id,
+      kind: 'salary',
+      type: 'Salary Adjustment',
+      priority: request.priority,
+      employee: request.employee?.fullName || 'Unknown employee',
+      employeeUserId: request.employeeUserId,
+      requester: request.requester?.fullName || 'Unknown requester',
+      department: request.department?.name,
+      descr: request.reason || '',
+      reason: request.reason || '',
+      currentSalary: this.money(request.currentSalary),
+      requestedSalary: this.money(request.requestedSalary),
+      amount: increase,
+      increase,
+      pct: this.money(request.currentSalary) ? (increase / this.money(request.currentSalary)) * 100 : 0,
+      date: request.createdAt,
+      status: request.status,
+      metadata: request.metadata || {}
+    };
+  }
+
+  private formatExpenseRequest(expense: any) {
+    return {
+      id: expense.id,
+      kind: 'expense',
+      type: 'Expense Approval',
+      title: expense.description || expense.category,
+      category: expense.category,
+      priority: expense.metadata?.priority || 'medium',
+      dept: expense.Department?.name || 'Unassigned',
+      department: expense.Department?.name || 'Unassigned',
+      reason: expense.description || '',
+      descr: expense.description || '',
+      budget: expense.metadata?.budgetName || expense.category,
+      requestedBy: expense.requester?.fullName || 'Unknown requester',
+      requester: expense.requester?.fullName || 'Unknown requester',
+      date: expense.expenseDate,
+      amount: this.money(expense.amount),
+      currency: expense.currency,
+      status: expense.status,
+      metadata: expense.metadata || {}
+    };
+  }
+
+  private formatReallocationRequest(request: any) {
+    return {
+      id: request.id,
+      kind: 'budget',
+      type: 'Budget Reallocation',
+      priority: request.metadata?.priority || 'medium',
+      employee: request.metadata?.requesterName || 'Finance team',
+      requester: request.metadata?.requesterName || 'Finance team',
+      descr: request.reason || '',
+      reason: request.reason || '',
+      amount: this.money(request.amount),
+      date: request.createdAt,
+      status: request.status,
+      metadata: request.metadata || {}
+    };
+  }
+
+  private formatPayrollRecord(record: any) {
+    return {
+      id: record.id,
+      employeeUserId: record.employeeUserId,
+      name: record.employee?.fullName || 'Unknown employee',
+      email: record.employee?.email,
+      department: record.department?.name || 'Unassigned',
+      role: record.metadata?.role || 'Employee',
+      periodStart: record.periodStart,
+      periodEnd: record.periodEnd,
+      payDate: record.payDate,
+      baseSalary: this.money(record.baseSalary),
+      pension: this.money(record.pension),
+      grossPay: this.money(record.grossPay),
+      tax: this.money(record.tax),
+      netPay: this.money(record.netPay),
+      overtime: this.money(record.overtime),
+      bonus: this.money(record.bonus),
+      commission: this.money(record.commission),
+      currency: record.currency,
+      status: record.status
+    };
+  }
+
+  private buildPayrollSchedule(records: any[]) {
+    const byType = [
+      ['scheduled', 'grossPay'],
+      ['commission', 'commission'],
+      ['bonus', 'bonus'],
+      ['overtime', 'overtime']
+    ];
+    const now = new Date();
+    return byType.map(([type, field], index) => {
+      const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 5 + index);
+      return {
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        title: type,
+        amount: records.reduce((sum: number, record: any) => sum + this.money(record[field]), 0),
+        daysLeft: Math.max(Math.ceil((date.getTime() - now.getTime()) / 86400000), 0)
+      };
+    });
+  }
+
+  private buildPayrollSummaries(records: any[]) {
+    const groups = new Map<string, any>();
+    for (const record of records) {
+      const key = record.periodEnd ? new Date(record.periodEnd).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Current Payroll';
+      const current = groups.get(key) || { name: key, count: 0, gross: 0, pension: 0, tax: 0, net: 0 };
+      current.count += 1;
+      current.gross += this.money(record.grossPay);
+      current.pension += this.money(record.pension);
+      current.tax += this.money(record.tax);
+      current.net += this.money(record.netPay);
+      groups.set(key, current);
+    }
+    return Array.from(groups.values());
+  }
+
+  private buildAnnualBudgetSummaries(budgets: any[]) {
+    const groups = new Map<string, any>();
+    for (const budget of budgets) {
+      const year = budget.periodStart ? new Date(budget.periodStart).getFullYear() : new Date().getFullYear();
+      const current = groups.get(String(year)) || { year: `Year ${year}`, allocated: 0, spent: 0, departments: [] };
+      current.allocated += this.money(budget.allocatedAmount);
+      current.spent += this.money(budget.usedAmount);
+      current.departments.push({ name: budget.Department?.name || budget.name, allocated: this.money(budget.allocatedAmount), spent: this.money(budget.usedAmount) });
+      groups.set(String(year), current);
+    }
+    return Array.from(groups.values()).map((item: any) => ({ ...item, variance: item.allocated - item.spent }));
+  }
+
+  private buildExpenseHistory(expenses: any[]) {
+    const groups = new Map<string, any>();
+    for (const expense of expenses) {
+      const key = new Date(expense.expenseDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const current = groups.get(key) || { period: key, total: 0, categories: {} };
+      current.total += this.money(expense.amount);
+      current.categories[expense.category] = (current.categories[expense.category] || 0) + this.money(expense.amount);
+      groups.set(key, current);
+    }
+    return Array.from(groups.values());
+  }
+
+  async decideSalaryRequest(businessId: string, id: string, action: 'approve' | 'reject', actorUserId: string) {
+    const request = await db.SalaryAdjustmentRequest.findOne({ where: { id, businessId } });
+    if (!request) throw new Error('Salary adjustment request not found');
+    await request.update({ status: action === 'approve' ? 'approved' : 'rejected', reviewedByUserId: actorUserId, reviewedAt: new Date() });
+    if (action === 'approve') {
+      const employee = await db.EmployeeRecord.findOne({ where: { businessId, userId: request.employeeUserId } });
+      if (employee) await employee.update({ salaryInfo: { ...(employee.salaryInfo || {}), baseSalary: request.requestedSalary } });
+    }
+    return request;
+  }
+
+  async rejectExpense(businessId: string, expenseId: string, actorUserId: string) {
+    const exp = await db.Expense.findOne({ where: { id: expenseId, businessId } });
+    if (!exp) throw new Error("Expense not found");
+    await exp.update({ status: 'rejected', metadata: { ...(exp.metadata || {}), reviewedByUserId: actorUserId, reviewedAt: new Date().toISOString() } });
+    return exp;
+  }
+
+  async decideBudgetReallocation(businessId: string, id: string, action: 'approve' | 'reject', actorUserId: string) {
+    const request = await db.BudgetReallocationRequest.findOne({ where: { id, businessId } });
+    if (!request) throw new Error('Budget reallocation request not found');
+    await request.update({ status: action === 'approve' ? 'approved' : 'rejected', reviewedByUserId: actorUserId, reviewedAt: new Date() });
+    if (action === 'approve' && request.sourceBudgetId && request.targetBudgetId) {
+      const [source, target] = await Promise.all([
+        db.Budget.findOne({ where: { id: request.sourceBudgetId, businessId } }),
+        db.Budget.findOne({ where: { id: request.targetBudgetId, businessId } })
+      ]);
+      if (source && target) {
+        await source.update({ allocatedAmount: Math.max(this.money(source.allocatedAmount) - this.money(request.amount), 0) });
+        await target.update({ allocatedAmount: this.money(target.allocatedAmount) + this.money(request.amount) });
+      }
+    }
+    return request;
+  }
+
+  async createBudgetReallocation(businessId: string, actorUserId: string, data: any) {
+    return db.BudgetReallocationRequest.create({
+      businessId,
+      requestedByUserId: actorUserId,
+      sourceBudgetId: data.sourceBudgetId || null,
+      targetBudgetId: data.targetBudgetId || null,
+      amount: this.money(data.amount),
+      reason: data.reason || 'Budget reallocation requested from Workforce Finance',
+      status: 'pending',
+      metadata: data.metadata || {}
+    });
+  }
 
   async provisionForms(businessId: string) {
      const templates = [

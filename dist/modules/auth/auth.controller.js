@@ -12,10 +12,13 @@ const apiResponse_1 = require("../../utils/apiResponse");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const normalizeEmail_1 = require("../../utils/normalizeEmail");
 const sequelize_1 = require("sequelize");
+const profileImageUpload_1 = require("../../middlewares/profileImageUpload");
+const file_service_1 = require("../file/file.service");
 class AuthController {
     constructor() {
+        this.fileService = new file_service_1.FileService();
         this.register = async (req, res, next) => {
-            const { businessId, fullName, email, password, phone } = req.body;
+            const { businessId, fullName, email, password, phone, departmentId, positionId, address } = req.body;
             const normalizedEmail = (0, normalizeEmail_1.normalizeEmail)(email);
             const business = await models_1.db.Business.findByPk(businessId);
             if (!business)
@@ -33,6 +36,35 @@ class AuthController {
                 status: "active",
                 isPlatformSuperAdmin: false
             });
+            const profileImage = Array.isArray(req.files?.profileImage) ? req.files.profileImage[0] : req.file;
+            const [profile] = await models_1.db.BusinessUserProfile.upsert({
+                businessId,
+                userId: user.id,
+                departmentId: departmentId || null,
+                positionId: positionId || null,
+                workEmail: normalizedEmail,
+                workPhone: phone || null,
+                status: "active",
+                settings: {
+                    fullName,
+                    email: normalizedEmail,
+                    phone: phone || null,
+                    address: address || null,
+                    profileImageUrl: (0, profileImageUpload_1.profileImageUrl)(profileImage)
+                }
+            });
+            const documents = Array.isArray(req.files?.documents) ? req.files.documents : [];
+            for (const doc of documents) {
+                const asset = await this.fileService.saveAssetRecord(businessId, user.id, doc, { profileId: profile.id, documentType: "employee_document" });
+                await models_1.db.EntityAttachment.create({
+                    businessId,
+                    fileAssetId: asset.id,
+                    entityType: "business_user_profile",
+                    entityId: profile.id,
+                    moduleKey: "profiles",
+                    attachmentType: "employee_document"
+                });
+            }
             const count = await models_1.db.User.count({ where: { businessId } });
             const businessAdminRole = await models_1.db.Role.findOne({ where: { businessId: null, key: "BUSINESS_ADMIN" } });
             if (businessAdminRole && count === 1) {

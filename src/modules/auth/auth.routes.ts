@@ -5,6 +5,7 @@ import { registerSchema, loginSchema, selectWorkspaceSchema } from "../../valida
 import { AuthController } from "./auth.controller";
 import { authRequired } from "../../middlewares/auth";
 import { authRateLimiter } from "../../middlewares/security";
+import { uploadProfileImage } from "../../middlewares/profileImageUpload";
 
 const router = Router();
 const controller = new AuthController();
@@ -31,7 +32,7 @@ const controller = new AuthController();
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post("/register", validate(registerSchema), asyncHandler(controller.register));
+router.post("/register", uploadProfileImage.fields([{ name: "profileImage", maxCount: 1 }, { name: "documents", maxCount: 10 }]), validate(registerSchema), asyncHandler(controller.register));
 /**
  * @openapi
  * /api/v1/auth/login:

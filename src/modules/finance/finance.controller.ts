@@ -8,6 +8,46 @@ import { db } from '../../models';
 export class FinanceController {
   private service = new FinanceService();
 
+  workforce = async (req: Request, res: Response) => {
+    try {
+      const data = await this.service.getWorkforceDashboard(req.user!.businessId, req.query);
+      successResponse(res, data, "Workforce finance dashboard loaded");
+    } catch(e: any) { errorResponse(res, e.message); }
+  };
+
+  exportWorkforce = async (req: Request, res: Response) => {
+    try {
+      const tab = String(req.params.tab || 'overview');
+      const data: any = await this.service.getWorkforceDashboard(req.user!.businessId, req.query);
+      const rows = this.rowsForExport(data, tab);
+      const csv = this.toCsv(rows);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="workforce-finance-${tab}.csv"`);
+      res.status(200).send(csv);
+    } catch(e: any) { errorResponse(res, e.message); }
+  };
+
+  private rowsForExport(data: any, tab: string) {
+    if (tab === 'salary') return data.salary?.employees ?? [];
+    if (tab === 'payroll') return data.payroll?.records ?? [];
+    if (tab === 'budget') return data.budget?.allocations ?? [];
+    if (tab === 'expense') return data.expense?.recent ?? [];
+    if (tab === 'benefits') return data.benefits?.benefits ?? [];
+    return data.overview?.pendingApprovals ?? [];
+  }
+
+  private toCsv(rows: any[]) {
+    if (!rows.length) return 'empty\n';
+    const headers = Array.from(rows.reduce((set: Set<string>, row) => {
+      Object.keys(row).forEach((key) => {
+        if (typeof row[key] !== 'object') set.add(key);
+      });
+      return set;
+    }, new Set<string>()));
+    const escape = (value: any) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    return [headers.join(','), ...rows.map((row) => headers.map((header: string) => escape(row[header])).join(','))].join('\n');
+  }
+
   seedForms = async (req: Request, res: Response) => {
     await this.service.provisionForms(req.user!.businessId);
     successResponse(res, null, "Finance forms seeded successfully.");
@@ -64,6 +104,39 @@ export class FinanceController {
     try {
       const exp = await this.service.approveExpense(req.user!.businessId, req.params.id);
       successResponse(res, exp, "Expense approved");
+    } catch(e: any) { errorResponse(res, e.message); }
+  };
+
+  rejectExpense = async (req: Request, res: Response) => {
+    try {
+      const exp = await this.service.rejectExpense(req.user!.businessId, req.params.id, req.user!.id);
+      successResponse(res, exp, "Expense rejected");
+    } catch(e: any) { errorResponse(res, e.message); }
+  };
+
+  decideSalaryRequest = async (req: Request, res: Response) => {
+    try {
+      const action = req.params.action === 'approve' ? 'approve' : 'reject';
+      const request = await this.service.decideSalaryRequest(req.user!.businessId, req.params.id, action, req.user!.id);
+      await AuditLogService.log(action === 'approve' ? 'APPROVE_SALARY_ADJUSTMENT' : 'REJECT_SALARY_ADJUSTMENT', 'finance_salary', String(request.id), null, request, req);
+      successResponse(res, request, `Salary adjustment ${action}d`);
+    } catch(e: any) { errorResponse(res, e.message); }
+  };
+
+  decideBudgetReallocation = async (req: Request, res: Response) => {
+    try {
+      const action = req.params.action === 'approve' ? 'approve' : 'reject';
+      const request = await this.service.decideBudgetReallocation(req.user!.businessId, req.params.id, action, req.user!.id);
+      await AuditLogService.log(action === 'approve' ? 'APPROVE_BUDGET_REALLOCATION' : 'REJECT_BUDGET_REALLOCATION', 'finance_budget', String(request.id), null, request, req);
+      successResponse(res, request, `Budget reallocation ${action}d`);
+    } catch(e: any) { errorResponse(res, e.message); }
+  };
+
+  createBudgetReallocation = async (req: Request, res: Response) => {
+    try {
+      const request = await this.service.createBudgetReallocation(req.user!.businessId, req.user!.id, req.body);
+      await AuditLogService.log('CREATE_BUDGET_REALLOCATION', 'finance_budget', String(request.id), null, request, req);
+      successResponse(res, request, 'Budget reallocation requested', 201);
     } catch(e: any) { errorResponse(res, e.message); }
   };
   

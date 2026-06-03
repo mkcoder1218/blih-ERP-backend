@@ -228,6 +228,7 @@ class HRController {
                         }
                         if (Object.keys(bpUpdates).length > 0)
                             await businessProfile.update(bpUpdates, { transaction });
+                        await this.attachUploadsToProfile({ businessId, profileId: businessProfile.id, uploads, transaction });
                     }
                 }
                 if (profile?.systemRole !== undefined) {
@@ -366,10 +367,11 @@ class HRController {
                 }
                 // 3. Create or restore Business User Profile link
                 const deletedProfile = await models_1.db.BusinessUserProfile.findOne({ where: { userId: targetUser.id, businessId }, transaction, paranoid: false });
+                let businessProfile;
                 if (deletedProfile) {
                     if (deletedProfile.deletedAt)
                         await deletedProfile.restore({ transaction });
-                    await deletedProfile.update({
+                    businessProfile = await deletedProfile.update({
                         employeeCode: recordData.employeeCode,
                         departmentId: recordData.departmentId,
                         positionId: recordData.positionId,
@@ -380,7 +382,7 @@ class HRController {
                     }, { transaction });
                 }
                 else {
-                    await models_1.db.BusinessUserProfile.create({
+                    businessProfile = await models_1.db.BusinessUserProfile.create({
                         businessId,
                         userId: targetUser.id,
                         employeeCode: recordData.employeeCode,
@@ -392,6 +394,7 @@ class HRController {
                         joinedAt: recordData.hireDate
                     }, { transaction });
                 }
+                await this.attachUploadsToProfile({ businessId, profileId: businessProfile.id, uploads, transaction });
                 // 4. Offer Letter Automation
                 if (offerLetterTemplateId) {
                     const template = await models_1.db.OfferLetterTemplate.findOne({ where: { id: offerLetterTemplateId, businessId }, transaction });
@@ -526,6 +529,30 @@ class HRController {
         if (underscored === "HR_MANAGER" || underscored === "HRMANAGER")
             return "HR_MANAGER";
         return underscored || "EMPLOYEE";
+    }
+    async attachUploadsToProfile(params) {
+        const { businessId, profileId, uploads, transaction } = params;
+        if (!uploads || typeof uploads !== "object")
+            return;
+        for (const [key, value] of Object.entries(uploads)) {
+            const fileAssetId = value?.id || value?.fileAssetId;
+            if (!fileAssetId)
+                continue;
+            const existing = await models_1.db.EntityAttachment.findOne({
+                where: { businessId, entityType: "business_user_profile", entityId: profileId, fileAssetId },
+                transaction
+            });
+            if (existing)
+                continue;
+            await models_1.db.EntityAttachment.create({
+                businessId,
+                fileAssetId,
+                entityType: "business_user_profile",
+                entityId: profileId,
+                moduleKey: "profiles",
+                attachmentType: key
+            }, { transaction });
+        }
     }
 }
 exports.HRController = HRController;

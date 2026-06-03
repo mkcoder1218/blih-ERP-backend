@@ -36,6 +36,9 @@ router.use(authRequired);
  */
 router.post("/templates", requireRole("BUSINESS_ADMIN", "FINANCE_MANAGER"), asyncHandler(controller.seedForms));
 
+router.get("/workforce", asyncHandler(controller.workforce));
+router.get("/workforce/export/:tab", asyncHandler(controller.exportWorkforce));
+
 // Invoices
 /**
  * @openapi
@@ -124,6 +127,28 @@ router.post(
   "/expenses/:id/approve",
   requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
   asyncHandler(controller.approveExpense)
+);
+router.post(
+  "/expenses/:id/reject",
+  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  asyncHandler(controller.rejectExpense)
+);
+
+router.post(
+  "/salary-adjustments/:id/:action(approve|reject)",
+  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  asyncHandler(controller.decideSalaryRequest)
+);
+
+router.post(
+  "/budget-reallocations/:id/:action(approve|reject)",
+  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  asyncHandler(controller.decideBudgetReallocation)
+);
+router.post(
+  "/budget-reallocations",
+  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  asyncHandler(controller.createBudgetReallocation)
 );
 
 // Budgets

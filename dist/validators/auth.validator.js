@@ -10,7 +10,10 @@ exports.registerSchema = joi_1.default.object({
     fullName: joi_1.default.string().min(2).max(200).required(),
     email: joi_1.default.string().email().max(320).required(),
     password: joi_1.default.string().min(8).max(72).required(),
-    phone: joi_1.default.string().max(50).optional()
+    phone: joi_1.default.string().max(50).allow(null, "").optional(),
+    departmentId: joi_1.default.string().uuid().allow(null, "").optional(),
+    positionId: joi_1.default.string().uuid().allow(null, "").optional(),
+    address: joi_1.default.string().max(500).allow(null, "").optional()
 });
 exports.loginSchema = joi_1.default.object({
     email: joi_1.default.string().trim().lowercase().email({ tlds: { allow: false } }).max(320).required(),

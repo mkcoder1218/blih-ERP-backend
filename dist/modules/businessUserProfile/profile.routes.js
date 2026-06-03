@@ -8,6 +8,7 @@ const validate_1 = require("../../middlewares/validate");
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const businessUserProfile_validator_1 = require("../../validators/businessUserProfile.validator");
 const profile_controller_1 = require("./profile.controller");
+const profileImageUpload_1 = require("../../middlewares/profileImageUpload");
 const router = (0, express_1.Router)();
 const controller = new profile_controller_1.ProfileController();
 router.use(auth_1.authRequired);
@@ -35,6 +36,12 @@ router.use(auth_1.authRequired);
  *         $ref: '#/components/responses/500'
  */
 router.get('/me', (0, asyncHandler_1.asyncHandler)(controller.getMe));
+router.patch('/me', profileImageUpload_1.uploadProfileImage.single("profileImage"), (0, asyncHandler_1.asyncHandler)(controller.updateMe));
+router.get('/me/documents', (0, asyncHandler_1.asyncHandler)(controller.listMyDocuments));
+router.post('/me/documents', profileImageUpload_1.uploadProfileImage.single("document"), (0, asyncHandler_1.asyncHandler)(controller.uploadMyDocument));
+router.get('/user/:userId', (0, asyncHandler_1.asyncHandler)(controller.getByUser));
+router.get('/user/:userId/documents', (0, asyncHandler_1.asyncHandler)(controller.listUserDocuments));
+router.post('/user/:userId/documents', profileImageUpload_1.uploadProfileImage.single("document"), (0, asyncHandler_1.asyncHandler)(controller.uploadUserDocument));
 // Listing all requires Business Admin
 /**
  * @openapi

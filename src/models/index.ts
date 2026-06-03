@@ -50,6 +50,11 @@ import defineInvoiceItem from "./InvoiceItem";
 import definePayment from "./Payment";
 import defineExpense from "./Expense";
 import defineBudget from "./Budget";
+import defineSalaryAdjustmentRequest from "./SalaryAdjustmentRequest";
+import definePayrollRecord from "./PayrollRecord";
+import defineFinanceBenefit from "./FinanceBenefit";
+import defineFinanceBenefitEnrollment from "./FinanceBenefitEnrollment";
+import defineBudgetReallocationRequest from "./BudgetReallocationRequest";
 import defineKnowledgeCategory from "./KnowledgeCategory";
 import defineKnowledgeArticle from "./KnowledgeArticle";
 import defineKnowledgeRevision from "./KnowledgeRevision";
@@ -155,6 +160,11 @@ export type DB = {
   Payment: any;
   Expense: any;
   Budget: any;
+  SalaryAdjustmentRequest: any;
+  PayrollRecord: any;
+  FinanceBenefit: any;
+  FinanceBenefitEnrollment: any;
+  BudgetReallocationRequest: any;
   KnowledgeCategory: any;
   KnowledgeArticle: any;
   KnowledgeRevision: any;
@@ -257,6 +267,11 @@ export const db: DB = {
   Payment: definePayment(sequelize, DataTypes),
   Expense: defineExpense(sequelize, DataTypes),
   Budget: defineBudget(sequelize, DataTypes),
+  SalaryAdjustmentRequest: defineSalaryAdjustmentRequest(sequelize, DataTypes),
+  PayrollRecord: definePayrollRecord(sequelize, DataTypes),
+  FinanceBenefit: defineFinanceBenefit(sequelize, DataTypes),
+  FinanceBenefitEnrollment: defineFinanceBenefitEnrollment(sequelize, DataTypes),
+  BudgetReallocationRequest: defineBudgetReallocationRequest(sequelize, DataTypes),
   KnowledgeCategory: defineKnowledgeCategory(sequelize, DataTypes),
   KnowledgeArticle: defineKnowledgeArticle(sequelize, DataTypes),
   KnowledgeRevision: defineKnowledgeRevision(sequelize, DataTypes),

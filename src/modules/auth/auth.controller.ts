@@ -6,10 +6,14 @@ import { ok } from "../../utils/apiResponse";
 import jwt from "jsonwebtoken";
 import { normalizeEmail } from "../../utils/normalizeEmail";
 import { Op } from "sequelize";
+import { profileImageUrl } from "../../middlewares/profileImageUpload";
+import { FileService } from "../file/file.service";
 
 export class AuthController {
+  private fileService = new FileService();
+
   register = async (req: any, res: any, next: any) => {
-    const { businessId, fullName, email, password, phone } = req.body;
+    const { businessId, fullName, email, password, phone, departmentId, positionId, address } = req.body;
     const normalizedEmail = normalizeEmail(email);
 
     const business = await db.Business.findByPk(businessId);
@@ -28,6 +32,37 @@ export class AuthController {
       status: "active",
       isPlatformSuperAdmin: false
     });
+
+    const profileImage = Array.isArray(req.files?.profileImage) ? req.files.profileImage[0] : req.file;
+    const [profile] = await db.BusinessUserProfile.upsert({
+      businessId,
+      userId: user.id,
+      departmentId: departmentId || null,
+      positionId: positionId || null,
+      workEmail: normalizedEmail,
+      workPhone: phone || null,
+      status: "active",
+      settings: {
+        fullName,
+        email: normalizedEmail,
+        phone: phone || null,
+        address: address || null,
+        profileImageUrl: profileImageUrl(profileImage)
+      }
+    });
+
+    const documents = Array.isArray(req.files?.documents) ? req.files.documents : [];
+    for (const doc of documents) {
+      const asset = await this.fileService.saveAssetRecord(businessId, user.id, doc, { profileId: profile.id, documentType: "employee_document" });
+      await db.EntityAttachment.create({
+        businessId,
+        fileAssetId: asset.id,
+        entityType: "business_user_profile",
+        entityId: profile.id,
+        moduleKey: "profiles",
+        attachmentType: "employee_document"
+      });
+    }
 
     const count = await db.User.count({ where: { businessId } });
     const businessAdminRole = await db.Role.findOne({ where: { businessId: null, key: "BUSINESS_ADMIN" } });

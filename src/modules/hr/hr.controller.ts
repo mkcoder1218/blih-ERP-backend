@@ -18,6 +18,31 @@ export class HRController {
      return underscored || "EMPLOYEE";
    }
 
+   private async attachUploadsToProfile(params: { businessId: string; profileId: string; uploads: any; transaction: any }) {
+     const { businessId, profileId, uploads, transaction } = params;
+     if (!uploads || typeof uploads !== "object") return;
+
+     for (const [key, value] of Object.entries(uploads)) {
+       const fileAssetId = (value as any)?.id || (value as any)?.fileAssetId;
+       if (!fileAssetId) continue;
+
+       const existing = await db.EntityAttachment.findOne({
+         where: { businessId, entityType: "business_user_profile", entityId: profileId, fileAssetId },
+         transaction
+       });
+       if (existing) continue;
+
+       await db.EntityAttachment.create({
+         businessId,
+         fileAssetId,
+         entityType: "business_user_profile",
+         entityId: profileId,
+         moduleKey: "profiles",
+         attachmentType: key
+       }, { transaction });
+     }
+   }
+
    // Seed hook
    seedTemplates = async (req: Request, res: Response) => {
      await this.service.provisionTemplates(req.user!.businessId);
@@ -225,6 +250,7 @@ export class HRController {
              bpUpdates.settings = settings;
            }
            if (Object.keys(bpUpdates).length > 0) await businessProfile.update(bpUpdates, { transaction });
+           await this.attachUploadsToProfile({ businessId, profileId: businessProfile.id, uploads, transaction });
          }
        }
 
@@ -378,9 +404,10 @@ export class HRController {
 
            // 3. Create or restore Business User Profile link
            const deletedProfile = await db.BusinessUserProfile.findOne({ where: { userId: targetUser.id, businessId }, transaction, paranoid: false });
+           let businessProfile;
            if (deletedProfile) {
               if (deletedProfile.deletedAt) await deletedProfile.restore({ transaction });
-              await deletedProfile.update({
+              businessProfile = await deletedProfile.update({
                   employeeCode: recordData.employeeCode,
                   departmentId: recordData.departmentId,
                   positionId: recordData.positionId,
@@ -390,7 +417,7 @@ export class HRController {
                   joinedAt: recordData.hireDate
               }, { transaction });
            } else {
-              await db.BusinessUserProfile.create({
+              businessProfile = await db.BusinessUserProfile.create({
                   businessId,
                   userId: targetUser.id,
                   employeeCode: recordData.employeeCode,
@@ -402,6 +429,8 @@ export class HRController {
                   joinedAt: recordData.hireDate
               }, { transaction });
            }
+
+           await this.attachUploadsToProfile({ businessId, profileId: businessProfile.id, uploads, transaction });
 
            // 4. Offer Letter Automation
            if (offerLetterTemplateId) {

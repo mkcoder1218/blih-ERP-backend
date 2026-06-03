@@ -5,6 +5,7 @@ const business_dal_1 = require("./business.dal");
 const slugify_1 = require("../../utils/slugify");
 const template_service_1 = require("../moduleTemplate/template.service");
 const models_1 = require("../../models");
+const Role_1 = require("../../models/Role");
 class BusinessService {
     constructor() {
         this.templateService = new template_service_1.TemplateService();
@@ -49,7 +50,7 @@ class BusinessService {
             const globalRole = await models_1.db.Role.findOne({ where: { businessId: null, key } });
             const [role] = await models_1.db.Role.findOrCreate({
                 where: { businessId: business.id, key },
-                defaults: { businessId: business.id, key, name: key.replace(/_/g, " "), description: null, isSystemRole: false }
+                defaults: { businessId: business.id, key, name: key.replace(/_/g, " "), description: null, isSystemRole: false, domain: (0, Role_1.roleDomainForKey)(key) }
             });
             if (globalRole) {
                 const perms = await globalRole.getPermissions();

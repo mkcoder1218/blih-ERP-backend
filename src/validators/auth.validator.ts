@@ -5,7 +5,10 @@ export const registerSchema = Joi.object({
   fullName: Joi.string().min(2).max(200).required(),
   email: Joi.string().email().max(320).required(),
   password: Joi.string().min(8).max(72).required(),
-  phone: Joi.string().max(50).optional()
+  phone: Joi.string().max(50).allow(null, "").optional(),
+  departmentId: Joi.string().uuid().allow(null, "").optional(),
+  positionId: Joi.string().uuid().allow(null, "").optional(),
+  address: Joi.string().max(500).allow(null, "").optional()
 });
 
 export const loginSchema = Joi.object({

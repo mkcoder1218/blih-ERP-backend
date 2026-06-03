@@ -7,6 +7,7 @@ const asyncHandler_1 = require("../../utils/asyncHandler");
 const auth_validator_1 = require("../../validators/auth.validator");
 const auth_controller_1 = require("./auth.controller");
 const auth_1 = require("../../middlewares/auth");
+const profileImageUpload_1 = require("../../middlewares/profileImageUpload");
 const router = (0, express_1.Router)();
 const controller = new auth_controller_1.AuthController();
 /**
@@ -31,7 +32,7 @@ const controller = new auth_controller_1.AuthController();
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post("/register", (0, validate_1.validate)(auth_validator_1.registerSchema), (0, asyncHandler_1.asyncHandler)(controller.register));
+router.post("/register", profileImageUpload_1.uploadProfileImage.fields([{ name: "profileImage", maxCount: 1 }, { name: "documents", maxCount: 10 }]), (0, validate_1.validate)(auth_validator_1.registerSchema), (0, asyncHandler_1.asyncHandler)(controller.register));
 /**
  * @openapi
  * /api/v1/auth/login:

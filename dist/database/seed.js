@@ -7,6 +7,7 @@ const template_service_1 = require("../modules/moduleTemplate/template.service")
 exports.SYSTEM_ROLES = {
     PLATFORM_SUPER_ADMIN: { name: "Platform Super Admin", key: "PLATFORM_SUPER_ADMIN" },
     BUSINESS_ADMIN: { name: "Business Admin", key: "BUSINESS_ADMIN" },
+    HR_MANAGER: { name: "HR Manager", key: "HR_MANAGER" },
     FINANCE_MANAGER: { name: "Finance Manager", key: "FINANCE_MANAGER" },
     DEPARTMENT_HEAD: { name: "Department Head", key: "DEPARTMENT_HEAD" },
     PROJECT_MANAGER: { name: "Project Manager", key: "PROJECT_MANAGER" }
@@ -48,7 +49,11 @@ async function seedDefaults() {
     });
     const [financeManagerRole] = await models_1.db.Role.findOrCreate({
         where: { businessId: null, key: exports.SYSTEM_ROLES.FINANCE_MANAGER.key },
-        defaults: { ...exports.SYSTEM_ROLES.FINANCE_MANAGER, businessId: null, isSystemRole: true }
+        defaults: { ...exports.SYSTEM_ROLES.FINANCE_MANAGER, businessId: null, isSystemRole: true, domain: "finance" }
+    });
+    const [hrManagerRole] = await models_1.db.Role.findOrCreate({
+        where: { businessId: null, key: exports.SYSTEM_ROLES.HR_MANAGER.key },
+        defaults: { ...exports.SYSTEM_ROLES.HR_MANAGER, businessId: null, isSystemRole: true, domain: "hr" }
     });
     const [departmentHeadRole] = await models_1.db.Role.findOrCreate({
         where: { businessId: null, key: exports.SYSTEM_ROLES.DEPARTMENT_HEAD.key },
@@ -58,12 +63,16 @@ async function seedDefaults() {
         where: { businessId: null, key: exports.SYSTEM_ROLES.PROJECT_MANAGER.key },
         defaults: { ...exports.SYSTEM_ROLES.PROJECT_MANAGER, businessId: null, isSystemRole: true }
     });
+    await hrManagerRole.update({ domain: "hr" });
+    await financeManagerRole.update({ domain: "finance" });
+    await projectManagerRole.update({ domain: "project" });
     await platformRole.setPermissions(permissions);
     const businessAdminPerms = permissions.filter((p) => !["business.create", "business.delete"].includes(p.key));
     await businessAdminRole.setPermissions(businessAdminPerms);
     // Finance/Dept/Project roles start with the same base permissions as Business Admin for now.
     // Fine-grained permission keys can be added later without changing role keys.
     await financeManagerRole.setPermissions(businessAdminPerms);
+    await hrManagerRole.setPermissions(businessAdminPerms);
     await departmentHeadRole.setPermissions(businessAdminPerms);
     await projectManagerRole.setPermissions(businessAdminPerms);
     for (const p of exports.DEFAULT_PLANS) {

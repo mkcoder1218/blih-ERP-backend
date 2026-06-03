@@ -3,11 +3,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProfileDAL = void 0;
 const models_1 = require("../../models");
 class ProfileDAL {
-    findAll(query, offset, limit) {
-        return models_1.db.BusinessUserProfile.findAndCountAll({ where: query, offset, limit, order: [['createdAt', 'DESC']] });
+    constructor() {
+        this.include = [
+            { model: models_1.db.User, attributes: ["id", "fullName", "email", "phone", "status"] },
+            { model: models_1.db.Department, as: "department", attributes: ["id", "name"] },
+            { model: models_1.db.Position, as: "position", attributes: ["id", "title"] }
+        ];
     }
-    findById(id, businessId) { return models_1.db.BusinessUserProfile.findOne({ where: { id, businessId } }); }
-    findByUserId(userId, businessId) { return models_1.db.BusinessUserProfile.findOne({ where: { userId, businessId } }); }
+    findAll(query, offset, limit) {
+        return models_1.db.BusinessUserProfile.findAndCountAll({ where: query, include: this.include, offset, limit, order: [['createdAt', 'DESC']] });
+    }
+    findById(id, businessId) { return models_1.db.BusinessUserProfile.findOne({ where: { id, businessId }, include: this.include }); }
+    findByUserId(userId, businessId) { return models_1.db.BusinessUserProfile.findOne({ where: { userId, businessId }, include: this.include }); }
     create(data) { return models_1.db.BusinessUserProfile.create(data); }
     async update(id, businessId, data) {
         const prof = await models_1.db.BusinessUserProfile.findOne({ where: { id, businessId } });

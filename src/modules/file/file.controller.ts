@@ -113,8 +113,9 @@ export class FileController {
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(asset.originalName)}"`);
-      res.setHeader('Content-Type', 'application/octet-stream');
+      const shouldPreview = req.query.preview === '1';
+      res.setHeader('Content-Disposition', `${shouldPreview ? 'inline' : 'attachment'}; filename="${encodeURIComponent(asset.originalName)}"`);
+      res.setHeader('Content-Type', shouldPreview ? asset.mimeType : 'application/octet-stream');
 
       const fileStream = fs.createReadStream(asset.storagePath);
       fileStream.on('error', (err) => {

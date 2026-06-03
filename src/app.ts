@@ -91,6 +91,7 @@ app.use(sanitizePayload);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static("uploads"));
 
 // TODO: re-enable rate limiting before production
 // app.use(`/api/${env.apiVersion}`, globalRateLimiter);
@@ -130,6 +131,7 @@ apiRouter.use("/files", fileRoutes);
 apiRouter.use("/notifications", notificationRoutes);
 apiRouter.use("/departments", departmentRoutes);
 apiRouter.use("/positions", positionRoutes);
+apiRouter.use("/profiles", businessUserProfileRoutes);
 apiRouter.use("/roles", roleRoutes);
 apiRouter.use("/permissions", permissionRoutes);
 apiRouter.use("/attendance", attendanceMeRoutes);

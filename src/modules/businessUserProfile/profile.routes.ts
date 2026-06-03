@@ -6,6 +6,7 @@ import { validate } from '../../middlewares/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { createProfileSchema, updateProfileSchema } from '../../validators/businessUserProfile.validator';
 import { ProfileController } from './profile.controller';
+import { uploadProfileImage } from '../../middlewares/profileImageUpload';
 
 const router = Router();
 const controller = new ProfileController();
@@ -35,6 +36,12 @@ router.use(authRequired);
  *         $ref: '#/components/responses/500'
  */
 router.get('/me', asyncHandler(controller.getMe));
+router.patch('/me', uploadProfileImage.single("profileImage"), asyncHandler(controller.updateMe));
+router.get('/me/documents', asyncHandler(controller.listMyDocuments));
+router.post('/me/documents', uploadProfileImage.single("document"), asyncHandler(controller.uploadMyDocument));
+router.get('/user/:userId', asyncHandler(controller.getByUser));
+router.get('/user/:userId/documents', asyncHandler(controller.listUserDocuments));
+router.post('/user/:userId/documents', uploadProfileImage.single("document"), asyncHandler(controller.uploadUserDocument));
 
 // Listing all requires Business Admin
 /**

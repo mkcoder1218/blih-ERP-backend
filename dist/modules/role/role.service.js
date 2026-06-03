@@ -38,21 +38,25 @@ class RoleService {
      */
     async listForCaller(businessId, callerRoleKeys) {
         // Check if caller has unrestricted access
-        const isAdmin = callerRoleKeys.some(k => Role_1.ROLE_DOMAIN_MAP[k] === "*");
+        const isAdmin = callerRoleKeys.some(k => (0, Role_1.roleHasAllDomains)(k));
         if (isAdmin) {
             return this.list(businessId);
         }
         // Collect all domains the caller owns
-        const ownedDomains = callerRoleKeys
-            .map(k => Role_1.ROLE_DOMAIN_MAP[k])
-            .filter(Boolean);
+        const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap(k => (0, Role_1.roleDomainsForKey)(k))));
         if (ownedDomains.length === 0) {
             return []; // no domain ownership → no roles to manage
         }
+        const ownedRoleKeys = Object.entries(Role_1.ROLE_DOMAIN_MAP)
+            .filter(([key]) => (0, Role_1.roleDomainsForKey)(key).some((domain) => ownedDomains.includes(domain)))
+            .map(([key]) => key);
         const where = {
             businessId,
             deletedAt: null,
-            domain: { [sequelize_1.Op.in]: ownedDomains },
+            [sequelize_1.Op.or]: [
+                { domain: { [sequelize_1.Op.in]: ownedDomains } },
+                { key: { [sequelize_1.Op.in]: ownedRoleKeys } }
+            ],
         };
         return this.dal.findAll(where, { order: [["createdAt", "DESC"]] });
     }
@@ -67,9 +71,9 @@ class RoleService {
             throw Object.assign(new Error("Cannot modify system role"), { statusCode: 403 });
         // Domain check: non-admins can only update roles in their domain
         if (callerRoleKeys) {
-            const isAdmin = callerRoleKeys.some(k => Role_1.ROLE_DOMAIN_MAP[k] === "*");
+            const isAdmin = callerRoleKeys.some(k => (0, Role_1.roleHasAllDomains)(k));
             if (!isAdmin) {
-                const ownedDomains = callerRoleKeys.map(k => Role_1.ROLE_DOMAIN_MAP[k]).filter(Boolean);
+                const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap(k => (0, Role_1.roleDomainsForKey)(k))));
                 if (role.domain && !ownedDomains.includes(role.domain)) {
                     throw Object.assign(new Error("You can only update roles in your domain"), { statusCode: 403 });
                 }
@@ -95,9 +99,9 @@ class RoleService {
             throw Object.assign(new Error("Cannot delete system role"), { statusCode: 403 });
         // Domain check
         if (callerRoleKeys) {
-            const isAdmin = callerRoleKeys.some(k => Role_1.ROLE_DOMAIN_MAP[k] === "*");
+            const isAdmin = callerRoleKeys.some(k => (0, Role_1.roleHasAllDomains)(k));
             if (!isAdmin) {
-                const ownedDomains = callerRoleKeys.map(k => Role_1.ROLE_DOMAIN_MAP[k]).filter(Boolean);
+                const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap(k => (0, Role_1.roleDomainsForKey)(k))));
                 if (role.domain && !ownedDomains.includes(role.domain)) {
                     throw Object.assign(new Error("You can only delete roles in your domain"), { statusCode: 403 });
                 }
