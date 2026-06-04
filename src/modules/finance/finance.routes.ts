@@ -155,4 +155,16 @@ router.post(
 router.post("/budgets", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.createBudget));
 router.get("/budgets", asyncHandler(controller.listBudgets));
 
+// ── Payroll Templates ──────────────────────────────────────────────────────────
+router.get("/payroll-templates", asyncHandler(controller.listPayrollTemplates));
+router.post("/payroll-templates", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.createPayrollTemplate));
+router.put("/payroll-templates/:id", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.updatePayrollTemplate));
+router.delete("/payroll-templates/:id", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.deletePayrollTemplate));
+router.post("/payroll-templates/preview", asyncHandler(controller.previewPayrollCalculation));
+
+// ── Employee Payroll Links ─────────────────────────────────────────────────────
+router.get("/payroll-dashboard", asyncHandler(controller.getPayrollDashboard));
+router.post("/payroll-links", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.linkEmployeeToTemplate));
+router.delete("/payroll-links/:userId", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.unlinkEmployee));
+
 export const financeRoutes = router;

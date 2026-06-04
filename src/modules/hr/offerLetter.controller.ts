@@ -4,6 +4,7 @@ import { errorResponse, successResponse, paginationResponse } from '../../utils/
 import { renderOfferLetter } from '../../utils/offerLetterRenderer';
 import { generateOfferLetterPdf } from '../../utils/offerLetterPdfGenerator';
 import { sendOfferLetterEmail } from '../../utils/offerLetterMailer';
+import { DEFAULT_EMPLOYMENT_STATUS } from '../../constants/employee.constants';
 
 export class OfferLetterController {
   
@@ -397,7 +398,7 @@ export class OfferLetterController {
         
         if (empRec) {
           await empRec.update({ 
-            employmentStatus: 'probation' 
+            employmentStatus: DEFAULT_EMPLOYMENT_STATUS
           }, { transaction });
         }
       }

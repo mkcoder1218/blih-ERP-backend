@@ -1,5 +1,6 @@
 
 import { db } from '../../models';
+import { INACTIVE_EMPLOYMENT_STATUS, TERMINATED_EMPLOYMENT_STATUS } from '../../constants/employee.constants';
 
 export class HRPerformanceService {
   async provisionForms(businessId: string) {
@@ -38,11 +39,11 @@ export class HRPerformanceService {
      
      if (status === 'completed') {
         const emp = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
-        if (emp) await emp.update({ employmentStatus: 'terminated' });
+        if (emp) await emp.update({ employmentStatus: TERMINATED_EMPLOYMENT_STATUS });
         // Normally disable db.User connection access implicitly here
      } else if (status === 'in_progress') {
         const emp = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
-        if (emp) await emp.update({ employmentStatus: 'exiting' });
+        if (emp) await emp.update({ employmentStatus: INACTIVE_EMPLOYMENT_STATUS });
      }
      return p.update({ status });
   }

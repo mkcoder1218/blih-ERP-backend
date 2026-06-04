@@ -6,8 +6,14 @@ import fs from "fs";
 import { db } from "../../models";
 import { errorResponse, successResponse } from "../../utils/response";
 import { sendOnboardingInviteEmail } from "../../utils/onboardingMailer";
+import { ACTIVE_EMPLOYMENT_STATUS, DEFAULT_EMPLOYMENT_TYPE, EMPLOYMENT_TYPES, type EmploymentType } from "../../constants/employee.constants";
 
 export class CandidateOnboardingController {
+  private normalizeEmploymentType(input: unknown): EmploymentType {
+    const value = (input ?? "").toString().trim();
+    return EMPLOYMENT_TYPES.includes(value as EmploymentType) ? value as EmploymentType : DEFAULT_EMPLOYMENT_TYPE;
+  }
+
   // POST /api/v1/hr/onboarding/initialize
   // Auth required — HR_MANAGER or BUSINESS_ADMIN
   initialize = async (req: Request, res: Response) => {
@@ -464,19 +470,25 @@ export class CandidateOnboardingController {
         departmentId: offerLetter?.departmentId || null,
         positionId:   offerLetter?.positionId   || null,
         managerUserId: resolvedManagerId,
-        employmentType: (metadata as any)?.employmentType || "full_time",
-        employmentStatus: "active",   // active so they appear in org chart
+        employmentType: this.normalizeEmploymentType((metadata as any)?.employmentType),
+        employmentStatus: ACTIVE_EMPLOYMENT_STATUS,
         hireDate: (metadata as any)?.startDate ? new Date((metadata as any).startDate) : new Date(),
+        contractStartDate: (metadata as any)?.contractStartDate
+          ? new Date((metadata as any).contractStartDate)
+          : (metadata as any)?.startDate
+            ? new Date((metadata as any).startDate)
+            : null,
         salaryInfo: {
           baseSalary: (metadata as any)?.salary || null,
           currency: "ETB",
         },
         emergencyContact: {
-          name: emergencyContact.name || null,
-          relationship: emergencyContact.relationship || null,
+          firstName: emergencyContact.firstName || emergencyContact.name || null,
+          lastName: emergencyContact.lastName || null,
           phone: emergencyContact.phone || null,
           email: emergencyContact.email || null,
-          address: emergencyContact.address || null,
+          city: emergencyContact.city || null,
+          country: emergencyContact.country || null,
         },
         metadata: {
           dateOfBirth: personalInfo.dateOfBirth || null,

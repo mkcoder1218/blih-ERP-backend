@@ -1,5 +1,6 @@
 
 import type { DataTypes, ModelStatic, Sequelize } from "sequelize";
+import { DEFAULT_EMPLOYMENT_STATUS, DEFAULT_EMPLOYMENT_TYPE } from "../constants/employee.constants";
 
 export type EmployeeRecordModel = ModelStatic<any> & { associate?: (models: any) => void; };
 
@@ -12,9 +13,10 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): EmployeeReco
     departmentId: { type: dataTypes.UUID, allowNull: true },
     positionId: { type: dataTypes.UUID, allowNull: true },
     managerUserId: { type: dataTypes.UUID, allowNull: true },
-    employmentType: { type: dataTypes.STRING(50) }, // full_time, part_time, contractor
-    employmentStatus: { type: dataTypes.STRING(50), defaultValue: 'active' }, // active, suspended, terminated, resigned
+    employmentType: { type: dataTypes.STRING(50), allowNull: true, defaultValue: DEFAULT_EMPLOYMENT_TYPE },
+    employmentStatus: { type: dataTypes.STRING(50), allowNull: false, defaultValue: DEFAULT_EMPLOYMENT_STATUS },
     hireDate: { type: dataTypes.DATE, allowNull: false },
+    contractStartDate: { type: dataTypes.DATE, allowNull: true },
     probationEndDate: { type: dataTypes.DATE, allowNull: true },
     contractEndDate: { type: dataTypes.DATE, allowNull: true },
     salaryInfo: { type: dataTypes.JSONB, defaultValue: {} },

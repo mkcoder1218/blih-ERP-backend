@@ -1,4 +1,5 @@
 import { db } from "../../models";
+import { DEFAULT_EMPLOYMENT_TYPE } from "../../constants/employee.constants";
 
 export class RecruitmentService {
   async provisionForms(businessId: string) {
@@ -124,7 +125,7 @@ export class RecruitmentService {
         businessId,
         userId: targetUserId,
         employeeCode: "EMP-" + Math.floor(Math.random() * 10000),
-        employmentType: "full_time",
+        employmentType: DEFAULT_EMPLOYMENT_TYPE,
         hireDate: new Date(),
       });
 

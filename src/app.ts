@@ -48,6 +48,7 @@ import { permissionRoutes } from "./modules/permission/permission.routes";
 import { attendanceMeRoutes } from "./modules/attendanceMe/attendanceMe.routes";
 import { attendanceHrRoutes } from "./modules/attendanceHr/attendanceHr.routes";
 import { attendanceHrLateReasonsRoutes } from "./modules/attendanceHrLateReasons/lateReasons.routes";
+import { overtimeRoutes } from "./modules/overtime/overtime.routes";
 
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -128,6 +129,14 @@ apiRouter.use("/subscription", subscriptionRoutes);
 apiRouter.use("/admin-ops", adminOpsRoutes);
 apiRouter.use("/people", peopleRoutes);
 apiRouter.use("/files", fileRoutes);
+apiRouter.use("/audit-logs", auditLogRoutes);
+apiRouter.use("/notification-preferences", notificationPreferenceRoutes);
+apiRouter.use("/activity-logs", activityRoutes);
+apiRouter.use("/business-modules", businessModuleRoutes);
+apiRouter.use("/attachments", attachmentRoutes);
+apiRouter.use("/module-templates", moduleTemplateRoutes);
+apiRouter.use("/dashboard-widgets", dashboardRoutes);
+apiRouter.use("/saved-views", savedViewRoutes);
 apiRouter.use("/notifications", notificationRoutes);
 apiRouter.use("/departments", departmentRoutes);
 apiRouter.use("/positions", positionRoutes);
@@ -137,6 +146,7 @@ apiRouter.use("/permissions", permissionRoutes);
 apiRouter.use("/attendance", attendanceMeRoutes);
 apiRouter.use("/attendance/hr", attendanceHrRoutes);
 apiRouter.use("/attendance/hr/late-reasons", attendanceHrLateReasonsRoutes);
+apiRouter.use("/overtime-requests", overtimeRoutes);
 
 app.use(`/api/${env.apiVersion}`, apiRouter);
 

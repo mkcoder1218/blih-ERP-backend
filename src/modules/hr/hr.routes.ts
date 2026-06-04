@@ -7,7 +7,7 @@ import { HRController } from "./hr.controller";
 import { RecruitmentController } from "./recruitment.controller";
 import { HRPerformanceController } from "./performance.controller";
 import { validate } from "../../middlewares/validate";
-import { updateEmployeeRecordSchema } from "../../validators/hrEmployeeRecord.validator";
+import { bulkEmployeeRowsSchema, createEmployeeRecordSchema, updateEmployeeRecordSchema } from "../../validators/hrEmployeeRecord.validator";
 
 const router = Router();
 const controller = new HRController();
@@ -27,9 +27,24 @@ router.post(
 router.get("/records", authRequired, asyncHandler(controller.listRecords)); // Scope managed in controller
 router.get("/records/me", authRequired, asyncHandler(controller.getRecord));
 router.post(
+  "/records/bulk/validate",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  validate(bulkEmployeeRowsSchema),
+  asyncHandler(controller.validateBulkEmployeeRecords),
+);
+router.post(
+  "/records/bulk",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  validate(bulkEmployeeRowsSchema),
+  asyncHandler(controller.bulkWriteEmployeeRecords),
+);
+router.post(
   "/records/onboard",
   authRequired,
   requireAnyPermission("hr.write"),
+  validate(createEmployeeRecordSchema),
   asyncHandler(controller.onboardEmployee),
 );
 router.get(

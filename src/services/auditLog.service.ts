@@ -1,6 +1,22 @@
 import { db } from "../models";
-import type { Request } from "express";
 import { ActivityLogger } from "../modules/activityLog/activity.service";
+
+/** Derive a short human-readable device label from User-Agent string */
+function parseDeviceInfo(ua: string | undefined | null): string {
+  if (!ua) return "Unknown Device";
+  if (/mobile/i.test(ua)) {
+    if (/android/i.test(ua)) return "Android Mobile";
+    if (/iphone/i.test(ua)) return "iPhone";
+    return "Mobile Device";
+  }
+  if (/tablet|ipad/i.test(ua)) return "Tablet";
+  if (/windows/i.test(ua)) return "Windows PC";
+  if (/macintosh|mac os/i.test(ua)) return "Mac";
+  if (/linux/i.test(ua)) return "Linux PC";
+  return "Desktop Browser";
+}
+
+export type AuditCategory = "success" | "warning" | "error";
 
 export class AuditLogService {
   static async log(
@@ -9,18 +25,25 @@ export class AuditLogService {
     entityId: string,
     beforeData: any = null,
     afterData: any = null,
-    req?: any
+    req?: any,
+    category: AuditCategory = "success"
   ) {
-    let businessId = null;
-    let userId = null;
-    let ipAddress = null;
-    let userAgent = null;
+    let businessId: string | null = null;
+    let userId: string | null = null;
+    let ipAddress: string | null = null;
+    let userAgent: string | null = null;
+    let deviceInfo: string | null = null;
 
     if (req) {
       businessId = req.user?.businessId || null;
       userId = req.user?.id || null;
-      ipAddress = req.ip || req.connection?.remoteAddress || null;
+      ipAddress =
+        (req.headers?.["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+        req.ip ||
+        req.connection?.remoteAddress ||
+        null;
       userAgent = req.headers?.["user-agent"] || null;
+      deviceInfo = parseDeviceInfo(userAgent);
     }
 
     try {
@@ -30,18 +53,20 @@ export class AuditLogService {
         action,
         entityType,
         entityId,
+        category,
         beforeData,
         afterData,
         ipAddress,
-        userAgent
+        userAgent,
+        deviceInfo,
+        location: ipAddress // can be geo-enriched later; default to IP
       });
 
-      // Auto-dispatch public-facing activity log directly within AuditLog logic
       if (businessId) {
         await ActivityLogger.log({
           businessId,
           userId: userId || undefined,
-          moduleKey: entityType, 
+          moduleKey: entityType,
           action,
           entityType,
           entityId,

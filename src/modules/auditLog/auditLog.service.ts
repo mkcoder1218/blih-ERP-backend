@@ -1,12 +1,14 @@
+import { AuditLogDAL, type AuditLogFilters } from "./auditLog.dal";
 
-import { AuditLogDAL } from './auditLog.dal';
 export class AuditLogServiceRead {
   private dal = new AuditLogDAL();
-  list(businessId?: string) { 
-    return businessId ? this.dal.findAll({ businessId }) : this.dal.findAll({});
+
+  listPaginated(filters: AuditLogFilters) {
+    return this.dal.findPaginated(filters);
   }
+
   getById(id: string, businessId?: string) {
-    if(businessId) return this.dal.findAll({ id, businessId }).then((res: any[]) => res[0]);
+    // For non-super-admin, enforce the businessId guard at controller level
     return this.dal.findById(id);
   }
 }

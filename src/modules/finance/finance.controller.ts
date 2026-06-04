@@ -1,12 +1,14 @@
 
 import type { Request, Response } from 'express';
 import { FinanceService } from './finance.service';
+import { PayrollTemplateService } from './payrollTemplate.service';
 import { AuditLogService } from '../../services/auditLog.service';
 import { errorResponse, successResponse, paginationResponse } from '../../utils/response';
 import { db } from '../../models';
 
 export class FinanceController {
   private service = new FinanceService();
+  private payrollTplSvc = new PayrollTemplateService();
 
   workforce = async (req: Request, res: Response) => {
     try {
@@ -165,4 +167,67 @@ export class FinanceController {
        paginationResponse(res, data.rows, data.count, 1, 100);
     } catch(e: any) { errorResponse(res, e.message); }
   }
+
+  // ── Payroll Templates ──────────────────────────────────────────────────────
+  listPayrollTemplates = async (req: Request, res: Response) => {
+    try {
+      const templates = await this.payrollTplSvc.listTemplates(req.user!.businessId);
+      successResponse(res, templates.map((t: any) => this.payrollTplSvc.formatTemplate(t)));
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
+  createPayrollTemplate = async (req: Request, res: Response) => {
+    try {
+      const tpl = await this.payrollTplSvc.createTemplate(req.user!.businessId, req.user!.id, req.body);
+      await AuditLogService.log('CREATE_PAYROLL_TEMPLATE', 'finance_payroll', String(tpl.id), null, tpl, req);
+      successResponse(res, this.payrollTplSvc.formatTemplate(tpl), 'Payroll template created', 201);
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
+  updatePayrollTemplate = async (req: Request, res: Response) => {
+    try {
+      const tpl = await this.payrollTplSvc.updateTemplate(req.user!.businessId, req.params.id, req.body);
+      await AuditLogService.log('UPDATE_PAYROLL_TEMPLATE', 'finance_payroll', String(tpl.id), null, tpl, req);
+      successResponse(res, this.payrollTplSvc.formatTemplate(tpl));
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
+  deletePayrollTemplate = async (req: Request, res: Response) => {
+    try {
+      await this.payrollTplSvc.deleteTemplate(req.user!.businessId, req.params.id);
+      successResponse(res, null, 'Payroll template deleted');
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
+  previewPayrollCalculation = async (req: Request, res: Response) => {
+    try {
+      const { baseSalary, ...templateData } = req.body;
+      if (!baseSalary) { errorResponse(res, 'baseSalary is required', 400); return; }
+      const result = this.payrollTplSvc.previewCalculation(Number(baseSalary), templateData);
+      successResponse(res, result);
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
+  // ── Employee Payroll Links ─────────────────────────────────────────────────
+  getPayrollDashboard = async (req: Request, res: Response) => {
+    try {
+      const data = await this.payrollTplSvc.getPayrollDashboardData(req.user!.businessId);
+      successResponse(res, data);
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
+  linkEmployeeToTemplate = async (req: Request, res: Response) => {
+    try {
+      const link = await this.payrollTplSvc.linkEmployee(req.user!.businessId, req.user!.id, req.body);
+      await AuditLogService.log('LINK_EMPLOYEE_PAYROLL', 'finance_payroll', String(link.id), null, link, req);
+      successResponse(res, link, 'Employee linked to payroll template', 201);
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
+  unlinkEmployee = async (req: Request, res: Response) => {
+    try {
+      await this.payrollTplSvc.unlinkEmployee(req.user!.businessId, req.params.userId);
+      successResponse(res, null, 'Employee unlinked from payroll template');
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
 }

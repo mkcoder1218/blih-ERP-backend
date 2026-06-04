@@ -1,5 +1,6 @@
 
 import { db } from '../../models';
+import { ACTIVE_EMPLOYMENT_STATUS, DEFAULT_EMPLOYMENT_STATUS } from '../../constants/employee.constants';
 
 export class HRService {
   
@@ -115,11 +116,11 @@ export class HRService {
     const recordMap = new Map<string, any>();
     records.forEach((r: any) => {
       const existing = recordMap.get(r.userId);
-      if (!existing || r.employmentStatus === 'active') recordMap.set(r.userId, r);
+      if (!existing || r.employmentStatus === ACTIVE_EMPLOYMENT_STATUS) recordMap.set(r.userId, r);
     });
 
     // ── 3. Submitted onboardings — track hired-via-onboarding employees ───────
-    // These users have employmentStatus='onboarding' in their record but ARE hired.
+    // These users have employmentStatus=DEFAULT_EMPLOYMENT_STATUS in their record but ARE hired.
     // We use the onboarding's initializedById / offer's reportingManagerId as their manager.
     const submittedOnboardings = await db.CandidateOnboarding.findAll({
       where: { businessId, status: ['SUBMITTED_FOR_REVIEW', 'COMPLETED'] },
@@ -181,7 +182,7 @@ export class HRService {
       //   - AND are plain employees (no elevated role)
       //   - AND were NOT hired via a submitted onboarding
       const isPreHireOnly =
-        (!record || record.employmentStatus === 'onboarding') &&
+        (!record || record.employmentStatus === DEFAULT_EMPLOYMENT_STATUS) &&
         role.priority >= 3 &&
         !hiredViaOnboarding;
 

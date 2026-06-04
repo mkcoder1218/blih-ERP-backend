@@ -2,6 +2,7 @@
 import { db } from '../../models';
 import { InternalNotifier } from '../notification/notification.service';
 import { Op } from 'sequelize';
+import { TERMINATED_EMPLOYMENT_STATUS } from '../../constants/employee.constants';
 
 export class FinanceService {
   private money(value: any) {
@@ -22,7 +23,7 @@ export class FinanceService {
 
   private async employees(businessId: string) {
     return db.EmployeeRecord.findAll({
-      where: { businessId, employmentStatus: { [Op.ne]: 'terminated' } },
+      where: { businessId, employmentStatus: { [Op.ne]: TERMINATED_EMPLOYMENT_STATUS } },
       include: [
         { model: db.User, as: 'user', attributes: ['id', 'fullName', 'email'] },
         { model: db.Department, as: 'department', attributes: ['id', 'name'] },

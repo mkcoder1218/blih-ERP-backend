@@ -6,9 +6,19 @@ import { db } from '../../models';
 import { renderOfferLetter } from '../../utils/offerLetterRenderer';
 import { generateOfferLetterPdf } from '../../utils/offerLetterPdfGenerator';
 import { sendOfferLetterEmail } from '../../utils/offerLetterMailer';
+import {
+  DEFAULT_EMPLOYMENT_STATUS,
+  DEFAULT_EMPLOYMENT_TYPE,
+  EMPLOYMENT_STATUSES,
+  EMPLOYMENT_TYPES,
+  type EmploymentStatus,
+  type EmploymentType,
+} from '../../constants/employee.constants';
+import { BulkEmployeeValidationService } from './bulkEmployeeValidation.service';
 
 export class HRController {
    private service = new HRService();
+   private bulkValidationService = new BulkEmployeeValidationService();
 
    private normalizeSystemRoleKey(input: unknown): string {
      const raw = (input ?? "EMPLOYEE").toString().trim().toUpperCase();
@@ -16,6 +26,51 @@ export class HRController {
      if (underscored === "MANAGER") return "DEPARTMENT_HEAD";
      if (underscored === "HR_MANAGER" || underscored === "HRMANAGER") return "HR_MANAGER";
      return underscored || "EMPLOYEE";
+   }
+
+   private normalizeEmploymentStatus(input: unknown, fallback: EmploymentStatus = DEFAULT_EMPLOYMENT_STATUS): EmploymentStatus {
+     const value = (input ?? "").toString().trim();
+     return EMPLOYMENT_STATUSES.includes(value as EmploymentStatus) ? value as EmploymentStatus : fallback;
+   }
+
+   private normalizeEmploymentType(input: unknown, fallback: EmploymentType = DEFAULT_EMPLOYMENT_TYPE): EmploymentType {
+     const value = (input ?? "").toString().trim();
+     return EMPLOYMENT_TYPES.includes(value as EmploymentType) ? value as EmploymentType : fallback;
+   }
+
+   private buildSalaryInfo(current: any, profile: any) {
+     return {
+       ...(current || {}),
+       baseSalary: profile?.monthlySalary ?? current?.baseSalary ?? null,
+       currency: profile?.salaryCurrency || current?.currency || "ETB",
+     };
+   }
+
+   private buildEmergencyContact(current: any, profile: any) {
+     return {
+       ...(current || {}),
+       firstName: profile?.emergencyFirstName ?? current?.firstName ?? null,
+       lastName: profile?.emergencyLastName ?? current?.lastName ?? null,
+       phone: profile?.emergencyPhone ?? current?.phone ?? null,
+       email: profile?.emergencyEmail ?? current?.email ?? null,
+       city: profile?.emergencyCity ?? current?.city ?? null,
+       country: profile?.emergencyCountry ?? current?.country ?? null,
+     };
+   }
+
+   private buildEmployeeMetadata(current: any, profile: any, uploads: any) {
+     return {
+       ...(current || {}),
+       dateOfBirth: profile?.dateOfBirth ?? current?.dateOfBirth ?? null,
+       city: profile?.city ?? current?.city ?? null,
+       countryOfBirth: profile?.countryOfBirth ?? current?.countryOfBirth ?? null,
+       additionalPhone: profile?.additionalPhone ?? current?.additionalPhone ?? null,
+       branch: profile?.branch ?? current?.branch ?? null,
+       bankDetails: profile?.bankDetails ?? current?.bankDetails ?? [],
+       assetsAndCredentials: profile?.assetsAndCredentials ?? current?.assetsAndCredentials ?? [],
+       additionalNotes: profile?.additionalNotes ?? current?.additionalNotes ?? null,
+       uploads: { ...((current || {}).uploads || {}), ...(uploads || {}) },
+     };
    }
 
    private async attachUploadsToProfile(params: { businessId: string; profileId: string; uploads: any; transaction: any }) {
@@ -98,6 +153,27 @@ export class HRController {
        } catch (e: any) { errorResponse(res, e.message); }
    };
 
+   validateBulkEmployeeRecords = async (req: Request, res: Response) => {
+      try {
+        const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+        if (!Array.isArray(req.body?.rows)) return errorResponse(res, "rows must be an array", 400);
+        const result = await this.bulkValidationService.validate(req.user!.businessId, rows);
+        successResponse(res, result, "Bulk employee validation complete");
+      } catch (e: any) {
+        errorResponse(res, e.message);
+      }
+   };
+
+   bulkWriteEmployeeRecords = async (req: Request, res: Response) => {
+      try {
+        if (!Array.isArray(req.body?.rows)) return errorResponse(res, "rows must be an array", 400);
+        const result = await this.bulkValidationService.apply(req.user!.businessId, req.body.rows);
+        successResponse(res, result, "Bulk employee write complete");
+      } catch (e: any) {
+        errorResponse(res, e.message);
+      }
+   };
+
    updateSelfRecord = async (req: Request, res: Response) => {
        try {
           const updates = { ...req.body };
@@ -174,9 +250,12 @@ export class HRController {
            if (profile.departmentId !== undefined) recordUpdates.departmentId = profile.departmentId || null;
            if (profile.positionId !== undefined) recordUpdates.positionId = profile.positionId || null;
            if (profile.reportingTo !== undefined) recordUpdates.managerUserId = profile.reportingTo || null;
-           if (profile.employmentType !== undefined) recordUpdates.employmentType = profile.employmentType || null;
+           if (profile.employmentType !== undefined) recordUpdates.employmentType = profile.employmentType ? this.normalizeEmploymentType(profile.employmentType, rec.employmentType || DEFAULT_EMPLOYMENT_TYPE) : null;
+           if (profile.employmentStatus !== undefined) recordUpdates.employmentStatus = this.normalizeEmploymentStatus(profile.employmentStatus, rec.employmentStatus || DEFAULT_EMPLOYMENT_STATUS);
 
            if (profile.startDate !== undefined) recordUpdates.hireDate = profile.startDate || rec.hireDate;
+           if (profile.contractStartDate !== undefined) recordUpdates.contractStartDate = profile.contractStartDate || null;
+           if (profile.contractEndDate !== undefined) recordUpdates.contractEndDate = profile.contractEndDate || null;
            if (profile.probationPeriod !== undefined) {
              const months = Number(profile.probationPeriod || 0);
              recordUpdates.probationEndDate = months
@@ -185,11 +264,10 @@ export class HRController {
            }
 
            if (profile.monthlySalary !== undefined || profile.salaryCurrency !== undefined) {
-             recordUpdates.salaryInfo = {
-               ...(rec.salaryInfo || {}),
-               ...(profile.monthlySalary !== undefined ? { baseSalary: profile.monthlySalary } : {}),
-               ...(profile.salaryCurrency !== undefined ? { currency: profile.salaryCurrency || "ETB" } : {}),
-             };
+             recordUpdates.salaryInfo = this.buildSalaryInfo(rec.salaryInfo || {}, {
+               monthlySalary: profile.monthlySalary !== undefined ? profile.monthlySalary : rec.salaryInfo?.baseSalary,
+               salaryCurrency: profile.salaryCurrency !== undefined ? profile.salaryCurrency : rec.salaryInfo?.currency,
+             });
            }
 
            const emergencyProvided =
@@ -200,31 +278,26 @@ export class HRController {
              profile.emergencyCity !== undefined ||
              profile.emergencyCountry !== undefined;
            if (emergencyProvided) {
-             recordUpdates.emergencyContact = {
-               ...(rec.emergencyContact || {}),
-               ...(profile.emergencyFirstName !== undefined ? { firstName: profile.emergencyFirstName } : {}),
-               ...(profile.emergencyLastName !== undefined ? { lastName: profile.emergencyLastName } : {}),
-               ...(profile.emergencyPhone !== undefined ? { phone: profile.emergencyPhone } : {}),
-               ...(profile.emergencyEmail !== undefined ? { email: profile.emergencyEmail } : {}),
-               ...(profile.emergencyCity !== undefined ? { city: profile.emergencyCity } : {}),
-               ...(profile.emergencyCountry !== undefined ? { country: profile.emergencyCountry } : {}),
-             };
+             recordUpdates.emergencyContact = this.buildEmergencyContact(rec.emergencyContact || {}, {
+               emergencyFirstName: profile.emergencyFirstName !== undefined ? profile.emergencyFirstName : rec.emergencyContact?.firstName,
+               emergencyLastName: profile.emergencyLastName !== undefined ? profile.emergencyLastName : rec.emergencyContact?.lastName,
+               emergencyPhone: profile.emergencyPhone !== undefined ? profile.emergencyPhone : rec.emergencyContact?.phone,
+               emergencyEmail: profile.emergencyEmail !== undefined ? profile.emergencyEmail : rec.emergencyContact?.email,
+               emergencyCity: profile.emergencyCity !== undefined ? profile.emergencyCity : rec.emergencyContact?.city,
+               emergencyCountry: profile.emergencyCountry !== undefined ? profile.emergencyCountry : rec.emergencyContact?.country,
+             });
            }
 
-           const metadataUpdates: any = { ...(rec.metadata || {}) };
-           if (profile.dateOfBirth !== undefined) metadataUpdates.dateOfBirth = profile.dateOfBirth;
-           if (profile.city !== undefined) metadataUpdates.city = profile.city;
-           if (profile.countryOfBirth !== undefined) metadataUpdates.countryOfBirth = profile.countryOfBirth;
-           if (profile.additionalPhone !== undefined) metadataUpdates.additionalPhone = profile.additionalPhone;
-           if (profile.branch !== undefined) metadataUpdates.branch = profile.branch;
-           if (profile.bankDetails !== undefined) metadataUpdates.bankDetails = profile.bankDetails || [];
-           if (profile.assetsAndCredentials !== undefined) metadataUpdates.assetsAndCredentials = profile.assetsAndCredentials || [];
-           if (profile.additionalNotes !== undefined) metadataUpdates.additionalNotes = profile.additionalNotes;
-           if (uploads !== undefined) {
-             const currentUploads = (rec.metadata || {}).uploads || {};
-             metadataUpdates.uploads = { ...(currentUploads || {}), ...(uploads || {}) };
-           }
-           recordUpdates.metadata = metadataUpdates;
+           recordUpdates.metadata = this.buildEmployeeMetadata(rec.metadata || {}, {
+             dateOfBirth: profile.dateOfBirth !== undefined ? profile.dateOfBirth : rec.metadata?.dateOfBirth,
+             city: profile.city !== undefined ? profile.city : rec.metadata?.city,
+             countryOfBirth: profile.countryOfBirth !== undefined ? profile.countryOfBirth : rec.metadata?.countryOfBirth,
+             additionalPhone: profile.additionalPhone !== undefined ? profile.additionalPhone : rec.metadata?.additionalPhone,
+             branch: profile.branch !== undefined ? profile.branch : rec.metadata?.branch,
+             bankDetails: profile.bankDetails !== undefined ? profile.bankDetails : rec.metadata?.bankDetails,
+             assetsAndCredentials: profile.assetsAndCredentials !== undefined ? profile.assetsAndCredentials : rec.metadata?.assetsAndCredentials,
+             additionalNotes: profile.additionalNotes !== undefined ? profile.additionalNotes : rec.metadata?.additionalNotes,
+           }, uploads);
          } else if (uploads !== undefined) {
            const currentUploads = (rec.metadata || {}).uploads || {};
            recordUpdates.metadata = { ...(rec.metadata || {}), uploads: { ...(currentUploads || {}), ...(uploads || {}) } };
@@ -242,7 +315,7 @@ export class HRController {
            if (profile?.positionId !== undefined) bpUpdates.positionId = profile.positionId || null;
            if (account?.email !== undefined && account.email !== "") bpUpdates.workEmail = account.email;
            if (account?.phone !== undefined) bpUpdates.workPhone = account.phone || null;
-           if (profile?.employmentType !== undefined) bpUpdates.employmentType = profile.employmentType || null;
+           if (profile?.employmentType !== undefined) bpUpdates.employmentType = profile.employmentType ? this.normalizeEmploymentType(profile.employmentType, businessProfile.employmentType || DEFAULT_EMPLOYMENT_TYPE) : null;
            if (profile?.startDate !== undefined) bpUpdates.joinedAt = profile.startDate || businessProfile.joinedAt;
            if (profile?.systemRole !== undefined) {
              const settings = { ...(businessProfile.settings || {}) };
@@ -302,7 +375,8 @@ export class HRController {
     onboardEmployee = async (req: Request, res: Response) => {
         const transaction = await db.sequelize.transaction();
         try {
-           const { account, profile, uploads, offerLetterTemplateId } = req.body;
+          const { account, profile: rawProfile, uploads, offerLetterTemplateId } = req.body;
+          const profile = rawProfile || {};
            const businessId = req.user!.businessId;
            
            if (!account || !account.email || !account.password || !account.firstName || !account.lastName) {
@@ -370,25 +444,15 @@ export class HRController {
                departmentId: profile.departmentId || null,
                positionId: profile.positionId || null,
                managerUserId: profile.reportingTo || null,
-               employmentType: profile.employmentType || 'full_time',
-               employmentStatus: 'onboarding', 
+               employmentType: this.normalizeEmploymentType(profile?.employmentType, DEFAULT_EMPLOYMENT_TYPE),
+               employmentStatus: this.normalizeEmploymentStatus(profile?.employmentStatus, DEFAULT_EMPLOYMENT_STATUS),
                hireDate: profile.startDate || new Date(),
+               contractStartDate: profile.contractStartDate || profile.startDate || null,
+               contractEndDate: profile.contractEndDate || null,
                probationEndDate: profile.probationPeriod ? new Date(Date.now() + 1000 * 60 * 60 * 24 * 30 * parseInt(profile.probationPeriod)) : null,
-               salaryInfo: {
-                  baseSalary: profile.monthlySalary,
-                  currency: profile.salaryCurrency || 'ETB'
-               },
-               emergencyContact: {
-                  firstName: profile.emergencyFirstName, lastName: profile.emergencyLastName,
-                  phone: profile.emergencyPhone, email: profile.emergencyEmail,
-                  city: profile.emergencyCity, country: profile.emergencyCountry
-               },
-               metadata: {
-                  dateOfBirth: profile.dateOfBirth, city: profile.city, countryOfBirth: profile.countryOfBirth,
-                  additionalPhone: profile.additionalPhone, branch: profile.branch,
-                  bankDetails: profile.bankDetails || [], assetsAndCredentials: profile.assetsAndCredentials || [],
-                  additionalNotes: profile.additionalNotes, uploads: uploads || {}
-               }
+               salaryInfo: this.buildSalaryInfo({}, profile),
+               emergencyContact: this.buildEmergencyContact({}, profile),
+               metadata: this.buildEmployeeMetadata({}, profile, uploads)
            };
 
            // Check for soft-deleted employee record and restore it
@@ -475,7 +539,7 @@ export class HRController {
                  roleId: role?.id || null,
                  salary: profile.monthlySalary?.toString() || '0',
                  startDate: profile.startDate || new Date(),
-                 employmentType: profile.employmentType || 'full_time',
+                 employmentType: this.normalizeEmploymentType(profile?.employmentType, DEFAULT_EMPLOYMENT_TYPE),
                  renderedSubject: '', 
                  renderedHtml: '', 
                  renderedText: '', 

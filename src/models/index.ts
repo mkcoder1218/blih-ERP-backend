@@ -96,6 +96,8 @@ import defineVendor from "./Vendor";
 import defineOfferLetterTemplate from "./OfferLetterTemplate";
 import defineOfferLetter from "./OfferLetter";
 import defineRecruitmentTemplate from "./RecruitmentTemplate";
+import definePayrollTemplate from "./PayrollTemplate";
+import defineEmployeePayrollLink from "./EmployeePayrollLink";
 import defineSkill from "./Skill";
 import defineInterviewSkill from "./InterviewSkill";
 import defineInterviewerNote from "./InterviewerNote";
@@ -104,6 +106,7 @@ import defineBusinessAttendanceSettings from "./BusinessAttendanceSettings";
 import defineAttendanceEvent from "./AttendanceEvent";
 import defineAttendanceLateReason from "./AttendanceLateReason";
 import defineAttendanceLateExplanation from "./AttendanceLateExplanation";
+import defineOvertimeRequest from "./OvertimeRequest";
 
 export type DB = {
   sequelize: typeof sequelize;
@@ -112,6 +115,7 @@ export type DB = {
   AttendanceEvent: any;
   AttendanceLateReason: any;
   AttendanceLateExplanation: any;
+  OvertimeRequest: any;
   User: any;
   Role: any;
   Permission: any;
@@ -206,6 +210,8 @@ export type DB = {
   OfferLetterTemplate: any;
   OfferLetter: any;
   RecruitmentTemplate: any;
+  PayrollTemplate: any;
+  EmployeePayrollLink: any;
   Skill: any;
   InterviewSkill: any;
   InterviewerNote: any;
@@ -219,6 +225,7 @@ export const db: DB = {
   AttendanceEvent: defineAttendanceEvent(sequelize, DataTypes),
   AttendanceLateReason: defineAttendanceLateReason(sequelize, DataTypes),
   AttendanceLateExplanation: defineAttendanceLateExplanation(sequelize, DataTypes),
+  OvertimeRequest: defineOvertimeRequest(sequelize, DataTypes),
   User: defineUser(sequelize, DataTypes),
   Role: defineRole(sequelize, DataTypes),
   Permission: definePermission(sequelize, DataTypes),
@@ -313,6 +320,8 @@ export const db: DB = {
   OfferLetterTemplate: defineOfferLetterTemplate(sequelize, DataTypes),
   OfferLetter: defineOfferLetter(sequelize, DataTypes),
   RecruitmentTemplate: defineRecruitmentTemplate(sequelize, DataTypes),
+  PayrollTemplate: definePayrollTemplate(sequelize, DataTypes),
+  EmployeePayrollLink: defineEmployeePayrollLink(sequelize, DataTypes),
   Skill: defineSkill(sequelize, DataTypes),
   InterviewSkill: defineInterviewSkill(sequelize, DataTypes),
   InterviewerNote: defineInterviewerNote(sequelize, DataTypes),
