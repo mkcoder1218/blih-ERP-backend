@@ -48,6 +48,7 @@ import { permissionRoutes } from "./modules/permission/permission.routes";
 import { attendanceMeRoutes } from "./modules/attendanceMe/attendanceMe.routes";
 import { attendanceHrRoutes } from "./modules/attendanceHr/attendanceHr.routes";
 import { attendanceHrLateReasonsRoutes } from "./modules/attendanceHrLateReasons/lateReasons.routes";
+import { attendanceRequestsRoutes } from "./modules/attendanceRequests/attendanceRequests.routes";
 import { overtimeRoutes } from "./modules/overtime/overtime.routes";
 import { leaveRoutes } from "./modules/leave/leave.routes";
 
@@ -147,6 +148,7 @@ apiRouter.use("/permissions", permissionRoutes);
 apiRouter.use("/attendance", attendanceMeRoutes);
 apiRouter.use("/attendance/hr", attendanceHrRoutes);
 apiRouter.use("/attendance/hr/late-reasons", attendanceHrLateReasonsRoutes);
+apiRouter.use("/attendance-requests", attendanceRequestsRoutes);
 apiRouter.use("/overtime-requests", overtimeRoutes);
 apiRouter.use("/leave-requests", leaveRoutes);
 

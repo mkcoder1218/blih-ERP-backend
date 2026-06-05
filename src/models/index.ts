@@ -94,6 +94,9 @@ import definePerformanceReview from "./PerformanceReview";
 import defineTrainingRecord from "./TrainingRecord";
 import defineDisciplinaryCase from "./DisciplinaryCase";
 import defineExitProcess from "./ExitProcess";
+import defineExitClearanceStep from "./ExitClearanceStep";
+import defineExitInterview from "./ExitInterview";
+import defineExitDocument from "./ExitDocument";
 import defineProposal from "./Proposal";
 import defineProjectChangeRequest from "./ProjectChangeRequest";
 import defineVendor from "./Vendor";
@@ -110,6 +113,7 @@ import defineBusinessAttendanceSettings from "./BusinessAttendanceSettings";
 import defineAttendanceEvent from "./AttendanceEvent";
 import defineAttendanceLateReason from "./AttendanceLateReason";
 import defineAttendanceLateExplanation from "./AttendanceLateExplanation";
+import defineAttendanceRequest from "./AttendanceRequest";
 import defineOvertimeRequest from "./OvertimeRequest";
 import defineLeaveTemplate from "./LeaveTemplate";
 import defineLeaveRequest from "./LeaveRequest";
@@ -121,6 +125,7 @@ export type DB = {
   AttendanceEvent: any;
   AttendanceLateReason: any;
   AttendanceLateExplanation: any;
+  AttendanceRequest: any;
   OvertimeRequest: any;
   LeaveTemplate: any;
   LeaveRequest: any;
@@ -216,6 +221,9 @@ export type DB = {
   TrainingRecord: any;
   DisciplinaryCase: any;
   ExitProcess: any;
+  ExitClearanceStep: any;
+  ExitInterview: any;
+  ExitDocument: any;
   Proposal: any;
   ProjectChangeRequest: any;
   Vendor: any;
@@ -237,6 +245,7 @@ export const db: DB = {
   AttendanceEvent: defineAttendanceEvent(sequelize, DataTypes),
   AttendanceLateReason: defineAttendanceLateReason(sequelize, DataTypes),
   AttendanceLateExplanation: defineAttendanceLateExplanation(sequelize, DataTypes),
+  AttendanceRequest: defineAttendanceRequest(sequelize, DataTypes),
   OvertimeRequest: defineOvertimeRequest(sequelize, DataTypes),
   LeaveTemplate: defineLeaveTemplate(sequelize, DataTypes),
   LeaveRequest: defineLeaveRequest(sequelize, DataTypes),
@@ -332,6 +341,9 @@ export const db: DB = {
   TrainingRecord: defineTrainingRecord(sequelize, DataTypes),
   DisciplinaryCase: defineDisciplinaryCase(sequelize, DataTypes),
   ExitProcess: defineExitProcess(sequelize, DataTypes),
+  ExitClearanceStep: defineExitClearanceStep(sequelize, DataTypes),
+  ExitInterview: defineExitInterview(sequelize, DataTypes),
+  ExitDocument: defineExitDocument(sequelize, DataTypes),
   Proposal: defineProposal(sequelize, DataTypes),
   ProjectChangeRequest: defineProjectChangeRequest(sequelize, DataTypes),
   Vendor: defineVendor(sequelize, DataTypes),

@@ -15,6 +15,15 @@ exports.default = (sequelize, dataTypes) => {
     }, { tableName: "hr_exit_processes", timestamps: true, paranoid: true });
     ExitProcess.associate = (models) => {
         models.ExitProcess.belongsTo(models.Business, { foreignKey: "businessId" });
+        if (models.ExitClearanceStep) {
+            models.ExitProcess.hasMany(models.ExitClearanceStep, { foreignKey: "exitProcessId", as: "clearanceSteps" });
+        }
+        if (models.ExitInterview) {
+            models.ExitProcess.hasMany(models.ExitInterview, { foreignKey: "exitProcessId", as: "exitInterviews" });
+        }
+        if (models.ExitDocument) {
+            models.ExitProcess.hasMany(models.ExitDocument, { foreignKey: "exitProcessId", as: "exitDocuments" });
+        }
         if (models.User) {
             models.ExitProcess.belongsTo(models.User, { foreignKey: "employeeUserId", as: "employee" });
             models.ExitProcess.belongsTo(models.User, { foreignKey: "initiatedByUserId", as: "initiator" });

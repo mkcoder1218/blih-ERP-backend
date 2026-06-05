@@ -3,6 +3,16 @@ import type { DataTypes, ModelStatic, Sequelize } from "sequelize";
 
 export type ExitProcessModel = ModelStatic<any> & { associate?: (models: any) => void; };
 
+export type ExitFinalPayData = {
+  status: "pending" | "processing" | "settled";
+  grossAmount?: number;
+  deductions?: number;
+  netAmount?: number;
+  settledAt?: string;
+  settledByUserId?: string;
+  notes?: string;
+};
+
 export default (sequelize: Sequelize, dataTypes: typeof DataTypes): ExitProcessModel => {
   const ExitProcess = sequelize.define("ExitProcess", {
     id: { type: dataTypes.UUID, defaultValue: dataTypes.UUIDV4, primaryKey: true },
@@ -19,6 +29,15 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): ExitProcessM
 
   ExitProcess.associate = (models: any) => {
     models.ExitProcess.belongsTo(models.Business, { foreignKey: "businessId" });
+    if(models.ExitClearanceStep) {
+        models.ExitProcess.hasMany(models.ExitClearanceStep, { foreignKey: "exitProcessId", as: "clearanceSteps" });
+    }
+    if(models.ExitInterview) {
+        models.ExitProcess.hasMany(models.ExitInterview, { foreignKey: "exitProcessId", as: "exitInterviews" });
+    }
+    if(models.ExitDocument) {
+        models.ExitProcess.hasMany(models.ExitDocument, { foreignKey: "exitProcessId", as: "exitDocuments" });
+    }
     if(models.User) {
         models.ExitProcess.belongsTo(models.User, { foreignKey: "employeeUserId", as: "employee" });
         models.ExitProcess.belongsTo(models.User, { foreignKey: "initiatedByUserId", as: "initiator" });

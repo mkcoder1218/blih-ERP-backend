@@ -1,0 +1,86 @@
+name: Deploy Backend to Hostinger VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: hostinger-backend-production
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+  deploy:
+    name: Deploy to Hostinger VPS
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          ENV_PRODUCTION_B64: ${{ secrets.ENV_PRODUCTION_B64 }}
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          port: ${{ secrets.HOSTINGER_PORT || 22 }}
+          envs: DEPLOY_PATH,REPOSITORY,BRANCH,ENV_PRODUCTION_B64
+          script_stop: true
+          script: |
+            set -eu
+
+            if [ -z "$DEPLOY_PATH" ]; then
+              echo "HOSTINGER_DEPLOY_PATH secret is required"
+              exit 1
+            fi
+
+            mkdir -p "$DEPLOY_PATH"
+
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              git clone --branch "$BRANCH" "https://github.com/$REPOSITORY.git" "$DEPLOY_PATH"
+            fi
+
+            cd "$DEPLOY_PATH"
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+
+            if [ -z "$ENV_PRODUCTION_B64" ]; then
+              echo "ENV_PRODUCTION_B64 secret is required"
+              exit 1
+            fi
+
+            printf '%s' "$ENV_PRODUCTION_B64" | base64 -d > .env.production
+            chmod 600 .env.production
+
+            docker compose pull db
+            docker compose up -d --build --remove-orphans
+            docker image prune -f
+
+            docker compose ps

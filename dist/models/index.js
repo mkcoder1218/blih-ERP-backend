@@ -99,6 +99,9 @@ const PerformanceReview_1 = __importDefault(require("./PerformanceReview"));
 const TrainingRecord_1 = __importDefault(require("./TrainingRecord"));
 const DisciplinaryCase_1 = __importDefault(require("./DisciplinaryCase"));
 const ExitProcess_1 = __importDefault(require("./ExitProcess"));
+const ExitClearanceStep_1 = __importDefault(require("./ExitClearanceStep"));
+const ExitInterview_1 = __importDefault(require("./ExitInterview"));
+const ExitDocument_1 = __importDefault(require("./ExitDocument"));
 const Proposal_1 = __importDefault(require("./Proposal"));
 const ProjectChangeRequest_1 = __importDefault(require("./ProjectChangeRequest"));
 const Vendor_1 = __importDefault(require("./Vendor"));
@@ -220,6 +223,9 @@ exports.db = {
     TrainingRecord: (0, TrainingRecord_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     DisciplinaryCase: (0, DisciplinaryCase_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ExitProcess: (0, ExitProcess_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ExitClearanceStep: (0, ExitClearanceStep_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ExitInterview: (0, ExitInterview_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ExitDocument: (0, ExitDocument_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Proposal: (0, Proposal_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ProjectChangeRequest: (0, ProjectChangeRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Vendor: (0, Vendor_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),

@@ -26,6 +26,36 @@ router.post(
 );
 router.get("/records", authRequired, asyncHandler(controller.listRecords)); // Scope managed in controller
 router.get("/records/me", authRequired, asyncHandler(controller.getRecord));
+router.get(
+  "/forms",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write", "exit.self"),
+  asyncHandler(perfController.listExitForms),
+);
+router.post(
+  "/forms",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.createExitForm),
+);
+router.patch(
+  "/forms/:id",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.updateExitForm),
+);
+router.delete(
+  "/forms/:id",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.deleteExitForm),
+);
+router.get(
+  "/forms/:id/download",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write", "exit.self"),
+  asyncHandler(perfController.downloadExitForm),
+);
 router.post(
   "/records/bulk/validate",
   authRequired,
@@ -302,11 +332,137 @@ router.post(
   authRequired,
   asyncHandler(perfController.submitResignation),
 );
+router.post(
+  "/exit",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.createExitProcess),
+);
 router.get(
   "/exit",
   authRequired,
   requireAnyPermission("hr.read", "hr.write"),
   asyncHandler(perfController.listExitProcesses),
+);
+router.get(
+  "/exit/analytics",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write"),
+  asyncHandler(perfController.getExitAnalytics),
+);
+router.get(
+  "/exit/interviews",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write"),
+  asyncHandler(perfController.listExitInterviews),
+);
+router.patch(
+  "/exit/interviews/:interviewId",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.updateExitInterview),
+);
+router.post(
+  "/exit/interviews/:interviewId/complete",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.completeExitInterview),
+);
+router.post(
+  "/exit/interviews/:interviewId/send-reminder",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.sendExitInterviewReminder),
+);
+router.get(
+  "/exit/me",
+  authRequired,
+  asyncHandler(perfController.getMyExitProcess),
+);
+router.post(
+  "/exit/:id/interviews",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.createExitInterview),
+);
+router.get(
+  "/exit/:id/documents",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write", "exit.self"),
+  asyncHandler(perfController.listExitDocuments),
+);
+router.post(
+  "/exit/:id/documents/:documentId/upload",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  upload.single("file"),
+  asyncHandler(perfController.uploadExitDocument),
+);
+router.post(
+  "/exit/:id/documents/:documentId/verify",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.verifyExitDocument),
+);
+router.patch(
+  "/exit/:id/documents/:documentId",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.updateExitDocument),
+);
+router.get(
+  "/exit/:id/documents/download-all",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write", "exit.self"),
+  asyncHandler(perfController.downloadExitDocuments),
+);
+router.get(
+  "/exit/:id",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write"),
+  asyncHandler(perfController.getExitProcess),
+);
+router.patch(
+  "/exit/:id",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.updateExitProcess),
+);
+router.get(
+  "/exit/:id/timeline",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write", "exit.self"),
+  asyncHandler(perfController.getExitTimeline),
+);
+router.patch(
+  "/exit/:id/final-pay",
+  authRequired,
+  requireAnyPermission("hr.write", "finance.manage", "payroll.run"),
+  asyncHandler(perfController.updateExitFinalPay),
+);
+router.get(
+  "/exit/:id/clearance",
+  authRequired,
+  requireAnyPermission("hr.write", "exit.self"),
+  asyncHandler(perfController.listExitClearance),
+);
+router.post(
+  "/exit/:id/clearance/:stepId/complete",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.completeExitClearanceStep),
+);
+router.post(
+  "/exit/:id/clearance/:stepId/waive",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.waiveExitClearanceStep),
+);
+router.patch(
+  "/exit/:id/clearance/:stepId",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.updateExitClearanceStep),
 );
 router.patch(
   "/exit/:id/status",

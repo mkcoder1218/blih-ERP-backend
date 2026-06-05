@@ -13,6 +13,22 @@ Node.js, Express, PostgreSQL, Sequelize, Joi, JWT, bcrypt, cors, dotenv (CommonJ
    - Dev: `npm run dev`
    - Prod: `npm start`
 
+## Docker Deployment
+1. Create the production environment file:
+   - `cp .env.production.example .env.production`
+   - Replace the JWT, database, admin, email, `APP_URL`, and `CORS_ORIGINS` values.
+2. Build and start the stack:
+   - `docker compose up -d --build`
+3. Check the API:
+   - `curl http://localhost:4000/health`
+4. Stop the stack:
+   - `docker compose down`
+
+The production compose file runs PostgreSQL plus the backend, stores database data in `pgdata`, stores uploaded files in `uploads_data`, and forces `DB_SYNC=false`. Run production database migrations before or during release instead of enabling sync.
+
+For local Docker development, use:
+- `docker compose -f docker-compose.dev.yml up --build`
+
 ## Notes
 - DB connection is configured in `src/database/sequelize.js` using:
   `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_DIALECT` (must be `postgres`).
@@ -142,4 +158,3 @@ curl -X GET http://localhost:4000/api/users \
   -H "Authorization: Bearer $BUSINESS_ADMIN_TOKEN"
 ```
 **Tenant Isolation Test:** If you create a second business and use its token, you will only see users from that respective `$BUSINESS_ID`. Injecting a different businessId via payloads or params is ignored by the middleware.
-

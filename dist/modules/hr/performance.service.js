@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.HRPerformanceService = void 0;
+exports.HRPerformanceService = exports.EXIT_DOCUMENT_DEFINITIONS = exports.EXIT_CLEARANCE_STEP_DEFINITIONS = void 0;
 const models_1 = require("../../models");
 const employee_constants_1 = require("../../constants/employee.constants");
 const sequelize_1 = require("sequelize");
@@ -8,6 +8,50 @@ const COMPLETED_TASK_STATUSES = new Set(['DONE', 'COMPLETED', 'APPROVED']);
 const APPROVED_TASK_STATUSES = new Set(['APPROVED']);
 const BLOCKED_TASK_STATUSES = new Set(['BLOCKED']);
 const EXCLUDED_BLOCKER_TYPES = new Set(['dependency', 'client', 'resource', 'management']);
+const EXIT_STATUS_TRANSITIONS = {
+    pending: new Set(['in_progress', 'cancelled']),
+    cancelled: new Set(['pending']),
+    in_progress: new Set(['completed', 'cancelled'])
+};
+exports.EXIT_CLEARANCE_STEP_DEFINITIONS = [
+    {
+        stepKey: 'resignation_letter_signed',
+        title: 'Resignation Letter Received & Signed',
+        description: 'Official resignation letter submitted and acknowledged'
+    },
+    {
+        stepKey: 'exit_interview_completed',
+        title: 'Exit Interview Completed',
+        description: 'Exit interview conducted and documented'
+    },
+    {
+        stepKey: 'assets_credentials_returned',
+        title: 'Assets & Credentials Returned',
+        description: 'Company property, ID card, access cards, and equipment returned'
+    },
+    {
+        stepKey: 'final_payment_settled',
+        title: 'Last Payment Settled',
+        description: 'Final salary, benefits, and dues cleared'
+    },
+    {
+        stepKey: 'experience_letter_issued',
+        title: 'Experience Letter Issued',
+        description: 'Official experience certificates provided'
+    },
+    {
+        stepKey: 'recommendation_letter_issued',
+        title: 'Recommendation Letter (if applicable)',
+        description: 'Letter of recommendation for future employment'
+    }
+];
+exports.EXIT_DOCUMENT_DEFINITIONS = [
+    { documentKey: 'clearance_letter', title: 'Clearance Letter' },
+    { documentKey: 'id_card', title: 'ID Card' },
+    { documentKey: 'emergency_contact', title: 'Emergency Contact' },
+    { documentKey: 'guarantor_info', title: 'Guarantor Info' },
+    { documentKey: 'experience_letter', title: 'Experience Letter' }
+];
 class HRPerformanceService {
     async provisionForms(businessId) {
         const templates = [
@@ -25,23 +69,33 @@ class HRPerformanceService {
             { key: 'experience_letter', title: 'Experience Letter & Final Pay Request Form' }
         ];
         for (const t of templates) {
-            const existing = await models_1.db.FormDefinition.findOne({ where: { businessId, key: t.key } });
+            const existing = await models_1.db.FormDefinition.findOne({ where: { businessId, moduleKey: 'hr', key: t.key } });
             if (!existing) {
                 await models_1.db.FormDefinition.create({
                     businessId,
+                    moduleKey: 'hr',
                     name: t.title,
                     key: t.key,
-                    visibility: 'internal',
-                    version: 1,
-                    schema: { type: 'object', properties: {} }
+                    description: `${t.title} template`,
+                    status: 'active',
+                    settings: {
+                        category: t.key.startsWith('exit') || ['employee_resignation', 'offboarding_checklist', 'asset_return_clearance', 'experience_letter'].includes(t.key) ? 'exit' : 'performance',
+                        version: 1,
+                        schema: { type: 'object', properties: {} }
+                    }
                 });
             }
         }
     }
-    async processExit(businessId, employeeUserId, exitId, status) {
-        const p = await models_1.db.ExitProcess.findOne({ where: { id: exitId, businessId, employeeUserId } });
+    async processExit(businessId, exitId, status) {
+        const p = await models_1.db.ExitProcess.findOne({ where: { id: exitId, businessId } });
         if (!p)
-            throw new Error("Exit Process not mapping natively.");
+            throw new Error("Exit process not found.");
+        const currentStatus = String(p.status || 'pending');
+        if (!EXIT_STATUS_TRANSITIONS[currentStatus]?.has(status)) {
+            throw new Error(`Invalid exit status transition from ${currentStatus} to ${status}.`);
+        }
+        const employeeUserId = p.employeeUserId;
         if (status === 'completed') {
             const emp = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
             if (emp)
@@ -53,7 +107,258 @@ class HRPerformanceService {
             if (emp)
                 await emp.update({ employmentStatus: employee_constants_1.INACTIVE_EMPLOYMENT_STATUS });
         }
+        else if (status === 'cancelled' && currentStatus === 'in_progress') {
+            const emp = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
+            if (emp)
+                await emp.update({ employmentStatus: employee_constants_1.ACTIVE_EMPLOYMENT_STATUS });
+        }
         return p.update({ status });
+    }
+    async seedExitClearanceSteps(businessId, exitProcessId, transaction) {
+        const existing = await models_1.db.ExitClearanceStep.count({ where: { businessId, exitProcessId }, transaction });
+        if (existing > 0)
+            return;
+        await models_1.db.ExitClearanceStep.bulkCreate(exports.EXIT_CLEARANCE_STEP_DEFINITIONS.map((step, index) => ({
+            businessId,
+            exitProcessId,
+            ...step,
+            sortOrder: index + 1,
+            required: true,
+            status: 'pending'
+        })), { transaction });
+    }
+    async seedExitDocuments(businessId, exitProcessId, transaction) {
+        const existing = await models_1.db.ExitDocument.count({ where: { businessId, exitProcessId }, transaction });
+        if (existing > 0)
+            return;
+        await models_1.db.ExitDocument.bulkCreate(exports.EXIT_DOCUMENT_DEFINITIONS.map((doc) => ({
+            businessId,
+            exitProcessId,
+            ...doc,
+            required: true,
+            status: 'missing'
+        })), { transaction });
+    }
+    async getExitWithClearance(businessId, exitId) {
+        return models_1.db.ExitProcess.findOne({
+            where: { id: exitId, businessId },
+            include: [
+                {
+                    model: models_1.db.User,
+                    as: 'employee',
+                    attributes: ['id', 'fullName', 'email'],
+                    include: [{
+                            model: models_1.db.BusinessUserProfile,
+                            required: false,
+                            include: [
+                                { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },
+                                { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] }
+                            ]
+                        }]
+                },
+                {
+                    model: models_1.db.ExitClearanceStep,
+                    as: 'clearanceSteps',
+                    required: false,
+                    include: [{ model: models_1.db.User, as: 'completedBy', attributes: ['id', 'fullName', 'email'] }]
+                }
+            ],
+            order: [[{ model: models_1.db.ExitClearanceStep, as: 'clearanceSteps' }, 'sortOrder', 'ASC']]
+        });
+    }
+    async updateClearanceStep(businessId, exitId, stepId, updates, actingUserId) {
+        const exitProcess = await models_1.db.ExitProcess.findOne({ where: { id: exitId, businessId } });
+        if (!exitProcess)
+            throw new Error('Exit process not found.');
+        const step = await models_1.db.ExitClearanceStep.findOne({ where: { id: stepId, exitProcessId: exitId, businessId } });
+        if (!step)
+            throw new Error('Clearance step not found.');
+        const payload = {};
+        if (updates.title !== undefined)
+            payload.title = updates.title;
+        if (updates.description !== undefined)
+            payload.description = updates.description;
+        if (updates.sortOrder !== undefined)
+            payload.sortOrder = Number(updates.sortOrder);
+        if (updates.required !== undefined)
+            payload.required = Boolean(updates.required);
+        if (updates.notes !== undefined)
+            payload.notes = updates.notes;
+        if (updates.status !== undefined) {
+            if (!['pending', 'completed', 'waived'].includes(updates.status))
+                throw new Error('Invalid clearance step status.');
+            payload.status = updates.status;
+            payload.completedAt = updates.status === 'pending' ? null : new Date();
+            payload.completedByUserId = updates.status === 'pending' ? null : actingUserId;
+        }
+        return step.update(payload);
+    }
+    async completeClearanceStepByKey(businessId, exitProcessId, stepKey, actingUserId, transaction) {
+        const step = await models_1.db.ExitClearanceStep.findOne({ where: { businessId, exitProcessId, stepKey }, transaction });
+        if (!step || step.status === 'completed')
+            return step;
+        return step.update({
+            status: 'completed',
+            completedAt: new Date(),
+            completedByUserId: actingUserId
+        }, { transaction });
+    }
+    async updateFinalPay(businessId, exitId, actingUserId, data) {
+        return models_1.db.sequelize.transaction(async (transaction) => {
+            const exitProcess = await models_1.db.ExitProcess.findOne({ where: { id: exitId, businessId }, transaction, lock: true });
+            if (!exitProcess)
+                throw new Error('Exit process not found.');
+            const nextStatus = data.status || exitProcess.finalPayData?.status || 'pending';
+            if (!['pending', 'processing', 'settled'].includes(nextStatus))
+                throw new Error('Invalid final pay status.');
+            const finalPayData = {
+                ...(exitProcess.finalPayData || {}),
+                status: nextStatus,
+                grossAmount: data.grossAmount !== undefined ? Number(data.grossAmount) : exitProcess.finalPayData?.grossAmount,
+                deductions: data.deductions !== undefined ? Number(data.deductions) : exitProcess.finalPayData?.deductions,
+                netAmount: data.netAmount !== undefined ? Number(data.netAmount) : exitProcess.finalPayData?.netAmount,
+                notes: data.notes !== undefined ? data.notes : exitProcess.finalPayData?.notes,
+                ...(nextStatus === 'settled' ? { settledAt: new Date().toISOString(), settledByUserId: actingUserId } : {})
+            };
+            const updated = await exitProcess.update({ finalPayData }, { transaction });
+            if (nextStatus === 'settled') {
+                await this.completeClearanceStepByKey(businessId, exitId, 'final_payment_settled', actingUserId, transaction);
+            }
+            return updated;
+        });
+    }
+    async getExitAnalytics(businessId, filters = {}) {
+        const now = new Date();
+        const from = filters.from ? new Date(filters.from) : new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        const to = filters.to ? new Date(`${filters.to}T23:59:59.999Z`) : now;
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const exits = await models_1.db.ExitProcess.findAll({
+            where: { businessId },
+            include: [{
+                    model: models_1.db.User,
+                    as: 'employee',
+                    attributes: ['id', 'fullName', 'email'],
+                    include: [{
+                            model: models_1.db.BusinessUserProfile,
+                            required: false,
+                            include: [
+                                { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },
+                                { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] }
+                            ]
+                        }]
+                }],
+            order: [['createdAt', 'DESC']]
+        });
+        const interviews = await models_1.db.ExitInterview.findAll({ where: { businessId } });
+        const clearanceSteps = await models_1.db.ExitClearanceStep.findAll({ where: { businessId } });
+        const employees = await models_1.db.EmployeeRecord.findAll({
+            where: { businessId },
+            include: [{ model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] }]
+        });
+        const activeExits = exits.filter((item) => ['pending', 'in_progress'].includes(item.status));
+        const recentExits = exits.filter((item) => new Date(item.createdAt) >= from && new Date(item.createdAt) <= to);
+        const reasonCounts = new Map();
+        for (const item of recentExits) {
+            const reason = item.reason || 'Unspecified';
+            reasonCounts.set(reason, (reasonCounts.get(reason) || 0) + 1);
+        }
+        const months = Array.from({ length: 12 }, (_, i) => {
+            const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return { key, month: d.toLocaleString('en-US', { month: 'short' }), exits: 0, hires: 0 };
+        });
+        const monthByKey = new Map(months.map((m) => [m.key, m]));
+        for (const item of exits) {
+            const d = new Date(item.createdAt);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const row = monthByKey.get(key);
+            if (row)
+                row.exits += 1;
+        }
+        for (const employee of employees) {
+            const d = new Date(employee.createdAt);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const row = monthByKey.get(key);
+            if (row)
+                row.hires += 1;
+        }
+        const deptMap = new Map();
+        for (const employee of employees) {
+            const departmentId = employee.department?.id || 'unassigned';
+            const row = deptMap.get(departmentId) || {
+                departmentId: employee.department?.id || null,
+                departmentName: employee.department?.name || 'Unassigned',
+                employeeCount: 0,
+                exits: 0,
+                remaining: 0,
+                attritionRate: 0
+            };
+            row.employeeCount += 1;
+            deptMap.set(departmentId, row);
+        }
+        for (const item of exits) {
+            const profile = item.employee?.BusinessUserProfile;
+            const departmentId = profile?.department?.id || 'unassigned';
+            const row = deptMap.get(departmentId) || {
+                departmentId: profile?.department?.id || null,
+                departmentName: profile?.department?.name || 'Unassigned',
+                employeeCount: 0,
+                exits: 0,
+                remaining: 0,
+                attritionRate: 0
+            };
+            row.exits += 1;
+            deptMap.set(departmentId, row);
+        }
+        for (const row of deptMap.values()) {
+            row.remaining = Math.max(row.employeeCount - row.exits, 0);
+            row.attritionRate = row.employeeCount ? Number(((row.exits / row.employeeCount) * 100).toFixed(1)) : 0;
+        }
+        const activeNotifications = activeExits.slice(0, 6).map((item) => {
+            const employee = item.employee;
+            const name = employee?.fullName || employee?.email || 'Employee';
+            const effectiveDate = item.effectiveDate ? new Date(item.effectiveDate) : null;
+            const daysRemaining = effectiveDate ? Math.ceil((effectiveDate.getTime() - now.getTime()) / 86400000) : null;
+            return {
+                id: item.id,
+                name,
+                dept: employee?.BusinessUserProfile?.department?.name || 'Unassigned',
+                initials: name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase(),
+                priority: daysRemaining !== null && daysRemaining <= 7 ? 'urgent' : daysRemaining !== null && daysRemaining <= 14 ? 'high' : 'low',
+                text: `${item.reason || 'Resignation'} - notice period active.`,
+                date: item.createdAt,
+                remaining: daysRemaining === null ? 'No date set' : `${Math.max(daysRemaining, 0)} days remaining`
+            };
+        });
+        return {
+            activeResignations: activeExits.length,
+            pendingInterviews: interviews.filter((item) => item.status === 'scheduled').length,
+            clearancePending: clearanceSteps.filter((step) => step.status === 'pending').length,
+            completedThisMonth: exits.filter((item) => item.status === 'completed' && new Date(item.updatedAt) >= monthStart).length,
+            activeNotifications,
+            topExitReasonsLast12Months: Array.from(reasonCounts.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
+            monthlyTurnoverTrend: months.map(({ month, exits, hires }) => ({ month, exits, hires })),
+            departmentAttritionAnalysis: Array.from(deptMap.values())
+        };
+    }
+    exitProcessInclude() {
+        return [{
+                model: models_1.db.ExitProcess,
+                as: 'exitProcess',
+                include: [{
+                        model: models_1.db.User,
+                        as: 'employee',
+                        attributes: ['id', 'fullName', 'email'],
+                        include: [{
+                                model: models_1.db.BusinessUserProfile,
+                                required: false,
+                                include: [
+                                    { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },
+                                    { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] }
+                                ]
+                            }]
+                    }]
+            }];
     }
     async restrictDisciplinaryAccess(businessId, requestingUser) {
         // A generic bounding utility structurally resolving HR mapping roles 

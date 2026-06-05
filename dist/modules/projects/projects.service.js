@@ -86,11 +86,87 @@ exports.PROJECT_WORKFLOW_FORMS = [
             tasks: { label: "Tasks", type: "task-list", required: true }
         }
     },
-    { key: "internal_deliverable_approval", name: "Internal Deliverable Approval", group: "deliverables", entity: "task" },
-    { key: "client_deliverable_approval", name: "Client Deliverable Approval", group: "deliverables", entity: "task" },
-    { key: "change_request", name: "Change Request", group: "change_requests", entity: "project" },
-    { key: "issue_bug_report", name: "Issue / Bug Report", group: "issues", entity: "task" },
-    { key: "risk_log", name: "Risk Log", group: "risks", entity: "project" },
+    {
+        key: "internal_deliverable_approval",
+        name: "Internal Deliverable Approval",
+        group: "deliverables",
+        entity: "task",
+        approvalChain: ["Project Manager", "Internal Reviewer"],
+        requiredFields: ["deliverableTitle", "deliverableSummary", "reviewOutcome"],
+        schema: {
+            deliverableTitle: { label: "Deliverable title", type: "text", required: true },
+            deliverableSummary: { label: "Deliverable summary", type: "textarea", required: true },
+            reviewOutcome: { label: "Review outcome", type: "select", required: true, options: ["ready", "needs_revision", "blocked"] },
+            reviewerEmployeeId: { label: "Reviewer", type: "employee" },
+            notes: { label: "Review notes", type: "textarea" }
+        }
+    },
+    {
+        key: "client_deliverable_approval",
+        name: "Client Deliverable Approval",
+        group: "deliverables",
+        entity: "task",
+        approvalChain: ["Project Manager", "Client Approver"],
+        requiredFields: ["deliverableTitle", "clientDecision"],
+        schema: {
+            deliverableTitle: { label: "Deliverable title", type: "text", required: true },
+            clientDecision: { label: "Client decision", type: "select", required: true, options: ["approved", "rejected", "conditional"] },
+            clientFeedback: { label: "Client feedback", type: "textarea" },
+            revisionDueDate: { label: "Revision due date", type: "date" },
+            fileNotes: { label: "Linked file notes", type: "textarea" }
+        }
+    },
+    {
+        key: "change_request",
+        name: "Change Request",
+        group: "change_requests",
+        entity: "project",
+        approvalChain: ["Project Manager", "Business Admin"],
+        requiredFields: ["changeTitle", "scopeImpact", "timelineImpact", "budgetImpact"],
+        schema: {
+            changeTitle: { label: "Change title", type: "text", required: true },
+            scopeImpact: { label: "Scope impact", type: "textarea", required: true },
+            timelineImpact: { label: "Timeline impact", type: "textarea", required: true },
+            budgetImpact: { label: "Budget impact", type: "number", required: true },
+            newEndDate: { label: "New end date", type: "date" },
+            affectedMilestones: { label: "Affected milestones", type: "milestone-list" },
+            rationale: { label: "Rationale", type: "textarea" }
+        }
+    },
+    {
+        key: "issue_bug_report",
+        name: "Issue / Bug Report",
+        group: "issues",
+        entity: "task",
+        approvalChain: ["Project Manager"],
+        requiredFields: ["issueTitle", "severity", "issueStatus"],
+        schema: {
+            issueTitle: { label: "Issue title", type: "text", required: true },
+            severity: { label: "Severity", type: "select", required: true, options: ["low", "medium", "high", "critical"] },
+            issueStatus: { label: "Status", type: "select", required: true, options: ["open", "assigned", "in_progress", "resolved", "closed"] },
+            assignedEmployeeId: { label: "Assignee", type: "employee" },
+            linkedTaskId: { label: "Linked task", type: "task" },
+            rootCause: { label: "Root cause", type: "textarea" },
+            resolution: { label: "Resolution", type: "textarea" }
+        }
+    },
+    {
+        key: "risk_log",
+        name: "Risk Log",
+        group: "risks",
+        entity: "project",
+        approvalChain: ["Project Manager"],
+        requiredFields: ["riskTitle", "likelihood", "impact", "ownerEmployeeId", "mitigation"],
+        schema: {
+            riskTitle: { label: "Risk title", type: "text", required: true },
+            likelihood: { label: "Likelihood", type: "number", required: true },
+            impact: { label: "Impact", type: "number", required: true },
+            ownerEmployeeId: { label: "Owner", type: "employee", required: true },
+            mitigation: { label: "Mitigation", type: "textarea", required: true },
+            contingency: { label: "Contingency", type: "textarea" },
+            riskStatus: { label: "Status", type: "select", options: ["open", "monitoring", "mitigated", "closed"] }
+        }
+    },
     { key: "completion_record", name: "Completion Record", group: "closure", entity: "project" },
     { key: "client_approval", name: "Client Approval", group: "deliverables", entity: "project" },
     { key: "final_project_closure", name: "Final Project Closure", group: "closure", entity: "project" },
@@ -240,7 +316,8 @@ class ProjectsService {
         const project = await this.ensureProject(businessId, projectId);
         const definition = this.ensureWorkflowDefinition(data.formKey);
         await this.ensureWorkflowPrerequisites(businessId, projectId, definition.key);
-        this.validateWorkflowData(definition, data.data || {});
+        if (data.status === "submitted")
+            this.validateWorkflowData(definition, data.data || {});
         await this.ensureWorkflowLinks(businessId, projectId, data);
         const form = await models_1.db.ProjectWorkflowForm.create({
             businessId,
@@ -273,7 +350,6 @@ class ProjectsService {
         if (["approved", "archived"].includes(form.status) && data.data)
             throw new Error("Approved or archived workflow forms cannot be edited");
         const before = form.toJSON ? form.toJSON() : { ...form };
-        this.validateWorkflowData(this.ensureWorkflowDefinition(form.formKey), data.data ?? form.data ?? {});
         await this.ensureWorkflowLinks(businessId, projectId, data);
         await form.update({
             milestoneId: data.milestoneId ?? form.milestoneId,
@@ -319,6 +395,8 @@ class ProjectsService {
         await this.logWorkflowActivity(businessId, projectId, userId, activityByStatus[nextStatus] || "PROJECT_WORKFLOW_FORM_STATUS_CHANGED", before, form);
         if (nextStatus === "approved")
             await this.handleWorkflowApproval(businessId, userId, project, form);
+        if (nextStatus === "rejected")
+            await this.handleWorkflowRejection(businessId, userId, project, form);
         await this.notifyProjectManagers(businessId, project, userId, "Workflow form updated", `${form.formName} is now ${nextStatus}.`, form.id);
         return form;
     }
@@ -643,6 +721,16 @@ class ProjectsService {
             await this.applyMilestoneSetup(businessId, userId, project.id, form);
         if (form.formKey === "task_assignment")
             await this.applyTaskAssignment(businessId, userId, project, form);
+        if (form.formKey === "change_request")
+            await this.applyChangeRequest(businessId, userId, project, form);
+        if (form.formKey === "issue_bug_report")
+            await this.applyIssueWorkflow(businessId, userId, project, form);
+        if (form.formKey === "risk_log")
+            await this.applyRiskWorkflow(businessId, userId, project, form);
+    }
+    async handleWorkflowRejection(businessId, userId, project, form) {
+        if (form.formKey === "client_deliverable_approval")
+            await this.createClientRevisionTask(businessId, userId, project, form);
     }
     async applyMilestoneSetup(businessId, userId, projectId, form) {
         const milestones = Array.isArray(form.data?.milestones) ? form.data.milestones : [];
@@ -684,6 +772,11 @@ class ProjectsService {
                 continue;
             if (item.assigneeEmployeeId)
                 await this.ensureEmployee(businessId, item.assigneeEmployeeId);
+            if (item.milestoneId) {
+                const milestone = await models_1.db.ProjectMilestone.findOne({ where: { id: item.milestoneId, businessId, projectId: project.id } });
+                if (!milestone)
+                    throw new Error("Milestone not found for project");
+            }
             const assignee = item.assigneeEmployeeId ? await models_1.db.EmployeeRecord.findOne({ where: { id: item.assigneeEmployeeId, businessId } }) : null;
             const where = item.id ? { id: item.id, businessId, projectId: project.id } : { businessId, projectId: project.id, title: item.title };
             const existing = await models_1.db.ProjectTask.findOne({ where });
@@ -724,6 +817,183 @@ class ProjectsService {
     async actorEmployeeId(businessId, userId) {
         const actor = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId } });
         return actor?.id || null;
+    }
+    async createClientRevisionTask(businessId, userId, project, form) {
+        const title = `Revise ${form.data?.deliverableTitle || form.formName}`;
+        const existing = await models_1.db.ProjectTask.findOne({ where: { businessId, projectId: project.id, title } });
+        if (existing?.metadata?.generatedFromWorkflowFormId && existing.metadata.generatedFromWorkflowFormId !== form.id)
+            return existing;
+        if (existing)
+            return existing;
+        const task = await models_1.db.ProjectTask.create({
+            businessId,
+            projectId: project.id,
+            code: await (0, projectCode_1.generateTaskCode)(businessId, project.code),
+            title,
+            description: form.data?.clientFeedback || "Client requested deliverable revision.",
+            priority: "HIGH",
+            status: "TODO",
+            dueDate: form.data?.revisionDueDate || null,
+            metadata: { generatedFromWorkflowFormId: form.id, reason: "client_deliverable_rejection" }
+        });
+        await this.recalculateProjectProgress(businessId, project.id);
+        await this.logActivity(businessId, {
+            projectId: project.id,
+            taskId: task.id,
+            actorEmployeeId: await this.actorEmployeeId(businessId, userId),
+            action: "PROJECT_REVISION_TASK_GENERATED_FROM_CLIENT_REJECTION",
+            entityType: "project_task",
+            entityId: task.id,
+            after: task.toJSON ? task.toJSON() : task
+        });
+        if (project.projectManagerUserId)
+            await this.notify(businessId, project.projectManagerUserId, "Client Rejection Requires Revision", `${title} was created from client feedback.`, "project_task", task.id);
+        await form.update({ metadata: { ...(form.metadata || {}), revisionTaskId: task.id } });
+        return task;
+    }
+    async applyChangeRequest(businessId, userId, project, form) {
+        const before = project.toJSON ? project.toJSON() : { ...project };
+        const metadata = {
+            ...(project.metadata || {}),
+            scope: { ...(project.metadata?.scope || {}), latestApprovedChange: form.data?.scopeImpact || null },
+            timeline: { ...(project.metadata?.timeline || {}), latestApprovedChange: form.data?.timelineImpact || null },
+            budget: {
+                ...(project.metadata?.budget || {}),
+                latestApprovedChangeAmount: Number(form.data?.budgetImpact || 0),
+                latestApprovedChangeFormId: form.id
+            },
+            approvedChangeRequests: [...(project.metadata?.approvedChangeRequests || []), form.id],
+            adapterActions: this.pendingAdapterActions(form.adapters)
+        };
+        await project.update({
+            description: form.data?.scopeImpact ? `${project.description || ""}\n\nApproved scope change: ${form.data.scopeImpact}`.trim() : project.description,
+            endDate: form.data?.newEndDate || project.endDate,
+            budget: Number(project.budget || 0) + Number(form.data?.budgetImpact || 0),
+            metadata
+        });
+        await this.logActivity(businessId, {
+            projectId: project.id,
+            actorEmployeeId: await this.actorEmployeeId(businessId, userId),
+            action: "PROJECT_CHANGE_REQUEST_APPLIED",
+            entityType: "project",
+            entityId: project.id,
+            before,
+            after: project.toJSON ? project.toJSON() : project
+        });
+        const affected = Array.isArray(form.data?.affectedMilestones) ? form.data.affectedMilestones : [];
+        for (const item of affected) {
+            if (!item?.id && !item?.name)
+                continue;
+            const where = item.id ? { id: item.id, businessId, projectId: project.id } : { businessId, projectId: project.id, name: item.name };
+            const milestone = await models_1.db.ProjectMilestone.findOne({ where });
+            if (!milestone)
+                continue;
+            const milestoneBefore = milestone.toJSON ? milestone.toJSON() : { ...milestone };
+            await milestone.update({
+                name: item.name || milestone.name,
+                description: item.description ?? milestone.description,
+                dueDate: item.dueDate || milestone.dueDate,
+                billingPercent: item.billingPercent ?? milestone.billingPercent,
+                metadata: { ...(milestone.metadata || {}), latestApprovedChangeFormId: form.id }
+            });
+            await this.logActivity(businessId, {
+                projectId: project.id,
+                actorEmployeeId: await this.actorEmployeeId(businessId, userId),
+                action: "PROJECT_MILESTONE_UPDATED_FROM_CHANGE_REQUEST",
+                entityType: "project_milestone",
+                entityId: milestone.id,
+                before: milestoneBefore,
+                after: milestone.toJSON ? milestone.toJSON() : milestone
+            });
+        }
+    }
+    async applyIssueWorkflow(businessId, userId, project, form) {
+        if (form.data?.assignedEmployeeId)
+            await this.ensureEmployee(businessId, form.data.assignedEmployeeId);
+        if (form.data?.linkedTaskId)
+            await this.ensureProjectTask(businessId, project.id, form.data.linkedTaskId);
+        const assignee = form.data?.assignedEmployeeId ? await models_1.db.EmployeeRecord.findOne({ where: { businessId, id: form.data.assignedEmployeeId } }) : null;
+        await form.update({
+            taskId: form.data?.linkedTaskId || form.taskId || null,
+            metadata: {
+                ...(form.metadata || {}),
+                issue: {
+                    severity: form.data?.severity,
+                    status: form.data?.issueStatus,
+                    assignedEmployeeId: form.data?.assignedEmployeeId || null,
+                    rootCause: form.data?.rootCause || null,
+                    resolution: form.data?.resolution || null
+                }
+            }
+        });
+        await this.logActivity(businessId, {
+            projectId: project.id,
+            taskId: form.data?.linkedTaskId || form.taskId || null,
+            actorEmployeeId: await this.actorEmployeeId(businessId, userId),
+            action: "PROJECT_ISSUE_WORKFLOW_APPLIED",
+            entityType: "project_workflow_form",
+            entityId: form.id,
+            after: form.toJSON ? form.toJSON() : form
+        });
+        if (assignee?.userId)
+            await this.notify(businessId, assignee.userId, "Issue Assigned", `${form.data?.issueTitle || "An issue"} was assigned to you.`, "project_workflow_form", form.id);
+    }
+    async applyRiskWorkflow(businessId, userId, project, form) {
+        if (form.data?.ownerEmployeeId)
+            await this.ensureEmployee(businessId, form.data.ownerEmployeeId);
+        const likelihood = this.clampedScore(form.data?.likelihood);
+        const impact = this.clampedScore(form.data?.impact);
+        const score = likelihood * impact;
+        await form.update({
+            metadata: {
+                ...(form.metadata || {}),
+                risk: {
+                    likelihood,
+                    impact,
+                    score,
+                    level: score >= 16 ? "critical" : score >= 9 ? "high" : score >= 4 ? "medium" : "low",
+                    ownerEmployeeId: form.data?.ownerEmployeeId || null,
+                    mitigation: form.data?.mitigation || null,
+                    status: form.data?.riskStatus || "open"
+                }
+            }
+        });
+        await this.logActivity(businessId, {
+            projectId: project.id,
+            actorEmployeeId: await this.actorEmployeeId(businessId, userId),
+            action: "PROJECT_RISK_WORKFLOW_APPLIED",
+            entityType: "project_workflow_form",
+            entityId: form.id,
+            after: form.toJSON ? form.toJSON() : form
+        });
+        const owner = form.data?.ownerEmployeeId ? await models_1.db.EmployeeRecord.findOne({ where: { businessId, id: form.data.ownerEmployeeId } }) : null;
+        if (owner?.userId)
+            await this.notify(businessId, owner.userId, "Risk Ownership Assigned", `${form.data?.riskTitle || "A project risk"} is assigned to you.`, "project_workflow_form", form.id);
+        if (score >= 16) {
+            for (const recipientUserId of await this.projectStakeholderUserIds(project)) {
+                await this.notify(businessId, recipientUserId, "Critical Project Risk", `${form.data?.riskTitle || "A project risk"} has a critical score of ${score}.`, "project_workflow_form", form.id);
+            }
+        }
+    }
+    clampedScore(value) {
+        const parsed = Number(value || 0);
+        if (!Number.isFinite(parsed))
+            return 0;
+        return Math.min(5, Math.max(0, parsed));
+    }
+    pendingAdapterActions(adapters = {}) {
+        return Object.entries(adapters || {}).filter(([, value]) => value?.enabled).map(([key, value]) => ({ adapter: key, status: "pending_confirmation", config: value.config || {} }));
+    }
+    async projectStakeholderUserIds(project) {
+        const userIds = new Set();
+        if (project.projectManagerUserId)
+            userIds.add(project.projectManagerUserId);
+        for (const employeeId of [project.ownerEmployeeId, project.managerEmployeeId].filter(Boolean)) {
+            const employee = await models_1.db.EmployeeRecord.findOne({ where: { businessId: project.businessId, id: employeeId } });
+            if (employee?.userId)
+                userIds.add(employee.userId);
+        }
+        return Array.from(userIds);
     }
     async ensureWorkflowLinks(businessId, projectId, data) {
         if (data.milestoneId) {
