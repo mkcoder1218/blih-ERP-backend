@@ -48,13 +48,22 @@ const Deal_1 = __importDefault(require("./Deal"));
 const Interaction_1 = __importDefault(require("./Interaction"));
 const Project_1 = __importDefault(require("./Project"));
 const ProjectMilestone_1 = __importDefault(require("./ProjectMilestone"));
+const ProjectMember_1 = __importDefault(require("./ProjectMember"));
 const ProjectTask_1 = __importDefault(require("./ProjectTask"));
+const TaskComment_1 = __importDefault(require("./TaskComment"));
 const ProjectIssue_1 = __importDefault(require("./ProjectIssue"));
+const ProjectActivityLog_1 = __importDefault(require("./ProjectActivityLog"));
+const ProjectWorkflowForm_1 = __importDefault(require("./ProjectWorkflowForm"));
 const Invoice_1 = __importDefault(require("./Invoice"));
 const InvoiceItem_1 = __importDefault(require("./InvoiceItem"));
 const Payment_1 = __importDefault(require("./Payment"));
 const Expense_1 = __importDefault(require("./Expense"));
 const Budget_1 = __importDefault(require("./Budget"));
+const SalaryAdjustmentRequest_1 = __importDefault(require("./SalaryAdjustmentRequest"));
+const PayrollRecord_1 = __importDefault(require("./PayrollRecord"));
+const FinanceBenefit_1 = __importDefault(require("./FinanceBenefit"));
+const FinanceBenefitEnrollment_1 = __importDefault(require("./FinanceBenefitEnrollment"));
+const BudgetReallocationRequest_1 = __importDefault(require("./BudgetReallocationRequest"));
 const KnowledgeCategory_1 = __importDefault(require("./KnowledgeCategory"));
 const KnowledgeArticle_1 = __importDefault(require("./KnowledgeArticle"));
 const KnowledgeRevision_1 = __importDefault(require("./KnowledgeRevision"));
@@ -96,6 +105,8 @@ const Vendor_1 = __importDefault(require("./Vendor"));
 const OfferLetterTemplate_1 = __importDefault(require("./OfferLetterTemplate"));
 const OfferLetter_1 = __importDefault(require("./OfferLetter"));
 const RecruitmentTemplate_1 = __importDefault(require("./RecruitmentTemplate"));
+const PayrollTemplate_1 = __importDefault(require("./PayrollTemplate"));
+const EmployeePayrollLink_1 = __importDefault(require("./EmployeePayrollLink"));
 const Skill_1 = __importDefault(require("./Skill"));
 const InterviewSkill_1 = __importDefault(require("./InterviewSkill"));
 const InterviewerNote_1 = __importDefault(require("./InterviewerNote"));
@@ -104,6 +115,9 @@ const BusinessAttendanceSettings_1 = __importDefault(require("./BusinessAttendan
 const AttendanceEvent_1 = __importDefault(require("./AttendanceEvent"));
 const AttendanceLateReason_1 = __importDefault(require("./AttendanceLateReason"));
 const AttendanceLateExplanation_1 = __importDefault(require("./AttendanceLateExplanation"));
+const OvertimeRequest_1 = __importDefault(require("./OvertimeRequest"));
+const LeaveTemplate_1 = __importDefault(require("./LeaveTemplate"));
+const LeaveRequest_1 = __importDefault(require("./LeaveRequest"));
 exports.db = {
     sequelize: sequelize_2.sequelize,
     Business: (0, Business_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -111,6 +125,9 @@ exports.db = {
     AttendanceEvent: (0, AttendanceEvent_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     AttendanceLateReason: (0, AttendanceLateReason_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     AttendanceLateExplanation: (0, AttendanceLateExplanation_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    OvertimeRequest: (0, OvertimeRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    LeaveTemplate: (0, LeaveTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    LeaveRequest: (0, LeaveRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     User: (0, User_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Role: (0, Role_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Permission: (0, Permission_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -152,13 +169,22 @@ exports.db = {
     Interaction: (0, Interaction_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Project: (0, Project_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ProjectMilestone: (0, ProjectMilestone_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProjectMember: (0, ProjectMember_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ProjectTask: (0, ProjectTask_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    TaskComment: (0, TaskComment_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ProjectIssue: (0, ProjectIssue_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProjectActivityLog: (0, ProjectActivityLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProjectWorkflowForm: (0, ProjectWorkflowForm_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Invoice: (0, Invoice_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     InvoiceItem: (0, InvoiceItem_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Payment: (0, Payment_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Expense: (0, Expense_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Budget: (0, Budget_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    SalaryAdjustmentRequest: (0, SalaryAdjustmentRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PayrollRecord: (0, PayrollRecord_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    FinanceBenefit: (0, FinanceBenefit_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    FinanceBenefitEnrollment: (0, FinanceBenefitEnrollment_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    BudgetReallocationRequest: (0, BudgetReallocationRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     KnowledgeCategory: (0, KnowledgeCategory_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     KnowledgeArticle: (0, KnowledgeArticle_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     KnowledgeRevision: (0, KnowledgeRevision_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -200,6 +226,8 @@ exports.db = {
     OfferLetterTemplate: (0, OfferLetterTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     OfferLetter: (0, OfferLetter_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     RecruitmentTemplate: (0, RecruitmentTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PayrollTemplate: (0, PayrollTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    EmployeePayrollLink: (0, EmployeePayrollLink_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Skill: (0, Skill_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     InterviewSkill: (0, InterviewSkill_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     InterviewerNote: (0, InterviewerNote_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),

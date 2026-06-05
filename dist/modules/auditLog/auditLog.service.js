@@ -6,12 +6,11 @@ class AuditLogServiceRead {
     constructor() {
         this.dal = new auditLog_dal_1.AuditLogDAL();
     }
-    list(businessId) {
-        return businessId ? this.dal.findAll({ businessId }) : this.dal.findAll({});
+    listPaginated(filters) {
+        return this.dal.findPaginated(filters);
     }
     getById(id, businessId) {
-        if (businessId)
-            return this.dal.findAll({ id, businessId }).then((res) => res[0]);
+        // For non-super-admin, enforce the businessId guard at controller level
         return this.dal.findById(id);
     }
 }

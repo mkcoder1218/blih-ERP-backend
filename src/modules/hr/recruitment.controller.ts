@@ -325,6 +325,7 @@ export class RecruitmentController {
       requestedDate: requestedAt,
       priority: normalizedPriority,
       status: mappedStatus,
+      postingStatus: o.status,
       isPosted: ["open", "active", "published"].includes(o.status),
       views: Number(o.views || 0),
       approvals: m.approvals || [],

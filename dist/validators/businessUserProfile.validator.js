@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateProfileSchema = exports.createProfileSchema = void 0;
 const joi_1 = __importDefault(require("joi"));
+const employee_constants_1 = require("../constants/employee.constants");
 exports.createProfileSchema = joi_1.default.object({
     userId: joi_1.default.string().uuid().required(),
     departmentId: joi_1.default.string().uuid().allow(null).optional(),
@@ -12,7 +13,7 @@ exports.createProfileSchema = joi_1.default.object({
     employeeCode: joi_1.default.string().max(100).allow(null, '').optional(),
     workEmail: joi_1.default.string().email().max(320).allow(null, '').optional(),
     workPhone: joi_1.default.string().max(50).allow(null, '').optional(),
-    employmentType: joi_1.default.string().max(50).allow(null, '').optional(),
+    employmentType: joi_1.default.string().valid(...employee_constants_1.EMPLOYMENT_TYPES).allow(null, '').optional(),
     joinedAt: joi_1.default.date().iso().allow(null).optional(),
     status: joi_1.default.string().valid('active', 'inactive').optional(),
     settings: joi_1.default.object().optional()
@@ -23,7 +24,7 @@ exports.updateProfileSchema = joi_1.default.object({
     employeeCode: joi_1.default.string().max(100).allow(null, '').optional(),
     workEmail: joi_1.default.string().email().max(320).allow(null, '').optional(),
     workPhone: joi_1.default.string().max(50).allow(null, '').optional(),
-    employmentType: joi_1.default.string().max(50).allow(null, '').optional(),
+    employmentType: joi_1.default.string().valid(...employee_constants_1.EMPLOYMENT_TYPES).allow(null, '').optional(),
     joinedAt: joi_1.default.date().iso().allow(null).optional(),
     status: joi_1.default.string().valid('active', 'inactive').optional(),
     settings: joi_1.default.object().optional()

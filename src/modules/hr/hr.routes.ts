@@ -256,6 +256,36 @@ router.post(
   requireAnyPermission("performance.manage"),
   asyncHandler(perfController.seedForms),
 );
+router.get(
+  "/performance/overview",
+  authRequired,
+  requireAnyPermission("performance.read", "performance.manage"),
+  asyncHandler(perfController.overview),
+);
+router.get(
+  "/performance/reviews",
+  authRequired,
+  requireAnyPermission("performance.read", "performance.manage"),
+  asyncHandler(perfController.listReviews),
+);
+router.get(
+  "/performance/project-dashboard",
+  authRequired,
+  requireAnyPermission("performance.read", "performance.manage"),
+  asyncHandler(perfController.projectDashboard),
+);
+router.get(
+  "/performance/evaluations/:employeeUserId/project-evidence",
+  authRequired,
+  requireAnyPermission("performance.read", "performance.manage", "performance.self"),
+  asyncHandler(perfController.employeeEvaluationEvidence),
+);
+router.post(
+  "/performance/reviews/:reviewId/project-evidence",
+  authRequired,
+  requireAnyPermission("performance.manage"),
+  asyncHandler(perfController.attachProjectEvidenceToReview),
+);
 router.post(
   "/training",
   authRequired,

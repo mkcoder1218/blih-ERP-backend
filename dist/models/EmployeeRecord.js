@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const employee_constants_1 = require("../constants/employee.constants");
 exports.default = (sequelize, dataTypes) => {
     const EmployeeRecord = sequelize.define("EmployeeRecord", {
         id: { type: dataTypes.UUID, defaultValue: dataTypes.UUIDV4, primaryKey: true },
@@ -9,9 +10,10 @@ exports.default = (sequelize, dataTypes) => {
         departmentId: { type: dataTypes.UUID, allowNull: true },
         positionId: { type: dataTypes.UUID, allowNull: true },
         managerUserId: { type: dataTypes.UUID, allowNull: true },
-        employmentType: { type: dataTypes.STRING(50) }, // full_time, part_time, contractor
-        employmentStatus: { type: dataTypes.STRING(50), defaultValue: 'active' }, // active, suspended, terminated, resigned
+        employmentType: { type: dataTypes.STRING(50), allowNull: true, defaultValue: employee_constants_1.DEFAULT_EMPLOYMENT_TYPE },
+        employmentStatus: { type: dataTypes.STRING(50), allowNull: false, defaultValue: employee_constants_1.DEFAULT_EMPLOYMENT_STATUS },
         hireDate: { type: dataTypes.DATE, allowNull: false },
+        contractStartDate: { type: dataTypes.DATE, allowNull: true },
         probationEndDate: { type: dataTypes.DATE, allowNull: true },
         contractEndDate: { type: dataTypes.DATE, allowNull: true },
         salaryInfo: { type: dataTypes.JSONB, defaultValue: {} },

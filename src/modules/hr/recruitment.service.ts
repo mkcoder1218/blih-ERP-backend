@@ -136,6 +136,19 @@ export class RecruitmentService {
         title: "Complete Profile Setup",
         category: "general",
       });
+
+      const job = await db.JobOpening.findOne({
+        where: { id: app.jobOpeningId, businessId },
+      });
+      if (job && ["open", "active", "published"].includes(job.status)) {
+        const hiredCount = await db.JobApplication.count({
+          where: { businessId, jobOpeningId: app.jobOpeningId, stage: "hired" },
+        });
+        const headcount = Number(job.headcount || 1);
+        if (hiredCount >= headcount) {
+          await job.update({ status: "closed" });
+        }
+      }
     }
     return app;
   }

@@ -5,7 +5,7 @@ const models_1 = require("../../models");
 class ProfileDAL {
     constructor() {
         this.include = [
-            { model: models_1.db.User, attributes: ["id", "fullName", "email", "phone", "status"] },
+            { model: models_1.db.User, attributes: ["id", "fullName", "email", "phone", "status", "createdAt"] },
             { model: models_1.db.Department, as: "department", attributes: ["id", "name"] },
             { model: models_1.db.Position, as: "position", attributes: ["id", "title"] }
         ];

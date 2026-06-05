@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HRService = void 0;
 const models_1 = require("../../models");
+const employee_constants_1 = require("../../constants/employee.constants");
 class HRService {
     async provisionTemplates(businessId) {
         const templates = [
@@ -110,11 +111,11 @@ class HRService {
         const recordMap = new Map();
         records.forEach((r) => {
             const existing = recordMap.get(r.userId);
-            if (!existing || r.employmentStatus === 'active')
+            if (!existing || r.employmentStatus === employee_constants_1.ACTIVE_EMPLOYMENT_STATUS)
                 recordMap.set(r.userId, r);
         });
         // ── 3. Submitted onboardings — track hired-via-onboarding employees ───────
-        // These users have employmentStatus='onboarding' in their record but ARE hired.
+        // These users have employmentStatus=DEFAULT_EMPLOYMENT_STATUS in their record but ARE hired.
         // We use the onboarding's initializedById / offer's reportingManagerId as their manager.
         const submittedOnboardings = await models_1.db.CandidateOnboarding.findAll({
             where: { businessId, status: ['SUBMITTED_FOR_REVIEW', 'COMPLETED'] },
@@ -173,7 +174,7 @@ class HRService {
             //   - have no record OR record is 'onboarding'
             //   - AND are plain employees (no elevated role)
             //   - AND were NOT hired via a submitted onboarding
-            const isPreHireOnly = (!record || record.employmentStatus === 'onboarding') &&
+            const isPreHireOnly = (!record || record.employmentStatus === employee_constants_1.DEFAULT_EMPLOYMENT_STATUS) &&
                 role.priority >= 3 &&
                 !hiredViaOnboarding;
             if (isPreHireOnly)

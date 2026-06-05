@@ -57,13 +57,48 @@ class ProfileController {
         // Endpoint specific for 'Me'
         this.getMe = async (req, res, next) => {
             const prof = await this.service.ensureForUser(req.user.id, req.user.businessId);
-            res.json({ profile: prof });
+            res.json({ profile: await this.enrichProfile(prof) });
         };
         this.getByUser = async (req, res, next) => {
             const prof = await this.service.ensureForUser(req.params.userId, req.user.businessId);
             if (!prof)
                 return next({ statusCode: 404, message: 'Profile not found' });
-            res.json({ profile: prof });
+            res.json({ profile: await this.enrichProfile(prof) });
+        };
+        this.enrichProfile = async (profile) => {
+            const plain = profile?.toJSON ? profile.toJSON() : profile;
+            const record = await models_1.db.EmployeeRecord.findOne({ where: { businessId: plain.businessId, userId: plain.userId } });
+            const metadata = record?.metadata || {};
+            const settings = { ...(plain.settings || {}) };
+            const copyIfMissing = (targetKey, sourceValue) => {
+                if ((settings[targetKey] === undefined || settings[targetKey] === null || settings[targetKey] === "") && sourceValue !== undefined && sourceValue !== null && sourceValue !== "") {
+                    settings[targetKey] = sourceValue;
+                }
+            };
+            copyIfMissing("dateOfBirth", metadata.dateOfBirth);
+            copyIfMissing("city", metadata.city);
+            copyIfMissing("country", metadata.country || metadata.countryOfBirth);
+            copyIfMissing("additionalPhone", metadata.additionalPhone);
+            copyIfMissing("address", metadata.address);
+            copyIfMissing("maritalStatus", metadata.maritalStatus);
+            copyIfMissing("gender", metadata.gender);
+            copyIfMissing("nationality", metadata.nationality || metadata.countryOfBirth);
+            copyIfMissing("fullName", plain.User?.fullName);
+            copyIfMissing("email", plain.User?.email || plain.workEmail);
+            copyIfMissing("phone", plain.User?.phone || plain.workPhone);
+            return {
+                ...plain,
+                settings,
+                employeeRecord: record
+                    ? {
+                        id: record.id,
+                        hireDate: record.hireDate,
+                        createdAt: record.createdAt,
+                        metadata
+                    }
+                    : null,
+                attendanceStartDate: record?.createdAt || plain.User?.createdAt || plain.createdAt
+            };
         };
         this.updateMe = async (req, res, next) => {
             const prof = await this.service.ensureForUser(req.user.id, req.user.businessId);

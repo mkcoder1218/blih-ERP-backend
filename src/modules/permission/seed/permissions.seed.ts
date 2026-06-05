@@ -70,6 +70,7 @@ export const SYSTEM_PERMISSIONS = [
   { module: "attendance", action: "self",   key: "attendance.self",  description: "Self check-in, view own history, and submit attendance requests" },
   { module: "leave",      action: "read",   key: "leave.read",       description: "View leave balances and requests" },
   { module: "leave",      action: "approve",key: "leave.approve",    description: "Approve or deny leave, overtime, and WFH requests" },
+  { module: "leave",      action: "manage", key: "leave.manage",     description: "Create and manage leave templates and types" },
 
   // ── Performance & Growth ─────────────────────────────────────────────────────
   { module: "performance", action: "read",   key: "performance.read",  description: "View performance metrics, KPIs, and review cycles" },

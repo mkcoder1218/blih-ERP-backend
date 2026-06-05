@@ -26,6 +26,41 @@ export class HRPerformanceController {
        } catch (e: any) { errorResponse(res, e.message); }
    };
 
+   projectDashboard = async (req: Request, res: Response) => {
+       try {
+           const data = await this.service.getProjectPerformanceDashboard(req.user!.businessId, req.query);
+           successResponse(res, data);
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   overview = async (req: Request, res: Response) => {
+       try {
+           const data = await this.service.getPerformanceOverview(req.user!.businessId, req.query);
+           successResponse(res, data);
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   listReviews = async (req: Request, res: Response) => {
+       try {
+           const data = await this.service.listPerformanceReviews(req.user!.businessId, req.query);
+           successResponse(res, data);
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   employeeEvaluationEvidence = async (req: Request, res: Response) => {
+       try {
+           const data = await this.service.getEmployeeEvaluationEvidence(req.user!.businessId, req.params.employeeUserId, req.query);
+           successResponse(res, data);
+       } catch (e: any) { errorResponse(res, e.message, e.message === 'Employee not found' ? 404 : 400); }
+   };
+
+   attachProjectEvidenceToReview = async (req: Request, res: Response) => {
+       try {
+           const review = await this.service.attachProjectEvidenceToReview(req.user!.businessId, req.params.reviewId);
+           successResponse(res, review, 'Project evidence attached to review.');
+       } catch (e: any) { errorResponse(res, e.message, e.message === 'Performance review not found' ? 404 : 400); }
+   };
+
    // Disciplinary
    listDisciplinary = async (req: Request, res: Response) => {
        try {

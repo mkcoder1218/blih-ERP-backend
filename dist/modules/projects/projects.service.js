@@ -1,25 +1,138 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ProjectsService = void 0;
+exports.ProjectsService = exports.PROJECT_WORKFLOW_FORMS = void 0;
 const models_1 = require("../../models");
 const notification_service_1 = require("../notification/notification.service");
+const projectCode_1 = require("./projectCode");
+const sequelize_1 = require("sequelize");
+const PROJECT_STATUS_TRANSITIONS = {
+    DRAFT: ["PLANNED", "CANCELLED", "ARCHIVED"],
+    PLANNED: ["ACTIVE", "ON_HOLD", "CANCELLED", "ARCHIVED"],
+    ACTIVE: ["ON_HOLD", "COMPLETED", "CANCELLED", "ARCHIVED"],
+    ON_HOLD: ["ACTIVE", "CANCELLED", "ARCHIVED"],
+    COMPLETED: ["ARCHIVED"],
+    CANCELLED: ["ARCHIVED"],
+    ARCHIVED: []
+};
+const TASK_STATUS_TRANSITIONS = {
+    BACKLOG: ["TODO", "IN_PROGRESS", "IN_REVIEW", "BLOCKED", "DONE", "CANCELLED"],
+    TODO: ["BACKLOG", "IN_PROGRESS", "IN_REVIEW", "BLOCKED", "DONE", "CANCELLED"],
+    IN_PROGRESS: ["BACKLOG", "TODO", "IN_REVIEW", "BLOCKED", "DONE", "CANCELLED"],
+    IN_REVIEW: ["BACKLOG", "TODO", "IN_PROGRESS", "BLOCKED", "DONE", "CANCELLED"],
+    BLOCKED: ["BACKLOG", "TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"],
+    DONE: ["BACKLOG", "TODO", "IN_PROGRESS", "IN_REVIEW", "BLOCKED", "CANCELLED"],
+    CANCELLED: ["BACKLOG", "TODO", "IN_PROGRESS", "IN_REVIEW", "BLOCKED", "DONE"]
+};
+const WORKFLOW_STATUS_TRANSITIONS = {
+    draft: ["submitted", "archived"],
+    submitted: ["approved", "rejected", "returned-for-revision", "archived"],
+    approved: ["archived"],
+    rejected: ["archived", "returned-for-revision"],
+    "returned-for-revision": ["draft", "submitted", "archived"],
+    archived: []
+};
+exports.PROJECT_WORKFLOW_FORMS = [
+    {
+        key: "project_brief",
+        name: "Project Brief",
+        group: "setup",
+        entity: "project",
+        approvalChain: ["Project Manager", "Business Admin"],
+        requiredFields: ["objective", "scope", "stakeholders", "budget", "startDate", "endDate"],
+        schema: {
+            objective: { label: "Objective", type: "textarea", required: true },
+            scope: { label: "Scope", type: "textarea", required: true },
+            stakeholders: { label: "Stakeholders", type: "textarea", required: true },
+            budget: { label: "Budget", type: "number", required: true },
+            startDate: { label: "Start date", type: "date", required: true },
+            endDate: { label: "End date", type: "date", required: true },
+            risks: { label: "Known risks", type: "textarea" }
+        }
+    },
+    {
+        key: "project_kickoff",
+        name: "Project Kick-off",
+        group: "setup",
+        entity: "project",
+        approvalChain: ["Project Manager", "Business Admin"],
+        requiredFields: ["meetingDate", "attendees", "communicationPlan", "successCriteria"],
+        schema: {
+            meetingDate: { label: "Meeting date", type: "date", required: true },
+            attendees: { label: "Attendees", type: "textarea", required: true },
+            communicationPlan: { label: "Communication plan", type: "textarea", required: true },
+            successCriteria: { label: "Success criteria", type: "textarea", required: true },
+            notes: { label: "Notes", type: "textarea" }
+        }
+    },
+    {
+        key: "milestone_setup",
+        name: "Milestone Setup",
+        group: "milestones",
+        entity: "milestone",
+        approvalChain: ["Project Manager"],
+        requiredFields: ["milestones"],
+        schema: {
+            milestones: { label: "Milestones", type: "milestone-list", required: true }
+        }
+    },
+    {
+        key: "task_assignment",
+        name: "Task Assignment",
+        group: "tasks",
+        entity: "task",
+        approvalChain: ["Project Manager"],
+        requiredFields: ["tasks"],
+        schema: {
+            tasks: { label: "Tasks", type: "task-list", required: true }
+        }
+    },
+    { key: "internal_deliverable_approval", name: "Internal Deliverable Approval", group: "deliverables", entity: "task" },
+    { key: "client_deliverable_approval", name: "Client Deliverable Approval", group: "deliverables", entity: "task" },
+    { key: "change_request", name: "Change Request", group: "change_requests", entity: "project" },
+    { key: "issue_bug_report", name: "Issue / Bug Report", group: "issues", entity: "task" },
+    { key: "risk_log", name: "Risk Log", group: "risks", entity: "project" },
+    { key: "completion_record", name: "Completion Record", group: "closure", entity: "project" },
+    { key: "client_approval", name: "Client Approval", group: "deliverables", entity: "project" },
+    { key: "final_project_closure", name: "Final Project Closure", group: "closure", entity: "project" },
+    { key: "lessons_learned", name: "Lessons Learned", group: "lessons", entity: "project" },
+    { key: "project_evaluation_summary", name: "Project Evaluation Summary", group: "evaluations", entity: "project" },
+    { key: "client_feedback_summary", name: "Client Feedback Summary", group: "evaluations", entity: "project" },
+    { key: "resource_handover", name: "Resource Handover", group: "closure", entity: "project" },
+    { key: "post_implementation_review", name: "Post-implementation Review", group: "evaluations", entity: "project" }
+];
+function normalizeProjectStatus(status) {
+    if (!status)
+        return status;
+    const normalized = status.toUpperCase();
+    if (normalized === "PLANNING")
+        return "PLANNED";
+    return normalized;
+}
+function normalizeTaskStatus(status) {
+    if (!status)
+        return status;
+    const normalized = status.toUpperCase();
+    if (normalized === "REVIEW")
+        return "IN_REVIEW";
+    return normalized;
+}
+function normalizeTaskPriority(priority) {
+    if (!priority)
+        return priority;
+    if (priority.toUpperCase() === "NORMAL")
+        return "MEDIUM";
+    return priority.toUpperCase();
+}
+function sanitizeCommentBody(body) {
+    return String(body || "")
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+        .replace(/<[^>]+>/g, "")
+        .replace(/\u0000/g, "")
+        .trim();
+}
 class ProjectsService {
     async provisionForms(businessId) {
-        const templates = [
-            { key: 'project_brief', title: 'Project Brief Form' },
-            { key: 'project_kickoff', title: 'Project Kick-off Form' },
-            { key: 'milestone_setup', title: 'Milestone Setup Form' },
-            { key: 'task_assignment', title: 'Task Assignment Form' },
-            { key: 'internal_deliverable_approval', title: 'Internal Deliverable Approval Form' },
-            { key: 'client_deliverable_approval', title: 'Client Deliverable Approval Form' },
-            { key: 'change_request', title: 'Change Request Form' },
-            { key: 'issue_bug_report', title: 'Issue / Bug Report Form' },
-            { key: 'risk_log', title: 'Risk Log Form' },
-            { key: 'completion_record', title: 'Completion Record Form' },
-            { key: 'client_approval', title: 'Client Approval Form' },
-            { key: 'final_project_closure', title: 'Final Project Closure Form' },
-            { key: 'lessons_learned', title: 'Lessons Learned Form' }
-        ];
+        const templates = exports.PROJECT_WORKFLOW_FORMS.map((form) => ({ key: form.key, title: `${form.name} Form` }));
         for (const t of templates) {
             const existing = await models_1.db.FormDefinition.findOne({ where: { businessId, key: t.key } });
             if (!existing) {
@@ -31,32 +144,217 @@ class ProjectsService {
         }
     }
     async createProject(businessId, data) {
-        return models_1.db.Project.create({ ...data, businessId });
+        const code = data.code || await (0, projectCode_1.generateProjectCode)(businessId, data.title);
+        if (data.ownerEmployeeId)
+            await this.ensureEmployee(businessId, data.ownerEmployeeId);
+        if (data.managerEmployeeId)
+            await this.ensureEmployee(businessId, data.managerEmployeeId);
+        const project = await models_1.db.Project.create({
+            ...data,
+            code,
+            businessId,
+            status: normalizeProjectStatus(data.status) || "DRAFT",
+            priority: data.priority || "NORMAL"
+        });
+        await this.ensureOwnerManagerMembers(businessId, project);
+        return project;
     }
     async createProjectFromDeal(businessId, dealId, projectManagerUserId) {
         const d = await models_1.db.Deal.findOne({ where: { id: dealId, businessId, status: 'won' } });
         if (!d)
             throw new Error("Won Deal not found");
+        const code = await (0, projectCode_1.generateProjectCode)(businessId, d.title);
         return models_1.db.Project.create({
             businessId,
             dealId: d.id,
             clientId: d.clientId,
             projectManagerUserId,
             title: d.title,
+            code,
             currency: d.currency,
             budget: d.value,
-            status: 'planning',
+            status: 'PLANNED',
             metadata: { source: 'deal_conversion', originalDealId: dealId }
         });
     }
-    async getProjects(businessId, userId, bypass, page, size) {
+    async getProjects(businessId, userId, bypass, page, size, filters = {}) {
         const where = { businessId };
-        if (!bypass) {
-            // Deep restrictions based on explicit roles can be added, currently bypass is used at controller level 
-            // For simple assignments:
-            where.projectManagerUserId = userId;
+        if (filters.status)
+            where.status = filters.status;
+        if (filters.priority)
+            where.priority = filters.priority;
+        if (filters.search) {
+            where[sequelize_1.Op.or] = [
+                { title: { [sequelize_1.Op.iLike]: `%${filters.search}%` } },
+                { code: { [sequelize_1.Op.iLike]: `%${filters.search}%` } }
+            ];
         }
-        return models_1.db.Project.findAndCountAll({ where, offset: (page - 1) * size, limit: size });
+        if (!bypass) {
+            const employee = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId } });
+            const memberProjectIds = employee
+                ? (await models_1.db.ProjectMember.findAll({ where: { businessId, employeeId: employee.id }, attributes: ["projectId"] })).map((m) => m.projectId)
+                : [];
+            where[sequelize_1.Op.or] = [
+                { projectManagerUserId: userId },
+                ...(employee ? [{ ownerEmployeeId: employee.id }, { managerEmployeeId: employee.id }] : []),
+                ...(memberProjectIds.length ? [{ id: { [sequelize_1.Op.in]: memberProjectIds } }] : [])
+            ];
+        }
+        return models_1.db.Project.findAndCountAll({
+            where,
+            offset: (page - 1) * size,
+            limit: size,
+            order: [["createdAt", "DESC"]],
+            include: this.projectIncludes()
+        });
+    }
+    async getProjectById(businessId, id) {
+        const project = await models_1.db.Project.findOne({ where: { id, businessId }, include: this.projectIncludes() });
+        if (!project)
+            throw new Error("Project not found");
+        return project;
+    }
+    async listWorkflowForms(businessId, projectId, filters = {}) {
+        await this.ensureProject(businessId, projectId);
+        const where = { businessId, projectId };
+        if (filters.group)
+            where.workflowGroup = filters.group;
+        if (filters.formKey)
+            where.formKey = filters.formKey;
+        if (filters.status)
+            where.status = filters.status;
+        if (filters.milestoneId)
+            where.milestoneId = filters.milestoneId;
+        if (filters.taskId)
+            where.taskId = filters.taskId;
+        return models_1.db.ProjectWorkflowForm.findAll({
+            where,
+            order: [["createdAt", "DESC"]],
+            include: this.workflowIncludes()
+        });
+    }
+    async getWorkflowCatalog() {
+        return exports.PROJECT_WORKFLOW_FORMS;
+    }
+    async createWorkflowForm(businessId, userId, projectId, data) {
+        const project = await this.ensureProject(businessId, projectId);
+        const definition = this.ensureWorkflowDefinition(data.formKey);
+        await this.ensureWorkflowPrerequisites(businessId, projectId, definition.key);
+        this.validateWorkflowData(definition, data.data || {});
+        await this.ensureWorkflowLinks(businessId, projectId, data);
+        const form = await models_1.db.ProjectWorkflowForm.create({
+            businessId,
+            projectId,
+            milestoneId: data.milestoneId || null,
+            taskId: data.taskId || null,
+            fileAssetId: data.fileAssetId || null,
+            formKey: definition.key,
+            formName: definition.name,
+            workflowGroup: data.workflowGroup || definition.group,
+            status: data.status || "draft",
+            submittedByUserId: data.status === "submitted" ? userId : null,
+            submittedAt: data.status === "submitted" ? new Date() : null,
+            data: data.data || {},
+            adapters: this.normalizeAdapters(data.adapters),
+            metadata: { ...(data.metadata || {}), mappedEntity: definition.entity, approvalChain: definition.approvalChain || [] }
+        });
+        await this.logWorkflowActivity(businessId, projectId, userId, "PROJECT_WORKFLOW_FORM_CREATED", null, form);
+        if (form.status === "submitted")
+            await this.logWorkflowActivity(businessId, projectId, userId, "PROJECT_WORKFLOW_FORM_SUBMITTED", null, form);
+        if (form.status === "submitted")
+            await this.notifyProjectManagers(businessId, project, userId, "Workflow form submitted", `${form.formName} was submitted for ${project.title}.`, form.id);
+        return form;
+    }
+    async updateWorkflowForm(businessId, userId, projectId, formId, data) {
+        await this.ensureProject(businessId, projectId);
+        const form = await models_1.db.ProjectWorkflowForm.findOne({ where: { id: formId, businessId, projectId } });
+        if (!form)
+            throw new Error("Workflow form not found");
+        if (["approved", "archived"].includes(form.status) && data.data)
+            throw new Error("Approved or archived workflow forms cannot be edited");
+        const before = form.toJSON ? form.toJSON() : { ...form };
+        this.validateWorkflowData(this.ensureWorkflowDefinition(form.formKey), data.data ?? form.data ?? {});
+        await this.ensureWorkflowLinks(businessId, projectId, data);
+        await form.update({
+            milestoneId: data.milestoneId ?? form.milestoneId,
+            taskId: data.taskId ?? form.taskId,
+            fileAssetId: data.fileAssetId ?? form.fileAssetId,
+            workflowGroup: data.workflowGroup ?? form.workflowGroup,
+            data: data.data ?? form.data,
+            adapters: data.adapters ? this.normalizeAdapters(data.adapters) : form.adapters,
+            metadata: data.metadata ? { ...(form.metadata || {}), ...data.metadata } : form.metadata
+        });
+        await this.logWorkflowActivity(businessId, projectId, userId, "PROJECT_WORKFLOW_FORM_UPDATED", before, form);
+        return form;
+    }
+    async changeWorkflowFormStatus(businessId, userId, projectId, formId, status, metadata = {}) {
+        const project = await this.ensureProject(businessId, projectId);
+        const form = await models_1.db.ProjectWorkflowForm.findOne({ where: { id: formId, businessId, projectId } });
+        if (!form)
+            throw new Error("Workflow form not found");
+        const nextStatus = String(status || "").toLowerCase();
+        const current = String(form.status || "draft").toLowerCase();
+        if (!WORKFLOW_STATUS_TRANSITIONS[current]?.includes(nextStatus)) {
+            throw new Error(`Invalid workflow status transition from ${current} to ${nextStatus}`);
+        }
+        const before = form.toJSON ? form.toJSON() : { ...form };
+        if (nextStatus === "submitted")
+            this.validateWorkflowData(this.ensureWorkflowDefinition(form.formKey), form.data || {});
+        await form.update({
+            status: nextStatus,
+            submittedByUserId: nextStatus === "submitted" ? userId : form.submittedByUserId,
+            reviewedByUserId: ["approved", "rejected", "returned-for-revision"].includes(nextStatus) ? userId : form.reviewedByUserId,
+            submittedAt: nextStatus === "submitted" ? new Date() : form.submittedAt,
+            reviewedAt: ["approved", "rejected", "returned-for-revision"].includes(nextStatus) ? new Date() : form.reviewedAt,
+            archivedAt: nextStatus === "archived" ? new Date() : form.archivedAt,
+            metadata: { ...(form.metadata || {}), ...metadata }
+        });
+        const activityByStatus = {
+            submitted: "PROJECT_WORKFLOW_FORM_SUBMITTED",
+            approved: "PROJECT_WORKFLOW_FORM_APPROVED",
+            rejected: "PROJECT_WORKFLOW_FORM_REJECTED",
+            "returned-for-revision": "PROJECT_WORKFLOW_FORM_REVISION_REQUESTED",
+            archived: "PROJECT_WORKFLOW_FORM_ARCHIVED"
+        };
+        await this.logWorkflowActivity(businessId, projectId, userId, activityByStatus[nextStatus] || "PROJECT_WORKFLOW_FORM_STATUS_CHANGED", before, form);
+        if (nextStatus === "approved")
+            await this.handleWorkflowApproval(businessId, userId, project, form);
+        await this.notifyProjectManagers(businessId, project, userId, "Workflow form updated", `${form.formName} is now ${nextStatus}.`, form.id);
+        return form;
+    }
+    async updateProject(businessId, id, data) {
+        const project = await this.ensureProject(businessId, id);
+        const before = project.toJSON ? project.toJSON() : { ...project };
+        const startDate = data.startDate ?? project.startDate;
+        const endDate = data.endDate ?? project.endDate;
+        if (startDate && endDate && endDate < startDate)
+            throw new Error("endDate must be on or after startDate");
+        if (data.ownerEmployeeId)
+            await this.ensureEmployee(businessId, data.ownerEmployeeId);
+        if (data.managerEmployeeId)
+            await this.ensureEmployee(businessId, data.managerEmployeeId);
+        await project.update(data);
+        await this.ensureOwnerManagerMembers(businessId, project);
+        return { before, project };
+    }
+    async changeProjectStatus(businessId, id, nextStatus) {
+        const project = await this.ensureProject(businessId, id);
+        const before = project.toJSON ? project.toJSON() : { ...project };
+        const currentStatus = normalizeProjectStatus(project.status) || "DRAFT";
+        const normalizedNext = normalizeProjectStatus(nextStatus);
+        if (!normalizedNext)
+            throw new Error("Status is required");
+        if (currentStatus === normalizedNext)
+            return { before, project };
+        const allowed = PROJECT_STATUS_TRANSITIONS[currentStatus] || [];
+        if (!allowed.includes(normalizedNext)) {
+            throw new Error(`Invalid project status transition from ${currentStatus} to ${normalizedNext}`);
+        }
+        await project.update({ status: normalizedNext });
+        return { before, project };
+    }
+    async archiveProject(businessId, id) {
+        return this.changeProjectStatus(businessId, id, "ARCHIVED");
     }
     async createMilestone(businessId, data) {
         return models_1.db.ProjectMilestone.create({ ...data, businessId });
@@ -71,10 +369,509 @@ class ProjectsService {
         return models_1.db.ProjectMilestone.findAll({ where: { businessId, projectId } });
     }
     async createTask(businessId, data) {
-        const t = await models_1.db.ProjectTask.create({ ...data, businessId });
+        const project = await models_1.db.Project.findOne({ where: { id: data.projectId, businessId } });
+        if (!project)
+            throw new Error("Project not found");
+        const code = data.code || await (0, projectCode_1.generateTaskCode)(businessId, project.code);
+        const t = await models_1.db.ProjectTask.create({ ...data, code, businessId, weight: this.normalizeTaskWeight(data.weight) });
         if (t.assignedToUserId)
             await this.notify(businessId, t.assignedToUserId, 'Task Assigned', 'You have been assigned a new project task.', 'project_task', t.id);
         return t;
+    }
+    async createNestedTask(businessId, projectId, data) {
+        const project = await this.ensureProject(businessId, projectId);
+        if (data.assigneeEmployeeId)
+            await this.ensureEmployee(businessId, data.assigneeEmployeeId);
+        const code = await (0, projectCode_1.generateTaskCode)(businessId, project.code);
+        const task = await models_1.db.ProjectTask.create({
+            ...data,
+            businessId,
+            projectId,
+            code,
+            status: normalizeTaskStatus(data.status) || "TODO",
+            priority: normalizeTaskPriority(data.priority) || "MEDIUM",
+            weight: this.normalizeTaskWeight(data.weight)
+        });
+        await this.recalculateProjectProgress(businessId, projectId);
+        return task;
+    }
+    async listNestedTasks(businessId, projectId, page, size, filters = {}) {
+        await this.ensureProject(businessId, projectId);
+        const where = { businessId, projectId };
+        if (filters.status)
+            where.status = filters.status;
+        if (filters.priority)
+            where.priority = filters.priority;
+        if (filters.assigneeEmployeeId)
+            where.assigneeEmployeeId = filters.assigneeEmployeeId;
+        if (filters.search) {
+            where[sequelize_1.Op.or] = [
+                { title: { [sequelize_1.Op.iLike]: `%${filters.search}%` } },
+                { code: { [sequelize_1.Op.iLike]: `%${filters.search}%` } }
+            ];
+        }
+        return models_1.db.ProjectTask.findAndCountAll({
+            where,
+            offset: (page - 1) * size,
+            limit: size,
+            order: [["createdAt", "DESC"]],
+            include: this.taskIncludes()
+        });
+    }
+    async getNestedTask(businessId, projectId, taskId) {
+        await this.ensureProject(businessId, projectId);
+        const task = await models_1.db.ProjectTask.findOne({ where: { id: taskId, businessId, projectId }, include: this.taskIncludes() });
+        if (!task)
+            throw new Error("Task not found");
+        return task;
+    }
+    async updateNestedTask(businessId, projectId, taskId, data) {
+        const task = await this.ensureProjectTask(businessId, projectId, taskId);
+        const before = task.toJSON ? task.toJSON() : { ...task };
+        const startDate = data.startDate ?? task.startDate;
+        const dueDate = data.dueDate ?? task.dueDate;
+        if (startDate && dueDate && dueDate < startDate)
+            throw new Error("dueDate must be on or after startDate");
+        if (data.assigneeEmployeeId)
+            await this.ensureEmployee(businessId, data.assigneeEmployeeId);
+        if (data.priority)
+            data.priority = normalizeTaskPriority(data.priority);
+        if (data.weight !== undefined)
+            data.weight = this.normalizeTaskWeight(data.weight);
+        await task.update(data);
+        await this.recalculateProjectProgress(businessId, projectId);
+        return { before, task };
+    }
+    async deleteNestedTask(businessId, projectId, taskId) {
+        const task = await this.ensureProjectTask(businessId, projectId, taskId);
+        const before = task.toJSON ? task.toJSON() : { ...task };
+        await task.destroy();
+        await this.recalculateProjectProgress(businessId, projectId);
+        return { before, task };
+    }
+    async assignNestedTask(businessId, projectId, taskId, assigneeEmployeeId) {
+        const task = await this.ensureProjectTask(businessId, projectId, taskId);
+        await this.ensureEmployee(businessId, assigneeEmployeeId);
+        const before = task.toJSON ? task.toJSON() : { ...task };
+        await task.update({ assigneeEmployeeId });
+        return { before, task };
+    }
+    async changeNestedTaskStatus(businessId, projectId, taskId, nextStatus) {
+        const task = await this.ensureProjectTask(businessId, projectId, taskId);
+        const before = task.toJSON ? task.toJSON() : { ...task };
+        const currentStatus = normalizeTaskStatus(task.status) || "TODO";
+        const normalizedNext = normalizeTaskStatus(nextStatus);
+        if (!normalizedNext)
+            throw new Error("Status is required");
+        if (currentStatus !== normalizedNext) {
+            const allowed = TASK_STATUS_TRANSITIONS[currentStatus] || [];
+            if (!allowed.includes(normalizedNext)) {
+                throw new Error(`Invalid task status transition from ${currentStatus} to ${normalizedNext}`);
+            }
+            await task.update({ status: normalizedNext });
+            await this.recalculateProjectProgress(businessId, projectId);
+        }
+        return { before, task };
+    }
+    async getMyTasks(businessId, userId, page, size, filters = {}) {
+        const employee = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId } });
+        if (!employee)
+            return { rows: [], count: 0 };
+        const where = { businessId, assigneeEmployeeId: employee.id };
+        if (filters.status)
+            where.status = filters.status;
+        if (filters.priority)
+            where.priority = filters.priority;
+        return models_1.db.ProjectTask.findAndCountAll({
+            where,
+            offset: (page - 1) * size,
+            limit: size,
+            order: [["createdAt", "DESC"]],
+            include: this.taskIncludes()
+        });
+    }
+    async addMember(businessId, data) {
+        await this.ensureProject(businessId, data.projectId);
+        await this.ensureEmployee(businessId, data.employeeId);
+        await this.ensureNotMember(businessId, data.projectId, data.employeeId);
+        return models_1.db.ProjectMember.create({ ...data, role: data.role || "MEMBER", businessId });
+    }
+    async listMembers(businessId, projectId) {
+        await this.ensureProject(businessId, projectId);
+        return models_1.db.ProjectMember.findAll({
+            where: { businessId, projectId },
+            order: [["createdAt", "ASC"]],
+            include: [{ model: models_1.db.EmployeeRecord, as: "employee", include: [{ model: models_1.db.User, as: "user", attributes: ["id", "fullName", "email"] }] }]
+        });
+    }
+    async updateMember(businessId, projectId, memberId, data) {
+        await this.ensureProject(businessId, projectId);
+        const member = await models_1.db.ProjectMember.findOne({ where: { id: memberId, businessId, projectId } });
+        if (!member)
+            throw new Error("Project member not found");
+        const before = member.toJSON ? member.toJSON() : { ...member };
+        await member.update(data);
+        return { before, member };
+    }
+    async removeMember(businessId, projectId, memberId) {
+        await this.ensureProject(businessId, projectId);
+        const member = await models_1.db.ProjectMember.findOne({ where: { id: memberId, businessId, projectId } });
+        if (!member)
+            throw new Error("Project member not found");
+        const before = member.toJSON ? member.toJSON() : { ...member };
+        await member.destroy();
+        return { before, member };
+    }
+    async bulkAddMembers(businessId, projectId, members) {
+        await this.ensureProject(businessId, projectId);
+        const seen = new Set();
+        for (const member of members) {
+            if (seen.has(member.employeeId))
+                throw new Error("Duplicate employee in bulk member request");
+            seen.add(member.employeeId);
+            await this.ensureEmployee(businessId, member.employeeId);
+            await this.ensureNotMember(businessId, projectId, member.employeeId);
+        }
+        return models_1.db.ProjectMember.bulkCreate(members.map((member) => ({
+            ...member,
+            businessId,
+            projectId,
+            role: member.role || "MEMBER"
+        })));
+    }
+    async listTaskComments(businessId, projectId, taskId) {
+        await this.ensureProjectTask(businessId, projectId, taskId);
+        return models_1.db.TaskComment.findAll({
+            where: { businessId, projectId, taskId },
+            order: [["createdAt", "ASC"]],
+            include: [{ model: models_1.db.EmployeeRecord, as: "author", include: [{ model: models_1.db.User, as: "user", attributes: ["id", "fullName", "email"] }] }]
+        });
+    }
+    async addTaskComment(businessId, userId, projectId, taskId, data) {
+        await this.ensureProjectTask(businessId, projectId, taskId);
+        const author = await this.ensureEmployeeForUser(businessId, userId);
+        const body = sanitizeCommentBody(data.body);
+        if (!body)
+            throw new Error("Comment body is required");
+        const comment = await models_1.db.TaskComment.create({ ...data, body, projectId, taskId, authorEmployeeId: author.id, businessId });
+        await this.logActivity(businessId, {
+            projectId,
+            taskId,
+            actorEmployeeId: author.id,
+            action: "TASK_COMMENTED",
+            entityType: "task_comment",
+            entityId: comment.id,
+            after: comment.toJSON ? comment.toJSON() : comment
+        });
+        return comment;
+    }
+    async updateTaskComment(businessId, userId, projectId, taskId, commentId, data) {
+        await this.ensureProjectTask(businessId, projectId, taskId);
+        const actor = await this.ensureEmployeeForUser(businessId, userId);
+        const comment = await models_1.db.TaskComment.findOne({ where: { id: commentId, businessId, projectId, taskId } });
+        if (!comment)
+            throw new Error("Comment not found");
+        const before = comment.toJSON ? comment.toJSON() : { ...comment };
+        const body = sanitizeCommentBody(data.body);
+        if (!body)
+            throw new Error("Comment body is required");
+        await comment.update({ body, metadata: data.metadata ?? comment.metadata });
+        await this.logActivity(businessId, {
+            projectId,
+            taskId,
+            actorEmployeeId: actor.id,
+            action: "TASK_COMMENT_UPDATED",
+            entityType: "task_comment",
+            entityId: comment.id,
+            before,
+            after: comment.toJSON ? comment.toJSON() : comment
+        });
+        return { before, comment };
+    }
+    async deleteTaskComment(businessId, userId, projectId, taskId, commentId) {
+        await this.ensureProjectTask(businessId, projectId, taskId);
+        const actor = await this.ensureEmployeeForUser(businessId, userId);
+        const comment = await models_1.db.TaskComment.findOne({ where: { id: commentId, businessId, projectId, taskId } });
+        if (!comment)
+            throw new Error("Comment not found");
+        const before = comment.toJSON ? comment.toJSON() : { ...comment };
+        await comment.destroy();
+        await this.logActivity(businessId, {
+            projectId,
+            taskId,
+            actorEmployeeId: actor.id,
+            action: "TASK_COMMENT_DELETED",
+            entityType: "task_comment",
+            entityId: comment.id,
+            before
+        });
+        return { before, comment };
+    }
+    async logActivity(businessId, data) {
+        return models_1.db.ProjectActivityLog.create({ ...data, businessId });
+    }
+    async ensureProject(businessId, projectId) {
+        const project = await models_1.db.Project.findOne({ where: { id: projectId, businessId } });
+        if (!project)
+            throw new Error("Project not found");
+        return project;
+    }
+    ensureWorkflowDefinition(formKey) {
+        const definition = exports.PROJECT_WORKFLOW_FORMS.find((form) => form.key === formKey);
+        if (!definition)
+            throw new Error("Unsupported project workflow form");
+        return definition;
+    }
+    async ensureWorkflowPrerequisites(businessId, projectId, formKey) {
+        const approved = async (key) => Boolean(await models_1.db.ProjectWorkflowForm.findOne({ where: { businessId, projectId, formKey: key, status: "approved" } }));
+        if (formKey === "project_kickoff" && !(await approved("project_brief")))
+            throw new Error("Project Brief must be approved before Kick-off creation");
+        if (formKey === "milestone_setup" && !(await approved("project_kickoff")))
+            throw new Error("Project Kick-off must be approved before Milestone Setup creation");
+    }
+    validateWorkflowData(definition, data) {
+        for (const field of definition.requiredFields || []) {
+            const value = data?.[field];
+            const emptyArray = Array.isArray(value) && value.length === 0;
+            if (value === undefined || value === null || value === "" || emptyArray) {
+                throw new Error(`${definition.name} requires ${field}`);
+            }
+        }
+    }
+    async handleWorkflowApproval(businessId, userId, project, form) {
+        if (form.formKey === "milestone_setup")
+            await this.applyMilestoneSetup(businessId, userId, project.id, form);
+        if (form.formKey === "task_assignment")
+            await this.applyTaskAssignment(businessId, userId, project, form);
+    }
+    async applyMilestoneSetup(businessId, userId, projectId, form) {
+        const milestones = Array.isArray(form.data?.milestones) ? form.data.milestones : [];
+        const generatedIds = [];
+        for (const item of milestones) {
+            if (!item?.name)
+                continue;
+            const where = item.id ? { id: item.id, businessId, projectId } : { businessId, projectId, name: item.name };
+            const existing = await models_1.db.ProjectMilestone.findOne({ where });
+            const before = existing ? (existing.toJSON ? existing.toJSON() : { ...existing }) : null;
+            const payload = {
+                projectId,
+                name: item.name,
+                description: item.description || null,
+                dueDate: item.dueDate || null,
+                billingPercent: Number(item.billingPercent || 0),
+                status: item.status || "pending",
+                metadata: { ...(existing?.metadata || {}), generatedFromWorkflowFormId: form.id }
+            };
+            const milestone = existing ? await existing.update(payload) : await models_1.db.ProjectMilestone.create({ ...payload, businessId });
+            generatedIds.push(milestone.id);
+            await this.logActivity(businessId, {
+                projectId,
+                actorEmployeeId: await this.actorEmployeeId(businessId, userId),
+                action: existing ? "PROJECT_MILESTONE_UPDATED_FROM_WORKFLOW" : "PROJECT_MILESTONE_GENERATED_FROM_WORKFLOW",
+                entityType: "project_milestone",
+                entityId: milestone.id,
+                before,
+                after: milestone.toJSON ? milestone.toJSON() : milestone
+            });
+        }
+        await form.update({ metadata: { ...(form.metadata || {}), generatedMilestoneIds: generatedIds } });
+    }
+    async applyTaskAssignment(businessId, userId, project, form) {
+        const tasks = Array.isArray(form.data?.tasks) ? form.data.tasks : [];
+        const generatedIds = [];
+        for (const item of tasks) {
+            if (!item?.title)
+                continue;
+            if (item.assigneeEmployeeId)
+                await this.ensureEmployee(businessId, item.assigneeEmployeeId);
+            const assignee = item.assigneeEmployeeId ? await models_1.db.EmployeeRecord.findOne({ where: { id: item.assigneeEmployeeId, businessId } }) : null;
+            const where = item.id ? { id: item.id, businessId, projectId: project.id } : { businessId, projectId: project.id, title: item.title };
+            const existing = await models_1.db.ProjectTask.findOne({ where });
+            const before = existing ? (existing.toJSON ? existing.toJSON() : { ...existing }) : null;
+            const payload = {
+                projectId: project.id,
+                milestoneId: item.milestoneId || null,
+                assigneeEmployeeId: item.assigneeEmployeeId || null,
+                assignedToUserId: item.assignedToUserId || assignee?.userId || null,
+                title: item.title,
+                description: item.description || null,
+                priority: normalizeTaskPriority(item.priority) || "MEDIUM",
+                status: normalizeTaskStatus(item.status) || "TODO",
+                startDate: item.startDate || null,
+                dueDate: item.dueDate || null,
+                estimatedHours: Number(item.estimatedHours || 0),
+                weight: this.normalizeTaskWeight(item.weight),
+                metadata: { ...(existing?.metadata || {}), generatedFromWorkflowFormId: form.id }
+            };
+            const task = existing ? await existing.update(payload) : await models_1.db.ProjectTask.create({ ...payload, businessId, code: await (0, projectCode_1.generateTaskCode)(businessId, project.code) });
+            generatedIds.push(task.id);
+            await this.logActivity(businessId, {
+                projectId: project.id,
+                taskId: task.id,
+                actorEmployeeId: await this.actorEmployeeId(businessId, userId),
+                action: existing ? "PROJECT_TASK_UPDATED_FROM_WORKFLOW" : "PROJECT_TASK_GENERATED_FROM_WORKFLOW",
+                entityType: "project_task",
+                entityId: task.id,
+                before,
+                after: task.toJSON ? task.toJSON() : task
+            });
+            if (payload.assignedToUserId)
+                await this.notify(businessId, payload.assignedToUserId, "Task Assigned", `You have been assigned ${task.title}.`, "project_task", task.id);
+        }
+        await this.recalculateProjectProgress(businessId, project.id);
+        await form.update({ metadata: { ...(form.metadata || {}), generatedTaskIds: generatedIds } });
+    }
+    async actorEmployeeId(businessId, userId) {
+        const actor = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId } });
+        return actor?.id || null;
+    }
+    async ensureWorkflowLinks(businessId, projectId, data) {
+        if (data.milestoneId) {
+            const milestone = await models_1.db.ProjectMilestone.findOne({ where: { id: data.milestoneId, businessId, projectId } });
+            if (!milestone)
+                throw new Error("Milestone not found for project");
+        }
+        if (data.taskId) {
+            await this.ensureProjectTask(businessId, projectId, data.taskId);
+        }
+        if (data.fileAssetId && models_1.db.FileAsset) {
+            const file = await models_1.db.FileAsset.findOne({ where: { id: data.fileAssetId, businessId } });
+            if (!file)
+                throw new Error("File not found");
+        }
+    }
+    normalizeAdapters(adapters = {}) {
+        const allowed = ["crm", "finance", "hr", "performance", "brain", "n8n"];
+        return allowed.reduce((acc, key) => {
+            if (adapters[key])
+                acc[key] = { enabled: Boolean(adapters[key].enabled), config: adapters[key].config || {} };
+            return acc;
+        }, {});
+    }
+    workflowIncludes() {
+        return [
+            { model: models_1.db.ProjectMilestone, as: "milestone", attributes: ["id", "name", "status", "dueDate"] },
+            { model: models_1.db.ProjectTask, as: "task", attributes: ["id", "code", "title", "status"] },
+            { model: models_1.db.User, as: "submitter", attributes: ["id", "fullName", "email"] },
+            { model: models_1.db.User, as: "reviewer", attributes: ["id", "fullName", "email"] }
+        ];
+    }
+    async logWorkflowActivity(businessId, projectId, userId, action, before, form) {
+        let actorEmployeeId = null;
+        try {
+            const actor = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId } });
+            actorEmployeeId = actor?.id || null;
+        }
+        catch { }
+        await this.logActivity(businessId, {
+            projectId,
+            taskId: form.taskId || null,
+            actorEmployeeId,
+            action,
+            entityType: "project_workflow_form",
+            entityId: form.id,
+            before,
+            after: form.toJSON ? form.toJSON() : form
+        });
+    }
+    async notifyProjectManagers(businessId, project, actorUserId, title, message, entityId) {
+        const recipients = [project.projectManagerUserId].filter((id) => id && id !== actorUserId);
+        for (const recipientUserId of recipients) {
+            await this.notify(businessId, recipientUserId, title, message, "project_workflow_form", entityId);
+        }
+    }
+    async ensureTask(businessId, taskId) {
+        const task = await models_1.db.ProjectTask.findOne({ where: { id: taskId, businessId } });
+        if (!task)
+            throw new Error("Task not found");
+        return task;
+    }
+    async ensureProjectTask(businessId, projectId, taskId) {
+        await this.ensureProject(businessId, projectId);
+        const task = await models_1.db.ProjectTask.findOne({ where: { id: taskId, businessId, projectId } });
+        if (!task)
+            throw new Error("Task not found");
+        return task;
+    }
+    async recalculateProjectProgress(businessId, projectId) {
+        const project = await this.ensureProject(businessId, projectId);
+        const tasks = await models_1.db.ProjectTask.findAll({ where: { businessId, projectId } });
+        const progressTasks = tasks.filter((task) => normalizeTaskStatus(task.status) !== "CANCELLED");
+        const totalTasks = progressTasks.length;
+        const completedTasks = progressTasks.filter((task) => normalizeTaskStatus(task.status) === "DONE").length;
+        const totalWeight = progressTasks.reduce((sum, task) => sum + this.taskWeight(task), 0);
+        const completedWeight = progressTasks
+            .filter((task) => normalizeTaskStatus(task.status) === "DONE")
+            .reduce((sum, task) => sum + this.taskWeight(task), 0);
+        const progressPercent = totalWeight ? Math.round((completedWeight / totalWeight) * 100) : 0;
+        const beforeProgressPercent = Number(project.progressPercent || 0);
+        const metadata = { ...(project.metadata || {}), progress: { totalTasks, completedTasks, totalWeight, completedWeight, progressPercent } };
+        await project.update({ metadata, progressPercent });
+        if (beforeProgressPercent !== progressPercent) {
+            await this.logActivity(businessId, {
+                projectId,
+                action: "PROJECT_PROGRESS_UPDATED",
+                entityType: "project",
+                entityId: projectId,
+                before: { progressPercent: beforeProgressPercent },
+                after: { progressPercent, totalTasks, completedTasks }
+            });
+        }
+        return metadata.progress;
+    }
+    normalizeTaskWeight(weight) {
+        const parsed = Number(weight ?? 1);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    }
+    taskWeight(task) {
+        return this.normalizeTaskWeight(task.weight ?? task.metadata?.weight);
+    }
+    async ensureEmployee(businessId, employeeId) {
+        const employee = await models_1.db.EmployeeRecord.findOne({ where: { id: employeeId, businessId } });
+        if (!employee)
+            throw new Error("Employee not found");
+        return employee;
+    }
+    async ensureEmployeeForUser(businessId, userId) {
+        const employee = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId } });
+        if (!employee)
+            throw new Error("Employee not found");
+        return employee;
+    }
+    async ensureNotMember(businessId, projectId, employeeId) {
+        const existing = await models_1.db.ProjectMember.findOne({ where: { businessId, projectId, employeeId } });
+        if (existing)
+            throw new Error("Employee is already a project member");
+    }
+    async ensureOwnerManagerMembers(businessId, project) {
+        const memberIds = [project.ownerEmployeeId, project.managerEmployeeId].filter(Boolean);
+        for (const employeeId of new Set(memberIds)) {
+            await this.ensureEmployee(businessId, employeeId);
+            const existing = await models_1.db.ProjectMember.findOne({ where: { businessId, projectId: project.id, employeeId } });
+            if (!existing) {
+                await models_1.db.ProjectMember.create({
+                    businessId,
+                    projectId: project.id,
+                    employeeId,
+                    role: employeeId === project.ownerEmployeeId ? "OWNER" : "MANAGER",
+                    allocationPercent: 100,
+                    status: "active"
+                });
+            }
+        }
+    }
+    projectIncludes() {
+        return [
+            { model: models_1.db.EmployeeRecord, as: "owner", include: [{ model: models_1.db.User, as: "user", attributes: ["id", "fullName", "email"] }] },
+            { model: models_1.db.EmployeeRecord, as: "manager", include: [{ model: models_1.db.User, as: "user", attributes: ["id", "fullName", "email"] }] },
+            { model: models_1.db.ProjectMember, as: "members", include: [{ model: models_1.db.EmployeeRecord, as: "employee", include: [{ model: models_1.db.User, as: "user", attributes: ["id", "fullName", "email"] }] }] }
+        ];
+    }
+    taskIncludes() {
+        return [
+            { model: models_1.db.Project, attributes: ["id", "title", "code", "status", "businessId"] },
+            { model: models_1.db.EmployeeRecord, as: "employeeAssignee", include: [{ model: models_1.db.User, as: "user", attributes: ["id", "fullName", "email"] }] }
+        ];
     }
     async assignTask(businessId, id, assignedToUserId) {
         const t = await models_1.db.ProjectTask.findOne({ where: { id, businessId } });

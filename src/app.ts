@@ -49,6 +49,7 @@ import { attendanceMeRoutes } from "./modules/attendanceMe/attendanceMe.routes";
 import { attendanceHrRoutes } from "./modules/attendanceHr/attendanceHr.routes";
 import { attendanceHrLateReasonsRoutes } from "./modules/attendanceHrLateReasons/lateReasons.routes";
 import { overtimeRoutes } from "./modules/overtime/overtime.routes";
+import { leaveRoutes } from "./modules/leave/leave.routes";
 
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -147,6 +148,7 @@ apiRouter.use("/attendance", attendanceMeRoutes);
 apiRouter.use("/attendance/hr", attendanceHrRoutes);
 apiRouter.use("/attendance/hr/late-reasons", attendanceHrLateReasonsRoutes);
 apiRouter.use("/overtime-requests", overtimeRoutes);
+apiRouter.use("/leave-requests", leaveRoutes);
 
 app.use(`/api/${env.apiVersion}`, apiRouter);
 

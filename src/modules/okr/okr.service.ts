@@ -6,13 +6,14 @@ export class OKRService {
 
   // -- Objective --
   async createObjective(businessId: string, ownerUserId: string | null, data: any) {
-    return db.Objective.create({ ...data, businessId, ownerUserId: ownerUserId || data.ownerUserId });
+    const metadata = this.withProjectLinkMetadata(data);
+    return db.Objective.create({ ...data, metadata, businessId, ownerUserId: ownerUserId || data.ownerUserId });
   }
 
   async updateObjective(businessId: string, id: string, data: any) {
     const obj = await db.Objective.findOne({ where: { id, businessId } });
     if (!obj) throw new Error("Objective not found");
-    return obj.update(data);
+    return obj.update({ ...data, metadata: this.withProjectLinkMetadata(data, obj.metadata) });
   }
 
   async getObjective(businessId: string, id: string) {
@@ -44,14 +45,25 @@ export class OKRService {
 
   // -- Key Result --
   async createKeyResult(businessId: string, objectiveId: string, data: any) {
-    const kr = await db.KeyResult.create({ ...data, businessId, objectiveId });
+    const metadata = this.withProjectLinkMetadata(data);
+    const kr = await db.KeyResult.create({ ...data, metadata, dataSource: data.taskMetric ? 'projects' : data.dataSource, businessId, objectiveId });
     return kr;
   }
 
   async updateKeyResult(businessId: string, id: string, data: any) {
     const kr = await db.KeyResult.findOne({ where: { id, businessId } });
     if (!kr) throw new Error("KeyResult not found");
-    return kr.update(data);
+    return kr.update({ ...data, metadata: this.withProjectLinkMetadata(data, kr.metadata), dataSource: data.taskMetric ? 'projects' : data.dataSource ?? kr.dataSource });
+  }
+
+  private withProjectLinkMetadata(data: any, current: any = {}) {
+    const projectLinks = {
+      ...(current?.projectLinks || {}),
+      ...(data.projectId ? { projectId: data.projectId } : {}),
+      ...(data.milestoneId ? { milestoneId: data.milestoneId } : {}),
+      ...(data.taskMetric ? { taskMetric: data.taskMetric } : {})
+    };
+    return Object.keys(projectLinks).length ? { ...(current || {}), projectLinks } : (data.metadata ?? current ?? {});
   }
 
   // -- Progress Update --

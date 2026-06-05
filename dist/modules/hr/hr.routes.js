@@ -21,7 +21,9 @@ router.use((0, requireActiveModule_1.requireActiveModule)("hr"));
 router.post("/templates", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(controller.seedTemplates));
 router.get("/records", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(controller.listRecords)); // Scope managed in controller
 router.get("/records/me", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(controller.getRecord));
-router.post("/records/onboard", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(controller.onboardEmployee));
+router.post("/records/bulk/validate", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, validate_1.validate)(hrEmployeeRecord_validator_1.bulkEmployeeRowsSchema), (0, asyncHandler_1.asyncHandler)(controller.validateBulkEmployeeRecords));
+router.post("/records/bulk", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, validate_1.validate)(hrEmployeeRecord_validator_1.bulkEmployeeRowsSchema), (0, asyncHandler_1.asyncHandler)(controller.bulkWriteEmployeeRecords));
+router.post("/records/onboard", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, validate_1.validate)(hrEmployeeRecord_validator_1.createEmployeeRecordSchema), (0, asyncHandler_1.asyncHandler)(controller.onboardEmployee));
 router.get("/records/:userId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write"), (0, asyncHandler_1.asyncHandler)(controller.getRecord));
 // Allow HR updates for users with explicit HR write permission or job lifecycle manage permission
 router.patch("/records/:userId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write", "job.manage", "job.update"), (0, validate_1.validate)(hrEmployeeRecord_validator_1.updateEmployeeRecordSchema), (0, asyncHandler_1.asyncHandler)(controller.updateEmployeeRecord));
@@ -68,6 +70,11 @@ exports.publicRecruitmentRoutes.post("/job-openings/:jobOpeningId/upload-resume"
 exports.publicRecruitmentRoutes.get("/interviews/respond", (0, asyncHandler_1.asyncHandler)(recruitmentController.respondToInterview));
 // Performance / Exit
 router.post("/performance/templates", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.seedForms));
+router.get("/performance/overview", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.read", "performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.overview));
+router.get("/performance/reviews", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.read", "performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.listReviews));
+router.get("/performance/project-dashboard", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.read", "performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.projectDashboard));
+router.get("/performance/evaluations/:employeeUserId/project-evidence", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.read", "performance.manage", "performance.self"), (0, asyncHandler_1.asyncHandler)(perfController.employeeEvaluationEvidence));
+router.post("/performance/reviews/:reviewId/project-evidence", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.attachProjectEvidenceToReview));
 router.post("/training", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.createTrainingRequest));
 router.get("/disciplinary", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.read", "performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.listDisciplinary));
 router.post("/exit/resign", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.submitResignation));

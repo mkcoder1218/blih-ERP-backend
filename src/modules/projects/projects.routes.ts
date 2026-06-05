@@ -3,8 +3,36 @@ import { Router } from 'express';
 import { authRequired } from '../../middlewares/auth';
 import { requireRole } from '../../middlewares/role';
 import { requireActiveModule } from '../../middlewares/requireActiveModule';
+import { validate } from '../../middlewares/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { ProjectsController } from './projects.controller';
+import {
+  addProjectMemberSchema,
+  assignProjectTaskSchema,
+  bulkAddProjectMembersSchema,
+  changeProjectTaskStatusSchema,
+  changeProjectWorkflowFormStatusSchema,
+  changeProjectStatusSchema,
+  createNestedProjectTaskSchema,
+  createProjectSchema,
+  createProjectWorkflowFormSchema,
+  createTaskCommentSchema,
+  listProjectTasksQuerySchema,
+  listProjectWorkflowFormsQuerySchema,
+  listProjectsQuerySchema,
+  projectMemberParamsSchema,
+  projectMembersParamsSchema,
+  projectIdParamsSchema,
+  taskCommentParamsSchema,
+  projectTaskParamsSchema,
+  projectTasksParamsSchema,
+  projectWorkflowFormParamsSchema,
+  updateNestedProjectTaskSchema,
+  updateProjectMemberSchema,
+  updateProjectWorkflowFormSchema,
+  updateTaskCommentSchema,
+  updateProjectSchema
+} from '../../validators/project.validator';
 
 const router = Router();
 const controller = new ProjectsController();
@@ -60,7 +88,7 @@ router.post('/templates', requireRole('BUSINESS_ADMIN'), asyncHandler(controller
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post('/', asyncHandler(controller.createProject));
+router.post('/', validate(createProjectSchema), asyncHandler(controller.createProject));
 /**
  * @openapi
  * /api/v1/projects:
@@ -92,7 +120,33 @@ router.post('/', asyncHandler(controller.createProject));
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.get('/', asyncHandler(controller.listProjects));
+router.get('/', validate(listProjectsQuerySchema, "query"), asyncHandler(controller.listProjects));
+router.get('/my-tasks', validate(listProjectTasksQuerySchema, "query"), asyncHandler(controller.myTasks));
+router.get('/workflow/catalog', asyncHandler(controller.workflowCatalog));
+router.get('/:projectId([0-9a-fA-F-]{36})/members', validate(projectMembersParamsSchema, "params"), asyncHandler(controller.listMembers));
+router.post('/:projectId([0-9a-fA-F-]{36})/members', validate(projectMembersParamsSchema, "params"), validate(addProjectMemberSchema), asyncHandler(controller.addMember));
+router.post('/:projectId([0-9a-fA-F-]{36})/members/bulk', validate(projectMembersParamsSchema, "params"), validate(bulkAddProjectMembersSchema), asyncHandler(controller.bulkAddMembers));
+router.patch('/:projectId([0-9a-fA-F-]{36})/members/:memberId([0-9a-fA-F-]{36})', validate(projectMemberParamsSchema, "params"), validate(updateProjectMemberSchema), asyncHandler(controller.updateMember));
+router.delete('/:projectId([0-9a-fA-F-]{36})/members/:memberId([0-9a-fA-F-]{36})', validate(projectMemberParamsSchema, "params"), asyncHandler(controller.removeMember));
+router.get('/:projectId([0-9a-fA-F-]{36})/tasks', validate(projectTasksParamsSchema, "params"), validate(listProjectTasksQuerySchema, "query"), asyncHandler(controller.listNestedTasks));
+router.post('/:projectId([0-9a-fA-F-]{36})/tasks', validate(projectTasksParamsSchema, "params"), validate(createNestedProjectTaskSchema), asyncHandler(controller.createNestedTask));
+router.get('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments', validate(projectTaskParamsSchema, "params"), asyncHandler(controller.listTaskComments));
+router.post('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments', validate(projectTaskParamsSchema, "params"), validate(createTaskCommentSchema), asyncHandler(controller.createTaskComment));
+router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments/:commentId([0-9a-fA-F-]{36})', validate(taskCommentParamsSchema, "params"), validate(updateTaskCommentSchema), asyncHandler(controller.updateTaskComment));
+router.delete('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments/:commentId([0-9a-fA-F-]{36})', validate(taskCommentParamsSchema, "params"), asyncHandler(controller.deleteTaskComment));
+router.get('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', validate(projectTaskParamsSchema, "params"), asyncHandler(controller.viewNestedTask));
+router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', validate(projectTaskParamsSchema, "params"), validate(updateNestedProjectTaskSchema), asyncHandler(controller.updateNestedTask));
+router.delete('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', validate(projectTaskParamsSchema, "params"), asyncHandler(controller.deleteNestedTask));
+router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/assign', validate(projectTaskParamsSchema, "params"), validate(assignProjectTaskSchema), asyncHandler(controller.assignNestedTask));
+router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/status', validate(projectTaskParamsSchema, "params"), validate(changeProjectTaskStatusSchema), asyncHandler(controller.changeNestedTaskStatus));
+router.get('/:projectId([0-9a-fA-F-]{36})/workflow-forms', validate(projectMembersParamsSchema, "params"), validate(listProjectWorkflowFormsQuerySchema, "query"), asyncHandler(controller.listWorkflowForms));
+router.post('/:projectId([0-9a-fA-F-]{36})/workflow-forms', validate(projectMembersParamsSchema, "params"), validate(createProjectWorkflowFormSchema), asyncHandler(controller.createWorkflowForm));
+router.patch('/:projectId([0-9a-fA-F-]{36})/workflow-forms/:formId([0-9a-fA-F-]{36})', validate(projectWorkflowFormParamsSchema, "params"), validate(updateProjectWorkflowFormSchema), asyncHandler(controller.updateWorkflowForm));
+router.patch('/:projectId([0-9a-fA-F-]{36})/workflow-forms/:formId([0-9a-fA-F-]{36})/status', validate(projectWorkflowFormParamsSchema, "params"), validate(changeProjectWorkflowFormStatusSchema), asyncHandler(controller.changeWorkflowFormStatus));
+router.get('/:id([0-9a-fA-F-]{36})', validate(projectIdParamsSchema, "params"), asyncHandler(controller.viewProject));
+router.patch('/:id([0-9a-fA-F-]{36})', validate(projectIdParamsSchema, "params"), validate(updateProjectSchema), asyncHandler(controller.updateProject));
+router.patch('/:id([0-9a-fA-F-]{36})/status', validate(projectIdParamsSchema, "params"), validate(changeProjectStatusSchema), asyncHandler(controller.changeProjectStatus));
+router.patch('/:id([0-9a-fA-F-]{36})/archive', validate(projectIdParamsSchema, "params"), asyncHandler(controller.archiveProject));
 /**
  * @openapi
  * /api/v1/projects/{id}/progress:

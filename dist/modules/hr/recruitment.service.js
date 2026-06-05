@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RecruitmentService = void 0;
 const models_1 = require("../../models");
+const employee_constants_1 = require("../../constants/employee.constants");
 class RecruitmentService {
     async provisionForms(businessId) {
         const templates = [
@@ -109,7 +110,7 @@ class RecruitmentService {
                 businessId,
                 userId: targetUserId,
                 employeeCode: "EMP-" + Math.floor(Math.random() * 10000),
-                employmentType: "full_time",
+                employmentType: employee_constants_1.DEFAULT_EMPLOYMENT_TYPE,
                 hireDate: new Date(),
             });
             // Trigger base onboarding
@@ -119,6 +120,18 @@ class RecruitmentService {
                 title: "Complete Profile Setup",
                 category: "general",
             });
+            const job = await models_1.db.JobOpening.findOne({
+                where: { id: app.jobOpeningId, businessId },
+            });
+            if (job && ["open", "active", "published"].includes(job.status)) {
+                const hiredCount = await models_1.db.JobApplication.count({
+                    where: { businessId, jobOpeningId: app.jobOpeningId, stage: "hired" },
+                });
+                const headcount = Number(job.headcount || 1);
+                if (hiredCount >= headcount) {
+                    await job.update({ status: "closed" });
+                }
+            }
         }
         return app;
     }

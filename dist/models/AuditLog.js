@@ -8,10 +8,15 @@ exports.default = (sequelize, dataTypes) => {
         action: { type: dataTypes.STRING(100), allowNull: false }, // CREATE, UPDATE, DELETE
         entityType: { type: dataTypes.STRING(100), allowNull: false },
         entityId: { type: dataTypes.STRING(100), allowNull: false },
+        // 'success' | 'warning' | 'error'
+        category: { type: dataTypes.STRING(50), allowNull: false, defaultValue: 'success' },
         beforeData: { type: dataTypes.JSONB, allowNull: true },
         afterData: { type: dataTypes.JSONB, allowNull: true },
         ipAddress: { type: dataTypes.STRING(100), allowNull: true },
-        userAgent: { type: dataTypes.STRING(255), allowNull: true }
+        userAgent: { type: dataTypes.STRING(500), allowNull: true },
+        // parsed device/browser label stored for quick display
+        deviceInfo: { type: dataTypes.STRING(255), allowNull: true },
+        location: { type: dataTypes.STRING(255), allowNull: true }
     }, {
         tableName: "audit_logs",
         timestamps: true,

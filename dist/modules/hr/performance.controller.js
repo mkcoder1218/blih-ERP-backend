@@ -29,6 +29,51 @@ class HRPerformanceController {
                 (0, response_1.errorResponse)(res, e.message);
             }
         };
+        this.projectDashboard = async (req, res) => {
+            try {
+                const data = await this.service.getProjectPerformanceDashboard(req.user.businessId, req.query);
+                (0, response_1.successResponse)(res, data);
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        this.overview = async (req, res) => {
+            try {
+                const data = await this.service.getPerformanceOverview(req.user.businessId, req.query);
+                (0, response_1.successResponse)(res, data);
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        this.listReviews = async (req, res) => {
+            try {
+                const data = await this.service.listPerformanceReviews(req.user.businessId, req.query);
+                (0, response_1.successResponse)(res, data);
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        this.employeeEvaluationEvidence = async (req, res) => {
+            try {
+                const data = await this.service.getEmployeeEvaluationEvidence(req.user.businessId, req.params.employeeUserId, req.query);
+                (0, response_1.successResponse)(res, data);
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message, e.message === 'Employee not found' ? 404 : 400);
+            }
+        };
+        this.attachProjectEvidenceToReview = async (req, res) => {
+            try {
+                const review = await this.service.attachProjectEvidenceToReview(req.user.businessId, req.params.reviewId);
+                (0, response_1.successResponse)(res, review, 'Project evidence attached to review.');
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message, e.message === 'Performance review not found' ? 404 : 400);
+            }
+        };
         // Disciplinary
         this.listDisciplinary = async (req, res) => {
             try {

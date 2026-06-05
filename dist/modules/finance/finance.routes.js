@@ -34,6 +34,8 @@ router.use(auth_1.authRequired);
  *         $ref: '#/components/responses/500'
  */
 router.post("/templates", (0, role_1.requireRole)("BUSINESS_ADMIN", "FINANCE_MANAGER"), (0, asyncHandler_1.asyncHandler)(controller.seedForms));
+router.get("/workforce", (0, asyncHandler_1.asyncHandler)(controller.workforce));
+router.get("/workforce/export/:tab", (0, asyncHandler_1.asyncHandler)(controller.exportWorkforce));
 // Invoices
 /**
  * @openapi
@@ -110,7 +112,21 @@ router.post("/payments", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_AD
 router.post("/expenses", (0, asyncHandler_1.asyncHandler)(controller.createExpense));
 router.get("/expenses", (0, asyncHandler_1.asyncHandler)(controller.listExpenses));
 router.post("/expenses/:id/approve", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"), (0, asyncHandler_1.asyncHandler)(controller.approveExpense));
+router.post("/expenses/:id/reject", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"), (0, asyncHandler_1.asyncHandler)(controller.rejectExpense));
+router.post("/salary-adjustments/:id/:action(approve|reject)", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"), (0, asyncHandler_1.asyncHandler)(controller.decideSalaryRequest));
+router.post("/budget-reallocations/:id/:action(approve|reject)", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"), (0, asyncHandler_1.asyncHandler)(controller.decideBudgetReallocation));
+router.post("/budget-reallocations", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"), (0, asyncHandler_1.asyncHandler)(controller.createBudgetReallocation));
 // Budgets
 router.post("/budgets", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.createBudget));
 router.get("/budgets", (0, asyncHandler_1.asyncHandler)(controller.listBudgets));
+// ── Payroll Templates ──────────────────────────────────────────────────────────
+router.get("/payroll-templates", (0, asyncHandler_1.asyncHandler)(controller.listPayrollTemplates));
+router.post("/payroll-templates", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.createPayrollTemplate));
+router.put("/payroll-templates/:id", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.updatePayrollTemplate));
+router.delete("/payroll-templates/:id", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.deletePayrollTemplate));
+router.post("/payroll-templates/preview", (0, asyncHandler_1.asyncHandler)(controller.previewPayrollCalculation));
+// ── Employee Payroll Links ─────────────────────────────────────────────────────
+router.get("/payroll-dashboard", (0, asyncHandler_1.asyncHandler)(controller.getPayrollDashboard));
+router.post("/payroll-links", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.linkEmployeeToTemplate));
+router.delete("/payroll-links/:userId", (0, role_1.requireRole)("FINANCE_MANAGER", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.unlinkEmployee));
 exports.financeRoutes = router;

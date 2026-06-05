@@ -6,13 +6,14 @@ const notification_service_1 = require("../notification/notification.service");
 class OKRService {
     // -- Objective --
     async createObjective(businessId, ownerUserId, data) {
-        return models_1.db.Objective.create({ ...data, businessId, ownerUserId: ownerUserId || data.ownerUserId });
+        const metadata = this.withProjectLinkMetadata(data);
+        return models_1.db.Objective.create({ ...data, metadata, businessId, ownerUserId: ownerUserId || data.ownerUserId });
     }
     async updateObjective(businessId, id, data) {
         const obj = await models_1.db.Objective.findOne({ where: { id, businessId } });
         if (!obj)
             throw new Error("Objective not found");
-        return obj.update(data);
+        return obj.update({ ...data, metadata: this.withProjectLinkMetadata(data, obj.metadata) });
     }
     async getObjective(businessId, id) {
         return models_1.db.Objective.findOne({
@@ -45,14 +46,24 @@ class OKRService {
     }
     // -- Key Result --
     async createKeyResult(businessId, objectiveId, data) {
-        const kr = await models_1.db.KeyResult.create({ ...data, businessId, objectiveId });
+        const metadata = this.withProjectLinkMetadata(data);
+        const kr = await models_1.db.KeyResult.create({ ...data, metadata, dataSource: data.taskMetric ? 'projects' : data.dataSource, businessId, objectiveId });
         return kr;
     }
     async updateKeyResult(businessId, id, data) {
         const kr = await models_1.db.KeyResult.findOne({ where: { id, businessId } });
         if (!kr)
             throw new Error("KeyResult not found");
-        return kr.update(data);
+        return kr.update({ ...data, metadata: this.withProjectLinkMetadata(data, kr.metadata), dataSource: data.taskMetric ? 'projects' : data.dataSource ?? kr.dataSource });
+    }
+    withProjectLinkMetadata(data, current = {}) {
+        const projectLinks = {
+            ...(current?.projectLinks || {}),
+            ...(data.projectId ? { projectId: data.projectId } : {}),
+            ...(data.milestoneId ? { milestoneId: data.milestoneId } : {}),
+            ...(data.taskMetric ? { taskMetric: data.taskMetric } : {})
+        };
+        return Object.keys(projectLinks).length ? { ...(current || {}), projectLinks } : (data.metadata ?? current ?? {});
     }
     // -- Progress Update --
     async logProgressUpdate(businessId, updatedByUserId, data) {

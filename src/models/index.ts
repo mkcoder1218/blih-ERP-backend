@@ -43,8 +43,12 @@ import defineDeal from "./Deal";
 import defineInteraction from "./Interaction";
 import defineProject from "./Project";
 import defineProjectMilestone from "./ProjectMilestone";
+import defineProjectMember from "./ProjectMember";
 import defineProjectTask from "./ProjectTask";
+import defineTaskComment from "./TaskComment";
 import defineProjectIssue from "./ProjectIssue";
+import defineProjectActivityLog from "./ProjectActivityLog";
+import defineProjectWorkflowForm from "./ProjectWorkflowForm";
 import defineInvoice from "./Invoice";
 import defineInvoiceItem from "./InvoiceItem";
 import definePayment from "./Payment";
@@ -107,6 +111,8 @@ import defineAttendanceEvent from "./AttendanceEvent";
 import defineAttendanceLateReason from "./AttendanceLateReason";
 import defineAttendanceLateExplanation from "./AttendanceLateExplanation";
 import defineOvertimeRequest from "./OvertimeRequest";
+import defineLeaveTemplate from "./LeaveTemplate";
+import defineLeaveRequest from "./LeaveRequest";
 
 export type DB = {
   sequelize: typeof sequelize;
@@ -116,6 +122,8 @@ export type DB = {
   AttendanceLateReason: any;
   AttendanceLateExplanation: any;
   OvertimeRequest: any;
+  LeaveTemplate: any;
+  LeaveRequest: any;
   User: any;
   Role: any;
   Permission: any;
@@ -157,8 +165,12 @@ export type DB = {
   Interaction: any;
   Project: any;
   ProjectMilestone: any;
+  ProjectMember: any;
   ProjectTask: any;
+  TaskComment: any;
   ProjectIssue: any;
+  ProjectActivityLog: any;
+  ProjectWorkflowForm: any;
   Invoice: any;
   InvoiceItem: any;
   Payment: any;
@@ -226,6 +238,8 @@ export const db: DB = {
   AttendanceLateReason: defineAttendanceLateReason(sequelize, DataTypes),
   AttendanceLateExplanation: defineAttendanceLateExplanation(sequelize, DataTypes),
   OvertimeRequest: defineOvertimeRequest(sequelize, DataTypes),
+  LeaveTemplate: defineLeaveTemplate(sequelize, DataTypes),
+  LeaveRequest: defineLeaveRequest(sequelize, DataTypes),
   User: defineUser(sequelize, DataTypes),
   Role: defineRole(sequelize, DataTypes),
   Permission: definePermission(sequelize, DataTypes),
@@ -267,8 +281,12 @@ export const db: DB = {
   Interaction: defineInteraction(sequelize, DataTypes),
   Project: defineProject(sequelize, DataTypes),
   ProjectMilestone: defineProjectMilestone(sequelize, DataTypes),
+  ProjectMember: defineProjectMember(sequelize, DataTypes),
   ProjectTask: defineProjectTask(sequelize, DataTypes),
+  TaskComment: defineTaskComment(sequelize, DataTypes),
   ProjectIssue: defineProjectIssue(sequelize, DataTypes),
+  ProjectActivityLog: defineProjectActivityLog(sequelize, DataTypes),
+  ProjectWorkflowForm: defineProjectWorkflowForm(sequelize, DataTypes),
   Invoice: defineInvoice(sequelize, DataTypes),
   InvoiceItem: defineInvoiceItem(sequelize, DataTypes),
   Payment: definePayment(sequelize, DataTypes),
