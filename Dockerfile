@@ -1,13 +1,14 @@
 
-FROM node:20-bookworm-slim AS builder
+FROM node:22-bookworm-slim AS builder
 WORKDIR /app
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY package*.json ./
 RUN npm ci
 COPY tsconfig.json ./
 COPY src/ ./src/
 RUN npm run build
 
-FROM node:20-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_DOWNLOAD=true

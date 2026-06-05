@@ -59,6 +59,8 @@ The workflow validates the backend, connects to the VPS, pulls the latest code, 
 
 If the GitHub repository is private, add a deploy key or GitHub token on the VPS so `git clone` and `git fetch` can read the repository.
 
+The Docker image uses Node 22 and installs system Chromium in the container. Puppeteer browser downloads are disabled during `npm ci`.
+
 ## 4. Useful VPS Commands
 
 ```bash
