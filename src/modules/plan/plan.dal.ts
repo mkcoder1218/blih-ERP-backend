@@ -9,4 +9,10 @@ export class PlanDAL {
     if (!plan) return null;
     return plan.update(data);
   }
+  async softDelete(id: string) {
+    const plan = await db.Plan.findByPk(id);
+    if (!plan) return null;
+    await plan.destroy();
+    return true;
+  }
 }

@@ -1,11 +1,10 @@
-import { Server as SocketIOServer } from "socket.io";
+import { Server as SocketIOServer, Socket } from "socket.io";
 import { Server as HTTPServer } from "http";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env";
 import { db } from "../../models";
 
-export interface AuthenticatedSocket {
-  id: string;
+export type AuthenticatedSocket = Socket & {
   user: {
     id: string;
     businessId: string;
@@ -14,12 +13,7 @@ export interface AuthenticatedSocket {
     roles: string[];
     permissions: string[];
   };
-  join: (room: string) => void;
-  leave: (room: string) => void;
-  emit: (event: string, data: any) => void;
-  to: (room: string) => any;
-  broadcast: any;
-}
+};
 
 export class SocketService {
   private io: SocketIOServer;
@@ -88,31 +82,32 @@ export class SocketService {
   }
 
   private setupEventHandlers() {
-    this.io.on('connection', (socket: AuthenticatedSocket) => {
-      console.log(`User ${socket.user.fullName} connected to WebSocket`);
+    this.io.on('connection', (socket) => {
+      const authenticatedSocket = socket as AuthenticatedSocket;
+      console.log(`User ${authenticatedSocket.user.fullName} connected to WebSocket`);
       
       // Store connected user
-      this.connectedUsers.set(socket.user.id, socket);
+      this.connectedUsers.set(authenticatedSocket.user.id, authenticatedSocket);
       
       // Join business room for business-wide notifications
-      socket.join(`business:${socket.user.businessId}`);
+      authenticatedSocket.join(`business:${authenticatedSocket.user.businessId}`);
       
       // Join user-specific room
-      socket.join(`user:${socket.user.id}`);
+      authenticatedSocket.join(`user:${authenticatedSocket.user.id}`);
 
       // Handle interview room joining
-      socket.on('join-interview', (interviewId: string) => {
-        socket.join(`interview:${interviewId}`);
+      authenticatedSocket.on('join-interview', (interviewId: string) => {
+        authenticatedSocket.join(`interview:${interviewId}`);
       });
 
-      socket.on('leave-interview', (interviewId: string) => {
-        socket.leave(`interview:${interviewId}`);
+      authenticatedSocket.on('leave-interview', (interviewId: string) => {
+        authenticatedSocket.leave(`interview:${interviewId}`);
       });
 
       // Handle disconnection
-      socket.on('disconnect', () => {
-        console.log(`User ${socket.user.fullName} disconnected from WebSocket`);
-        this.connectedUsers.delete(socket.user.id);
+      authenticatedSocket.on('disconnect', () => {
+        console.log(`User ${authenticatedSocket.user.fullName} disconnected from WebSocket`);
+        this.connectedUsers.delete(authenticatedSocket.user.id);
       });
     });
   }
