@@ -28,40 +28,87 @@ export class HREventController {
 
       const page = Number(req.query.page || 1);
       const size = Number(req.query.size || 50);
-      const where: any = { businessId };
 
-      // Date range filter
+      // Date range condition applied to both queries
+      const dateFilter: any = {};
       const from = req.query.from as string | undefined;
       const to   = req.query.to   as string | undefined;
-      if (from || to) {
-        where.eventDate = {};
-        if (from) where.eventDate[Op.gte] = from;
-        if (to)   where.eventDate[Op.lte] = to;
-      }
+      if (from) dateFilter[Op.gte] = from;
+      if (to)   dateFilter[Op.lte] = to;
 
-      // Type filter
-      if (req.query.type) where.eventType = req.query.type;
-
-      // Non-managers only see upcoming events they're eligible for
+      // ── 1. Business-scoped events (company events, birthdays, anniversaries…) ──
+      const bizWhere: any = { businessId };
+      if (req.query.type) bizWhere.eventType = req.query.type;
+      if (Object.keys(dateFilter).length) bizWhere.eventDate = dateFilter;
       if (!canManage) {
         const today = new Date().toISOString().slice(0, 10);
-        where.eventDate = { ...(where.eventDate ?? {}), [Op.gte]: today };
-        where[Op.or] = [
-          { visibility: "all" },
-          { employeeUserId: req.user!.id },
-          // departmentId scope could be added once we resolve the employee's dept
-        ];
+        bizWhere.eventDate = { ...(bizWhere.eventDate ?? {}), [Op.gte]: today };
+        bizWhere[Op.or] = [{ visibility: "all" }, { employeeUserId: req.user!.id }];
+        // Exclude holidays from the business-scoped query — they come from the platform query below
+        bizWhere.eventType = { [Op.ne]: 'holiday' };
       }
 
-      const { count, rows } = await db.HREvent.findAndCountAll({
-        where,
+      const bizEvents = await db.HREvent.findAll({
+        where: bizWhere,
         include: INCLUDE,
         order: [["eventDate", "ASC"]],
-        limit:  size,
-        offset: (page - 1) * size,
       });
 
-      successResponse(res, { rows, total: count, page, totalPages: Math.ceil(count / size) });
+      // ── 2. Platform-level holidays (all businesses share the same pool) ──
+      // Holidays are queryable across ALL businesses — whoever imported them
+      // for a given country/year, all companies benefit.
+      let holidayRows: any[] = [];
+      const typeFilter = req.query.type as string | undefined;
+      if (!typeFilter || typeFilter === 'holiday') {
+        const holidayWhere: any = { eventType: 'holiday' };
+        if (Object.keys(dateFilter).length) holidayWhere.eventDate = dateFilter;
+        if (!canManage) {
+          const today = new Date().toISOString().slice(0, 10);
+          holidayWhere.eventDate = { ...(holidayWhere.eventDate ?? {}), [Op.gte]: today };
+        }
+        holidayRows = await db.HREvent.findAll({
+          where: holidayWhere,
+          include: INCLUDE,
+          order: [["eventDate", "ASC"]],
+          // Deduplicate by title+date at the DB level via GROUP BY isn't easy in Sequelize,
+          // so we deduplicate in JS below
+        });
+
+        // Deduplicate holidays by title + eventDate (same holiday may be imported by multiple companies)
+        const seen = new Set<string>();
+        holidayRows = holidayRows.filter((h: any) => {
+          const key = `${h.title}__${h.eventDate}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+
+      // ── 3. Merge and sort ─────────────────────────────────────────────────────
+      // For company-scoped query, holidays already excluded above; merge with platform holidays
+      let combined: any[];
+      if (canManage) {
+        // HR/admin sees all business events; holidays already in bizEvents if type filter not set
+        if (typeFilter === 'holiday') {
+          combined = holidayRows;
+        } else if (typeFilter) {
+          combined = bizEvents;
+        } else {
+          // All types: business events (non-holiday) + deduplicated holidays
+          const bizNonHoliday = bizEvents.filter((e: any) => e.eventType !== 'holiday');
+          combined = [...bizNonHoliday, ...holidayRows]
+            .sort((a: any, b: any) => a.eventDate.localeCompare(b.eventDate));
+        }
+      } else {
+        combined = [...bizEvents, ...holidayRows]
+          .sort((a: any, b: any) => a.eventDate.localeCompare(b.eventDate));
+      }
+
+      // Apply pagination
+      const total = combined.length;
+      const paged = combined.slice((page - 1) * size, page * size);
+
+      successResponse(res, { rows: paged, total, page, totalPages: Math.ceil(total / size) });
     } catch (e: any) { errorResponse(res, e.message); }
   };
 
@@ -188,7 +235,7 @@ export class HREventController {
             isRecurring:     true,   // public holidays recur annually
             visibility:      'all',
             emoji:           '🗓️',
-            color:           'from-emerald-400 to-teal-500',
+            color:           null,   // no color needed — using gradient from eventType config
             metadata: {
               country,
               year,

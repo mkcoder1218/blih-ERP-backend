@@ -29,7 +29,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): HREventModel
       isRecurring: { type: dataTypes.BOOLEAN,     defaultValue: false },  // annually recurring
       visibility:  { type: dataTypes.STRING(20),  defaultValue: "all" }, // all | department | individual
       emoji:       { type: dataTypes.STRING(10),  allowNull: true },
-      color:       { type: dataTypes.STRING(20),  allowNull: true },  // gradient color key
+      color:       { type: dataTypes.STRING(100),  allowNull: true },  // gradient color key
       metadata:    { type: dataTypes.JSONB,       defaultValue: {} },
     },
     { tableName: "hr_events", timestamps: true, paranoid: true }
