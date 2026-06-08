@@ -219,11 +219,13 @@ export class HRPerformanceController {
            const rows: any[] = reportData.rows ?? [];
 
            // ── 3. Group by employee — count MISSED and LATE days ────────────────
-           const byEmployee = new Map<string, {
+           type EmpInfraction = { date: string; status: string; lateByMinutes: number };
+           type EmpEntry = {
                userId: string; fullName: string; email: string; dept: string;
                missedDays: number; lateDays: number; totalLateMinutes: number;
-               infractions: { date: string; status: string; lateByMinutes: number }[];
-           }>();
+               infractions: EmpInfraction[];
+           };
+           const byEmployee = new Map<string, EmpEntry>();
 
            for (const row of rows) {
                const isMissed = row.currentStatus === 'MISSED';
@@ -232,13 +234,13 @@ export class HRPerformanceController {
                if (!isMissed && !isLate) continue;
 
                const uid  = String(row.employeeId);
-               const emp  = byEmployee.get(uid) ?? {
+               const emp: EmpEntry = byEmployee.get(uid) ?? {
                    userId: uid,
                    fullName: row.employeeName ?? 'Unknown',
                    email:    '',
                    dept:     row.department?.name ?? 'Unknown',
                    missedDays: 0, lateDays: 0, totalLateMinutes: 0,
-                   infractions: [],
+                   infractions: [] as EmpInfraction[],
                };
                if (isMissed) emp.missedDays++;
                if (isLate)   { emp.lateDays++; emp.totalLateMinutes += Number(row.lateByMinutes || 0); }
