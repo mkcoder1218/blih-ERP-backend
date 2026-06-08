@@ -35,15 +35,23 @@ export class SettingsController {
 
   setSetting = async (req: Request, res: Response) => {
     try {
-      const { key, value, category, isPublic } = req.body;
-      const set = await this.service.setBusinessSetting(req.user!.businessId, key, value, category, isPublic);
+      const { key, value, category, isPublic, businessId: overrideId } = req.body;
+      // Platform super admin can save settings for any business by passing businessId in body
+      const isPlatformAdmin = Boolean((req.user as any)?.isPlatformSuperAdmin);
+      const targetBusinessId = isPlatformAdmin && overrideId ? overrideId : req.user!.businessId;
+      const set = await this.service.setBusinessSetting(targetBusinessId, key, value, category, isPublic);
       await AuditLogService.log('UPDATE_SETTING', 'business_setting', String(set.id), null, { key, value }, req);
       res.json({ setting: set });
     } catch(e: any) { res.status(400).json({ message: e.message }); }
   };
 
   listSettings = async (req: Request, res: Response) => {
-    const list = await this.service.listSettings(req.user!.businessId);
+    // Platform super admin can read settings for any business via ?businessId= query
+    const isPlatformAdmin = Boolean((req.user as any)?.isPlatformSuperAdmin);
+    const targetBusinessId = isPlatformAdmin && req.query.businessId
+      ? String(req.query.businessId)
+      : req.user!.businessId;
+    const list = await this.service.listSettings(targetBusinessId);
     res.json({ settings: list });
   };
 

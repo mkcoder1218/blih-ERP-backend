@@ -17,6 +17,7 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - DB_SYNC=true
+      - DB_FORCE_SYNC=false
     env_file:
       - .env
     depends_on:
