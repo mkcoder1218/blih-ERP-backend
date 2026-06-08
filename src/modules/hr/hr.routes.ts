@@ -322,10 +322,67 @@ router.post(
   asyncHandler(perfController.createTrainingRequest),
 );
 router.get(
+  "/training",
+  authRequired,
+  asyncHandler(perfController.listTrainingRequests),
+);
+router.post(
+  "/training/:id/approve",
+  authRequired,
+  requireAnyPermission("performance.manage", "performance.read"),
+  asyncHandler(perfController.approveTrainingRequest),
+);
+router.post(
+  "/training/:id/reject",
+  authRequired,
+  requireAnyPermission("performance.manage", "performance.read"),
+  asyncHandler(perfController.rejectTrainingRequest),
+);
+router.post(
+  "/promotions",
+  authRequired,
+  asyncHandler(perfController.createPromotionRequest),
+);
+router.get(
+  "/promotions",
+  authRequired,
+  asyncHandler(perfController.listPromotionRequests),
+);
+router.post(
+  "/promotions/:id/approve",
+  authRequired,
+  requireAnyPermission("performance.manage"),
+  asyncHandler(perfController.approvePromotionRequest),
+);
+router.post(
+  "/promotions/:id/reject",
+  authRequired,
+  requireAnyPermission("performance.manage"),
+  asyncHandler(perfController.rejectPromotionRequest),
+);
+router.get(
   "/disciplinary",
   authRequired,
   requireAnyPermission("performance.read", "performance.manage"),
-  asyncHandler(perfController.listDisciplinary),
+  asyncHandler(perfController.listDisciplinaryCases),
+);
+router.post(
+  "/disciplinary/analyze-attendance",
+  authRequired,
+  requireAnyPermission("performance.manage", "attendance.manage"),
+  asyncHandler(perfController.analyzeAttendanceDiscipline),
+);
+router.post(
+  "/disciplinary",
+  authRequired,
+  requireAnyPermission("performance.manage", "hr.write"),
+  asyncHandler(perfController.createDisciplinaryCase),
+);
+router.patch(
+  "/disciplinary/:id",
+  authRequired,
+  requireAnyPermission("performance.manage", "hr.write"),
+  asyncHandler(perfController.updateDisciplinaryCase),
 );
 router.post(
   "/exit/resign",

@@ -40,6 +40,7 @@ export const SYSTEM_PERMISSIONS = [
   { module: "hr",         action: "read",   key: "hr.read",          description: "View all employee records" },
   { module: "hr",         action: "write",  key: "hr.write",         description: "Create and update employee data and contracts" },
   { module: "profiles",   action: "read",   key: "profiles.read",    description: "Access the employee directory, organogram, and events" },
+  { module: "profiles",   action: "self",   key: "profiles.self",    description: "View upcoming company events, own profile, and directory" },
   { module: "department", action: "create", key: "department.create",description: "Create departments" },
   { module: "department", action: "update", key: "department.update",description: "Update departments" },
   { module: "department", action: "delete", key: "department.delete",description: "Delete departments" },
@@ -56,6 +57,8 @@ export const SYSTEM_PERMISSIONS = [
   // ── Finance & Operations ─────────────────────────────────────────────────────
   { module: "finance", action: "read",   key: "finance.read",  description: "View financial reports and workforce finance dashboard" },
   { module: "finance", action: "manage", key: "finance.manage",description: "Process invoices, approve expenses, and manage budgets" },
+  // Self-service: employee sees only their own payslip, salary, and benefits
+  { module: "finance", action: "mine",   key: "finance.mine",  description: "View own salary, payslips, and submit expense claims" },
   { module: "payroll", action: "read",   key: "payroll.read",  description: "View payroll history and salary data" },
   { module: "payroll", action: "run",    key: "payroll.run",   description: "Execute payroll cycles" },
   { module: "budget",  action: "read",   key: "budget.read",   description: "View department and company budget allocations" },
@@ -80,8 +83,9 @@ export const SYSTEM_PERMISSIONS = [
 
   // ── Career & Exit ────────────────────────────────────────────────────────────
   // Self-service: employees view career path, request training, submit resignation
-  { module: "career", action: "self", key: "career.self", description: "View own career path, request training, and access culture content" },
-  { module: "exit",   action: "self", key: "exit.self",   description: "Submit resignation, track own clearance checklist, and access exit documents" },
+  { module: "career", action: "self",    key: "career.self",    description: "View own career path, request training, and access culture content" },
+  { module: "career", action: "request", key: "career.request", description: "Submit training and promotion requests for self" },
+  { module: "exit",   action: "self",    key: "exit.self",      description: "Submit resignation, track own clearance checklist, and access exit documents" },
 
   // ── System Administration ─────────────────────────────────────────────────────
   { module: "settings", action: "read",   key: "settings.read",  description: "View company settings and configuration" },

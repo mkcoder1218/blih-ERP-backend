@@ -36,6 +36,400 @@ export class HRPerformanceController {
        } catch (e: any) { errorResponse(res, e.message); }
    };
 
+   listTrainingRequests = async (req: Request, res: Response) => {
+       try {
+           const businessId = req.user!.businessId;
+           const canManage  = this.hasPermission(req, 'performance.manage') || this.hasPermission(req, 'performance.read');
+           const page = Number(req.query.page  || 1);
+           const size = Number(req.query.size  || 20);
+           const where: any = { businessId };
+           if (!canManage) where.employeeUserId = req.user!.id;          // employees see own only
+           if (req.query.status)         where.status         = req.query.status;
+           if (req.query.employeeUserId && canManage) where.employeeUserId = req.query.employeeUserId;
+           const { count, rows } = await db.TrainingRecord.findAndCountAll({
+               where,
+               include: [
+                   { model: db.User, as: 'employee',  attributes: ['id', 'fullName', 'email'], required: false },
+                   { model: db.User, as: 'requester', attributes: ['id', 'fullName'],          required: false },
+               ],
+               order: [['createdAt', 'DESC']],
+               limit:  size,
+               offset: (page - 1) * size,
+           });
+           successResponse(res, { rows, total: count, page, totalPages: Math.ceil(count / size) });
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   approveTrainingRequest = async (req: Request, res: Response) => {
+       try {
+           const r = await db.TrainingRecord.findOne({ where: { id: req.params.id, businessId: req.user!.businessId } });
+           if (!r) return errorResponse(res, 'Training record not found', 404);
+           if (r.status !== 'requested') return errorResponse(res, 'Only requested records can be approved', 400);
+           await r.update({ status: 'scheduled', resultData: { ...(r.resultData || {}), approvedBy: req.user!.id, approvedAt: new Date(), comment: req.body.comment } });
+           await AuditLogService.log('APPROVED_TRAINING', 'hr_training_records', String(r.id), null, {}, req);
+           successResponse(res, r, 'Training request approved.');
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   rejectTrainingRequest = async (req: Request, res: Response) => {
+       try {
+           const r = await db.TrainingRecord.findOne({ where: { id: req.params.id, businessId: req.user!.businessId } });
+           if (!r) return errorResponse(res, 'Training record not found', 404);
+           if (r.status !== 'requested') return errorResponse(res, 'Only requested records can be rejected', 400);
+           await r.update({ status: 'cancelled', resultData: { ...(r.resultData || {}), rejectedBy: req.user!.id, rejectedAt: new Date(), reason: req.body.reason } });
+           await AuditLogService.log('REJECTED_TRAINING', 'hr_training_records', String(r.id), null, {}, req);
+           successResponse(res, r, 'Training request rejected.');
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   // Promotion Requests
+   createPromotionRequest = async (req: Request, res: Response) => {
+       try {
+           const { currentTitle, targetTitle, justification, department, kpiScore, yearsInRole, effectiveDate, employeeUserId } = req.body;
+           if (!currentTitle || !targetTitle || !justification) return errorResponse(res, 'currentTitle, targetTitle, and justification are required', 400);
+           const r = await db.PromotionRequest.create({
+               businessId:        req.user!.businessId,
+               employeeUserId:    employeeUserId || req.user!.id,
+               requestedByUserId: req.user!.id,
+               currentTitle, targetTitle, justification, department,
+               kpiScore:    kpiScore    ? parseFloat(kpiScore)    : null,
+               yearsInRole: yearsInRole ? parseFloat(yearsInRole) : null,
+               effectiveDate: effectiveDate || null,
+               approvalStage: 'department_head',
+               status:        'pending',
+           });
+           await AuditLogService.log('CREATED_PROMOTION_REQUEST', 'hr_promotion_requests', String(r.id), null, {}, req);
+           successResponse(res, r, 'Promotion request submitted.', 201);
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   listPromotionRequests = async (req: Request, res: Response) => {
+       try {
+           const businessId = req.user!.businessId;
+           const canManage  = this.hasPermission(req, 'performance.manage') || this.hasPermission(req, 'performance.read');
+           const page = Number(req.query.page || 1);
+           const size = Number(req.query.size || 20);
+           const where: any = { businessId };
+           if (!canManage) where.employeeUserId = req.user!.id;
+           if (req.query.status)         where.status         = req.query.status;
+           if (req.query.employeeUserId && canManage) where.employeeUserId = req.query.employeeUserId;
+           const { count, rows } = await db.PromotionRequest.findAndCountAll({
+               where,
+               include: [
+                   { model: db.User, as: 'employee',  attributes: ['id', 'fullName', 'email'], required: false },
+                   { model: db.User, as: 'requester', attributes: ['id', 'fullName'],          required: false },
+               ],
+               order: [['createdAt', 'DESC']],
+               limit:  size,
+               offset: (page - 1) * size,
+           });
+           successResponse(res, { rows, total: count, page, totalPages: Math.ceil(count / size) });
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   approvePromotionRequest = async (req: Request, res: Response) => {
+       try {
+           const r = await db.PromotionRequest.findOne({ where: { id: req.params.id, businessId: req.user!.businessId } });
+           if (!r) return errorResponse(res, 'Promotion request not found', 404);
+           if (r.status !== 'pending') return errorResponse(res, 'Only pending requests can be approved', 400);
+
+           // Multi-stage: dept_head → admin → approved
+           let nextStage = 'admin';
+           let nextStatus: string = 'pending';
+           if (r.approvalStage === 'department_head') {
+               nextStage  = 'admin';
+               nextStatus = 'pending';
+           } else if (r.approvalStage === 'admin') {
+               nextStage  = 'approved';
+               nextStatus = 'approved';
+           }
+           await r.update({
+               approvalStage:   nextStage,
+               status:          nextStatus,
+               deptHeadComment: r.approvalStage === 'department_head' ? (req.body.comment || null) : r.deptHeadComment,
+               adminComment:    r.approvalStage === 'admin'           ? (req.body.comment || null) : r.adminComment,
+           });
+           await AuditLogService.log('APPROVED_PROMOTION_STAGE', 'hr_promotion_requests', String(r.id), null, { stage: r.approvalStage }, req);
+           successResponse(res, r, nextStatus === 'approved' ? 'Promotion fully approved.' : 'Forwarded to next approver.');
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   rejectPromotionRequest = async (req: Request, res: Response) => {
+       try {
+           const r = await db.PromotionRequest.findOne({ where: { id: req.params.id, businessId: req.user!.businessId } });
+           if (!r) return errorResponse(res, 'Promotion request not found', 404);
+           if (r.status !== 'pending') return errorResponse(res, 'Only pending requests can be rejected', 400);
+           await r.update({ status: 'rejected', rejectionReason: req.body.reason || null });
+           await AuditLogService.log('REJECTED_PROMOTION', 'hr_promotion_requests', String(r.id), null, {}, req);
+           successResponse(res, r, 'Promotion request rejected.');
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   // ── Disciplinary Cases ────────────────────────────────────────────────────
+
+   /**
+    * POST /hr/disciplinary/analyze-attendance
+    *
+    * Analyses attendance data (MISSED + LATE) for the past N days using the same
+    * HR attendance report engine. For each employee above the infraction threshold:
+    *   1. Auto-creates a DisciplinaryCase (attendance type) if one doesn't exist.
+    *   2. Sends a notification directly to the EMPLOYEE (not admins).
+    *
+    * Body params (all optional):
+    *   windowDays        — look-back window in days                   (default 30)
+    *   lateThreshold     — min infraction days to trigger a case      (default 3)
+    *   dryRun            — if true, report only, no DB writes         (default false)
+    *   includeMissed     — count MISSED days as infractions           (default true)
+    *   includeLate       — count LATE days as infractions             (default true)
+    */
+   analyzeAttendanceDiscipline = async (req: Request, res: Response) => {
+       try {
+           const businessId   = req.user!.businessId;
+           const windowDays    = Number(req.body.windowDays    ?? req.query.windowDays    ?? 30);
+           const lateThreshold = Number(req.body.lateThreshold ?? req.query.lateThreshold ?? 3);
+           const dryRun        = req.body.dryRun === true  || req.body.dryRun === 'true'
+                              || req.query.dryRun === 'true';
+           const includeMissed = req.body.includeMissed !== false && req.body.includeMissed !== 'false';
+           const includeLate   = req.body.includeLate   !== false && req.body.includeLate   !== 'false';
+
+           // ── 1. Compute date range ────────────────────────────────────────────
+           const { Op } = require('sequelize');
+           const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
+           if (!settings) return errorResponse(res, 'Attendance settings not configured', 400);
+           const tz = settings.timezone || 'UTC';
+
+           const toYmd = (d: Date) =>
+               new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+           const today = new Date();
+           const since = new Date(today);
+           since.setDate(since.getDate() - windowDays);
+           const startDate = toYmd(since);
+           const endDate   = toYmd(today);
+           const periodLabel = `${startDate} to ${endDate}`;
+
+           // ── 2. Use the HR attendance report service ──────────────────────────
+           const { AttendanceHrService } = require('../attendanceHr/attendanceHr.service');
+           const hrService = new AttendanceHrService();
+           const reportData = await hrService.report(businessId, {
+               startDate, endDate,
+               departmentId: null, employeeId: null,
+               status: null, search: null,
+               sortBy: 'name', sortOrder: 'asc',
+           });
+           const rows: any[] = reportData.rows ?? [];
+
+           // ── 3. Group by employee — count MISSED and LATE days ────────────────
+           const byEmployee = new Map<string, {
+               userId: string; fullName: string; email: string; dept: string;
+               missedDays: number; lateDays: number; totalLateMinutes: number;
+               infractions: { date: string; status: string; lateByMinutes: number }[];
+           }>();
+
+           for (const row of rows) {
+               const isMissed = row.currentStatus === 'MISSED';
+               const isLate   = row.currentStatus === 'LATE';
+               if ((!includeMissed && isMissed) || (!includeLate && isLate)) continue;
+               if (!isMissed && !isLate) continue;
+
+               const uid  = String(row.employeeId);
+               const emp  = byEmployee.get(uid) ?? {
+                   userId: uid,
+                   fullName: row.employeeName ?? 'Unknown',
+                   email:    '',
+                   dept:     row.department?.name ?? 'Unknown',
+                   missedDays: 0, lateDays: 0, totalLateMinutes: 0,
+                   infractions: [],
+               };
+               if (isMissed) emp.missedDays++;
+               if (isLate)   { emp.lateDays++; emp.totalLateMinutes += Number(row.lateByMinutes || 0); }
+               emp.infractions.push({ date: row.date, status: row.currentStatus, lateByMinutes: Number(row.lateByMinutes || 0) });
+               byEmployee.set(uid, emp);
+           }
+
+           // Enrich with emails from Users
+           const userIds = Array.from(byEmployee.keys());
+           if (userIds.length) {
+               const users = await db.User.findAll({ where: { id: { [Op.in]: userIds }, businessId }, attributes: ['id', 'email'] });
+               for (const u of users) {
+                   const emp = byEmployee.get(String(u.id));
+                   if (emp) emp.email = u.email ?? '';
+               }
+           }
+
+           // ── 4. Build report + auto-action ────────────────────────────────────
+           const report: any[] = [];
+           const actioned: string[] = [];
+           const skipped:  string[] = [];
+
+           for (const emp of byEmployee.values()) {
+               const totalInfractions = emp.missedDays + emp.lateDays;
+               // Severity score: each missed = 2pts, each late = 1pt, +1 per 30min late
+               const rawScore  = (emp.missedDays * 2) + emp.lateDays + Math.floor(emp.totalLateMinutes / 30);
+               const severity  = rawScore >= 10 ? 'critical' : rawScore >= 5 ? 'major' : 'minor';
+               const scoreDisp = `${Math.min(rawScore, 10).toFixed(1)}/10`;
+
+               const entry: any = {
+                   userId:           emp.userId,
+                   fullName:         emp.fullName,
+                   email:            emp.email,
+                   department:       emp.dept,
+                   missedDays:       emp.missedDays,
+                   lateDays:         emp.lateDays,
+                   totalLateMinutes: emp.totalLateMinutes,
+                   totalInfractions,
+                   severity,
+                   score:            scoreDisp,
+                   infractions:      emp.infractions,
+                   actionCreated:    false,
+               };
+
+               if (totalInfractions >= lateThreshold) {
+                   if (!dryRun) {
+                       const existing = await db.DisciplinaryCase.findOne({
+                           where: {
+                               businessId,
+                               employeeUserId: emp.userId,
+                               caseType: 'attendance',
+                               status: { [Op.notIn]: ['closed', 'resolved'] },
+                           },
+                       });
+
+                       if (!existing) {
+                           const parts: string[] = [];
+                           if (emp.missedDays > 0) parts.push(`${emp.missedDays} missed day(s)`);
+                           if (emp.lateDays   > 0) parts.push(`${emp.lateDays} late day(s) (${emp.totalLateMinutes}min total)`);
+
+                           const caseRecord = await db.DisciplinaryCase.create({
+                               businessId,
+                               employeeUserId:   emp.userId,
+                               reportedByUserId: req.user!.id,
+                               caseType:         'attendance',
+                               severity,
+                               title:            `Attendance Issue: ${parts.join(' & ')} over ${windowDays} days`,
+                               description:      `Automated analysis for ${periodLabel}: employee recorded ${parts.join(' and ')}. Total infraction score: ${scoreDisp}. This case was auto-generated by the attendance discipline analyzer.`,
+                               status:           'open',
+                               metadata: {
+                                   score:            parseFloat(scoreDisp),
+                                   missedDays:       emp.missedDays,
+                                   lateDays:         emp.lateDays,
+                                   totalLateMinutes: emp.totalLateMinutes,
+                                   period:           periodLabel,
+                                   autoGenerated:    true,
+                               },
+                           });
+
+                           await AuditLogService.log('AUTO_DISCIPLINE_ATTENDANCE', 'hr_disciplinary_cases', String(caseRecord.id), null, { employeeUserId: emp.userId }, req);
+
+                           // Notify the EMPLOYEE directly — not admins
+                           try {
+                               const missedMsg  = emp.missedDays > 0 ? `${emp.missedDays} missed check-in(s)` : '';
+                               const lateMsg    = emp.lateDays   > 0 ? `${emp.lateDays} late check-in(s)` : '';
+                               const detailMsg  = [missedMsg, lateMsg].filter(Boolean).join(' and ');
+                               await InternalNotifier.send({
+                                   businessId,
+                                   recipientUserId: emp.userId,
+                                   senderUserId:    req.user!.id,
+                                   moduleKey:       'hr',
+                                   type:            'attendance_discipline_warning',
+                                   title:           'Attendance Improvement Notice',
+                                   message:         `Dear ${emp.fullName}, our records show ${detailMsg} over the past ${windowDays} days. Please improve your attendance. A formal case has been opened — contact HR for support.`,
+                                   entityType:      'DisciplinaryCase',
+                                   entityId:        String(caseRecord.id),
+                                   priority:        severity === 'critical' ? 'urgent' : severity === 'major' ? 'high' : 'normal',
+                               });
+                           } catch (notifErr) {
+                               console.error('[AttendanceAnalysis] Notification failed for', emp.userId, notifErr);
+                           }
+
+                           entry.actionCreated = true;
+                           entry.caseId = caseRecord.id;
+                           actioned.push(emp.fullName);
+                       } else {
+                           entry.existingCaseId = existing.id;
+                           skipped.push(emp.fullName);
+                       }
+                   } else {
+                       entry.wouldAction = true;
+                   }
+               }
+               report.push(entry);
+           }
+
+           report.sort((a, b) => b.totalInfractions - a.totalInfractions);
+
+           successResponse(res, {
+               windowDays, lateThreshold, dryRun, includeMissed, includeLate,
+               period:         periodLabel,
+               totalEmployees: report.length,
+               actioned:       actioned.length,
+               skipped:        skipped.length,
+               actionedNames:  actioned,
+               skippedNames:   skipped,
+               report,
+           }, dryRun
+               ? `Dry run: ${report.filter(r => r.wouldAction).length} employees would receive discipline cases.`
+               : `Analysis complete. ${actioned.length} new case(s) created and employees notified.`
+           );
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   listDisciplinaryCases = async (req: Request, res: Response) => {
+       try {
+           const businessId = req.user!.businessId;
+           const page = Number(req.query.page || 1);
+           const size = Number(req.query.size || 50);
+           const where: any = { businessId };
+           if (req.query.status) where.status = req.query.status;
+           if (req.query.severity) where.severity = req.query.severity;
+           const { count, rows } = await db.DisciplinaryCase.findAndCountAll({
+               where,
+               include: [
+                   { model: db.User, as: 'employee', attributes: ['id', 'fullName', 'email'], required: false },
+                   { model: db.User, as: 'reporter', attributes: ['id', 'fullName'], required: false },
+               ],
+               order: [['createdAt', 'DESC']],
+               limit:  size,
+               offset: (page - 1) * size,
+           });
+           successResponse(res, { rows, total: count, page, totalPages: Math.ceil(count / size) });
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   createDisciplinaryCase = async (req: Request, res: Response) => {
+       try {
+           const { employeeUserId, caseType, severity, title, description, metadata } = req.body;
+           if (!employeeUserId || !caseType || !title || !description) {
+               return errorResponse(res, 'employeeUserId, caseType, title and description are required', 400);
+           }
+           const r = await db.DisciplinaryCase.create({
+               businessId: req.user!.businessId,
+               employeeUserId,
+               reportedByUserId: req.user!.id,
+               caseType,
+               severity: severity || 'minor',
+               title,
+               description,
+               status: 'open',
+               metadata: metadata || {},
+           });
+           await AuditLogService.log('CREATED_DISCIPLINARY_CASE', 'hr_disciplinary_cases', String(r.id), null, {}, req);
+           successResponse(res, r, 'Disciplinary case created.', 201);
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   updateDisciplinaryCase = async (req: Request, res: Response) => {
+       try {
+           const r = await db.DisciplinaryCase.findOne({ where: { id: req.params.id, businessId: req.user!.businessId } });
+           if (!r) return errorResponse(res, 'Disciplinary case not found', 404);
+           const allowed = ['status', 'actionTaken', 'severity', 'metadata'];
+           const payload: any = {};
+           for (const key of allowed) if (req.body[key] !== undefined) payload[key] = req.body[key];
+           await r.update(payload);
+           await AuditLogService.log('UPDATED_DISCIPLINARY_CASE', 'hr_disciplinary_cases', String(r.id), null, payload, req);
+           successResponse(res, r, 'Disciplinary case updated.');
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
    projectDashboard = async (req: Request, res: Response) => {
        try {
            const data = await this.service.getProjectPerformanceDashboard(req.user!.businessId, req.query);

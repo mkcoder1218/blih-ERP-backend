@@ -1,7 +1,7 @@
 
 import { Router } from "express";
 import { authRequired } from "../../middlewares/auth";
-import { requireRole } from "../../middlewares/role";
+import { requireAnyPermission } from "../../middlewares/permission";
 import { requireActiveModule } from "../../middlewares/requireActiveModule";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { FinanceController } from "./finance.controller";
@@ -12,159 +12,146 @@ const controller = new FinanceController();
 router.use(requireActiveModule('finance'));
 router.use(authRequired);
 
-/**
- * @openapi
- * /api/v1/finance/templates:
- *   post:
- *     tags: [finance]
- *     summary: Seed Finance forms
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post("/templates", requireRole("BUSINESS_ADMIN", "FINANCE_MANAGER"), asyncHandler(controller.seedForms));
+router.post(
+  "/templates",
+  requireAnyPermission("finance.manage"),
+  asyncHandler(controller.seedForms)
+);
 
-router.get("/workforce", asyncHandler(controller.workforce));
-router.get("/workforce/export/:tab", asyncHandler(controller.exportWorkforce));
+// Full workforce dashboard (finance managers only)
+router.get(
+  "/workforce",
+  requireAnyPermission("finance.read", "finance.manage", "payroll.read"),
+  asyncHandler(controller.workforce)
+);
+// Self-scoped workforce data (own payslip / salary) — finance.mine users
+router.get(
+  "/workforce/me",
+  requireAnyPermission("finance.mine", "finance.read", "finance.manage"),
+  asyncHandler(controller.workforceMe)
+);
+router.get(
+  "/workforce/export/:tab",
+  requireAnyPermission("finance.read", "finance.manage"),
+  asyncHandler(controller.exportWorkforce)
+);
 
 // Invoices
-/**
- * @openapi
- * /api/v1/finance/invoices:
- *   post:
- *     tags: [finance]
- *     summary: Create invoice
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       201:
- *         description: Created
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post("/invoices", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.createInvoice));
-/**
- * @openapi
- * /api/v1/finance/invoices:
- *   get:
- *     tags: [finance]
- *     summary: List invoices
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema: { type: integer }
- *       - in: query
- *         name: size
- *         schema: { type: integer }
- *       - in: query
- *         name: q
- *         schema: { type: string }
- *       - in: query
- *         name: status
- *         schema: { type: string }
- *       - in: query
- *         name: clientId
- *         schema: { type: string }
- *       - in: query
- *         name: projectId
- *         schema: { type: string }
- *       - in: query
- *         name: dealId
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get("/invoices", asyncHandler(controller.listInvoices));
+router.post(
+  "/invoices",
+  requireAnyPermission("finance.manage"),
+  asyncHandler(controller.createInvoice)
+);
+router.get(
+  "/invoices",
+  requireAnyPermission("finance.read", "finance.manage"),
+  asyncHandler(controller.listInvoices)
+);
 router.post(
   "/invoices/from-deal/:id",
-  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"),
+  requireAnyPermission("finance.manage"),
   asyncHandler(controller.generateInvoiceFromDeal)
 );
 router.post(
   "/invoices/from-milestone/:id",
-  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"),
+  requireAnyPermission("finance.manage"),
   asyncHandler(controller.generateInvoiceFromMilestone)
 );
-router.post("/payments", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.recordPayment));
+router.post(
+  "/payments",
+  requireAnyPermission("finance.manage"),
+  asyncHandler(controller.recordPayment)
+);
 
-// Expenses
+// Expenses — any authenticated user can submit; approve requires finance.manage
 router.post("/expenses", asyncHandler(controller.createExpense));
-router.get("/expenses", asyncHandler(controller.listExpenses));
+router.get(
+  "/expenses",
+  requireAnyPermission("finance.read", "finance.manage", "expense.submit", "finance.mine"),
+  asyncHandler(controller.listExpenses)
+);
 router.post(
   "/expenses/:id/approve",
-  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  requireAnyPermission("finance.manage"),
   asyncHandler(controller.approveExpense)
 );
 router.post(
   "/expenses/:id/reject",
-  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  requireAnyPermission("finance.manage"),
   asyncHandler(controller.rejectExpense)
 );
 
 router.post(
   "/salary-adjustments/:id/:action(approve|reject)",
-  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  requireAnyPermission("finance.manage"),
   asyncHandler(controller.decideSalaryRequest)
 );
 
 router.post(
   "/budget-reallocations/:id/:action(approve|reject)",
-  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  requireAnyPermission("finance.manage"),
   asyncHandler(controller.decideBudgetReallocation)
 );
 router.post(
   "/budget-reallocations",
-  requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN", "DEPARTMENT_HEAD"),
+  requireAnyPermission("finance.manage"),
   asyncHandler(controller.createBudgetReallocation)
 );
 
 // Budgets
-router.post("/budgets", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.createBudget));
-router.get("/budgets", asyncHandler(controller.listBudgets));
+router.post(
+  "/budgets",
+  requireAnyPermission("finance.manage"),
+  asyncHandler(controller.createBudget)
+);
+router.get(
+  "/budgets",
+  requireAnyPermission("finance.read", "finance.manage", "budget.read"),
+  asyncHandler(controller.listBudgets)
+);
 
-// ── Payroll Templates ──────────────────────────────────────────────────────────
-router.get("/payroll-templates", asyncHandler(controller.listPayrollTemplates));
-router.post("/payroll-templates", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.createPayrollTemplate));
-router.put("/payroll-templates/:id", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.updatePayrollTemplate));
-router.delete("/payroll-templates/:id", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.deletePayrollTemplate));
-router.post("/payroll-templates/preview", asyncHandler(controller.previewPayrollCalculation));
+// Payroll Templates
+router.get(
+  "/payroll-templates",
+  requireAnyPermission("finance.read", "finance.manage", "payroll.read", "payroll.run"),
+  asyncHandler(controller.listPayrollTemplates)
+);
+router.post(
+  "/payroll-templates",
+  requireAnyPermission("finance.manage", "payroll.run"),
+  asyncHandler(controller.createPayrollTemplate)
+);
+router.put(
+  "/payroll-templates/:id",
+  requireAnyPermission("finance.manage", "payroll.run"),
+  asyncHandler(controller.updatePayrollTemplate)
+);
+router.delete(
+  "/payroll-templates/:id",
+  requireAnyPermission("finance.manage"),
+  asyncHandler(controller.deletePayrollTemplate)
+);
+router.post(
+  "/payroll-templates/preview",
+  requireAnyPermission("finance.read", "finance.manage", "payroll.read", "payroll.run"),
+  asyncHandler(controller.previewPayrollCalculation)
+);
 
-// ── Employee Payroll Links ─────────────────────────────────────────────────────
-router.get("/payroll-dashboard", asyncHandler(controller.getPayrollDashboard));
-router.post("/payroll-links", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.linkEmployeeToTemplate));
-router.delete("/payroll-links/:userId", requireRole("FINANCE_MANAGER", "BUSINESS_ADMIN"), asyncHandler(controller.unlinkEmployee));
+// Employee Payroll Links
+router.get(
+  "/payroll-dashboard",
+  requireAnyPermission("finance.read", "finance.manage", "payroll.read", "payroll.run"),
+  asyncHandler(controller.getPayrollDashboard)
+);
+router.post(
+  "/payroll-links",
+  requireAnyPermission("finance.manage", "payroll.run"),
+  asyncHandler(controller.linkEmployeeToTemplate)
+);
+router.delete(
+  "/payroll-links/:userId",
+  requireAnyPermission("finance.manage"),
+  asyncHandler(controller.unlinkEmployee)
+);
 
 export const financeRoutes = router;

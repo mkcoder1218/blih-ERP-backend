@@ -117,6 +117,8 @@ import defineAttendanceRequest from "./AttendanceRequest";
 import defineOvertimeRequest from "./OvertimeRequest";
 import defineLeaveTemplate from "./LeaveTemplate";
 import defineLeaveRequest from "./LeaveRequest";
+import definePromotionRequest from "./PromotionRequest";
+import defineHREvent from "./HREvent";
 
 export type DB = {
   sequelize: typeof sequelize;
@@ -236,6 +238,8 @@ export type DB = {
   InterviewSkill: any;
   InterviewerNote: any;
   CandidateOnboarding: any;
+  PromotionRequest: any;
+  HREvent: any;
 };
 
 export const db: DB = {
@@ -356,6 +360,8 @@ export const db: DB = {
   InterviewSkill: defineInterviewSkill(sequelize, DataTypes),
   InterviewerNote: defineInterviewerNote(sequelize, DataTypes),
   CandidateOnboarding: defineCandidateOnboarding(sequelize, DataTypes),
+  PromotionRequest: definePromotionRequest(sequelize, DataTypes),
+  HREvent: defineHREvent(sequelize, DataTypes),
 };
 
 Object.values(db).forEach((model: any) => {

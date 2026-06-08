@@ -17,6 +17,33 @@ export class FinanceController {
     } catch(e: any) { errorResponse(res, e.message); }
   };
 
+  // Self-scoped: returns only the requesting user's own expenses, payroll records, and benefit enrollments
+  workforceMe = async (req: Request, res: Response) => {
+    try {
+      const { businessId, id: userId } = req.user!;
+      const [expenses, payrollRecords, enrollments] = await Promise.all([
+        db.Expense.findAll({
+          where: { businessId, requestedByUserId: userId },
+          include: [{ model: db.Department, attributes: ['id', 'name'] }],
+          order: [['expenseDate', 'DESC']],
+        }),
+        db.PayrollRecord.findAll({
+          where: { businessId, employeeUserId: userId },
+          include: [{ model: db.Department, as: 'department', attributes: ['id', 'name'] }],
+          order: [['periodEnd', 'DESC']],
+        }),
+        db.FinanceBenefitEnrollment.findAll({
+          where: { businessId, employeeUserId: userId },
+          include: [
+            { model: db.FinanceBenefit, as: 'benefit', attributes: ['id', 'name', 'category', 'employerSharePercent', 'employeeSharePercent'] },
+            { model: db.Department, as: 'department', attributes: ['id', 'name'] },
+          ],
+        }),
+      ]);
+      successResponse(res, { expenses, payrollRecords, enrollments }, "My finance data loaded");
+    } catch(e: any) { errorResponse(res, e.message); }
+  };
+
   exportWorkforce = async (req: Request, res: Response) => {
     try {
       const tab = String(req.params.tab || 'overview');
