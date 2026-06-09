@@ -4,7 +4,7 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { registerSchema, loginSchema, selectWorkspaceSchema, publicRegisterSchema } from "../../validators/auth.validator";
 import { AuthController } from "./auth.controller";
 import { authRequired } from "../../middlewares/auth";
-import { authRateLimiter } from "../../middlewares/security";
+import { authRateLimiter, publicRegisterLimiter } from "../../middlewares/security";
 import { uploadProfileImage } from "../../middlewares/profileImageUpload";
 import multer from "multer";
 
@@ -96,13 +96,14 @@ router.post("/logout", authRequired, asyncHandler(controller.logout));
 // ── Public self-registration (no auth) ────────────────────────────────────────
 router.get(
   "/public-register/:businessSlug/config",
-  authRateLimiter,
+  publicRegisterLimiter,
   asyncHandler(controller.getPublicRegistrationConfig),
 );
 
 // ── Public department + position lookup for registration form ─────────────────
 router.get(
   "/public-register/:businessSlug/departments",
+  publicRegisterLimiter,
   asyncHandler(controller.publicListDepartments),
 );
 router.post(
@@ -112,6 +113,7 @@ router.post(
 );
 router.get(
   "/public-register/:businessSlug/positions",
+  publicRegisterLimiter,
   asyncHandler(controller.publicListPositions),
 );
 router.post(

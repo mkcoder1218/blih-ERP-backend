@@ -22,6 +22,16 @@ export const authRateLimiter = rateLimit({
    legacyHeaders: false,
 });
 
+// More lenient limiter for public read-only registration endpoints
+// (config lookup, department/position lists) — these fire on every step render
+export const publicRegisterLimiter = rateLimit({
+   windowMs: 15 * 60 * 1000,    // 15 min
+   max: 300,                     // 300 reads per IP per window
+   message: 'Too many requests, please try again later',
+   standardHeaders: true,
+   legacyHeaders: false,
+});
+
 export const securityHeaders = helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 });
