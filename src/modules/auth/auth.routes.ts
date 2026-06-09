@@ -16,7 +16,7 @@ const publicUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     cb(null, allowed.includes(file.mimetype));
   },
 });
@@ -122,7 +122,10 @@ router.post(
 router.post(
   "/public-register",
   authRateLimiter,
-  publicUpload.single('idDocument'),
+  publicUpload.fields([
+    { name: 'idDocumentFront', maxCount: 1 },
+    { name: 'idDocumentBack',  maxCount: 1 },
+  ]),
   validate(publicRegisterSchema),
   asyncHandler(controller.publicRegister),
 );

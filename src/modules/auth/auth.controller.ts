@@ -262,6 +262,7 @@ export class AuthController {
         businessSlug, fullName, email, password, phone,
         // Personal info
         dateOfBirth, nationalId, address, city, country,
+        zipCode, gender, maritalStatus, nationality,
         // Work info
         departmentId, positionId, hireDate, employmentType, requestedRoleKey,
         // Emergency contact
@@ -321,17 +322,15 @@ export class AuthController {
         isPlatformSuperAdmin: false,
       });
 
-      // 7. Save ID document file if uploaded
-      let idDocumentUrl: string | null = null;
-      if ((req as any).file) {
+      // 7. Save ID document files if uploaded (front + back)
+      const saveIdFile = async (file: Express.Multer.File, side: 'front' | 'back'): Promise<string | null> => {
         try {
-          const file: Express.Multer.File = (req as any).file;
-          const fs    = require('fs');
-          const path  = require('path');
+          const fs     = require('fs');
+          const path   = require('path');
           const crypto = require('crypto');
-          const ext = path.extname(file.originalname) || '.bin';
-          const safeName = crypto.randomBytes(16).toString('hex') + ext;
-          const uploadDir = path.join(process.cwd(), 'uploads', businessId, 'identity_docs');
+          const ext      = path.extname(file.originalname) || '.bin';
+          const safeName = crypto.randomBytes(16).toString('hex') + `_${side}` + ext;
+          const uploadDir  = path.join(process.cwd(), 'uploads', businessId, 'identity_docs');
           if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
           const storagePath = path.join(uploadDir, safeName);
           fs.writeFileSync(storagePath, file.buffer);
@@ -346,23 +345,33 @@ export class AuthController {
             storageProvider: 'local',
             storagePath,
             status:          'active',
-            metadata:        { documentType: 'identity_document', selfRegistered: true },
+            metadata:        { documentType: 'identity_document', side, selfRegistered: true },
           });
-          idDocumentUrl = `/uploads/${businessId}/identity_docs/${safeName}`;
 
-          // Attach to profile
           await db.EntityAttachment.create({
             businessId,
             fileAssetId:    asset.id,
             entityType:     'business_user_profile',
             entityId:       user.id,
             moduleKey:      'profiles',
-            attachmentType: 'identity_document',
+            attachmentType: `identity_document_${side}`,
           }).catch(() => null);
+
+          return `/uploads/${businessId}/identity_docs/${safeName}`;
         } catch (fileErr) {
-          console.error('[PublicRegister] Failed to save ID document:', fileErr);
+          console.error(`[PublicRegister] Failed to save ID document (${side}):`, fileErr);
+          return null;
         }
-      }
+      };
+
+      const uploadedFiles = (req as any).files as Record<string, Express.Multer.File[]> | undefined;
+      const frontFile = uploadedFiles?.['idDocumentFront']?.[0];
+      const backFile  = uploadedFiles?.['idDocumentBack']?.[0];
+
+      const idDocumentFrontUrl = frontFile ? await saveIdFile(frontFile, 'front') : null;
+      const idDocumentBackUrl  = backFile  ? await saveIdFile(backFile,  'back')  : null;
+      // Keep a single idDocumentUrl pointing to the front for backwards compatibility
+      const idDocumentUrl = idDocumentFrontUrl;
 
       // 7b. Create BusinessUserProfile with full employee metadata
       const emergencyContact = (emergencyName || emergencyPhone) ? {
@@ -377,17 +386,26 @@ export class AuthController {
 
       await db.BusinessUserProfile.upsert({
         businessId,
-        userId:       user.id,
-        departmentId: departmentId || null,
-        positionId:   positionId   || null,
-        workEmail:    normalizedEmail,
-        workPhone:    phone || null,
-        status:       autoApprove ? 'active' : 'pending',
+        userId:         user.id,
+        departmentId:   departmentId   || null,
+        positionId:     positionId     || null,
+        workEmail:      normalizedEmail,
+        workPhone:      phone          || null,
+        employmentType: employmentType || null,
+        joinedAt:       hireDate       ? new Date(hireDate) : null,
+        status:         autoApprove ? 'active' : 'pending',
         settings: {
           fullName,
           email:            normalizedEmail,
-          phone:            phone || null,
-          address:          address || null,
+          phone:            phone            || null,
+          address:          address          || null,
+          city:             city             || null,
+          country:          country          || null,
+          zipCode:          zipCode          || null,
+          gender:           gender           || null,
+          maritalStatus:    maritalStatus    || null,
+          nationality:      nationality      || null,
+          dateOfBirth:      dateOfBirth      || null,
           selfRegistered:   true,
           requestedRoleKey: requestedRoleKey || null,
         },
@@ -406,14 +424,21 @@ export class AuthController {
         salaryInfo:       {},
         emergencyContact: emergencyContact ?? {},
         metadata: {
-          dateOfBirth:      dateOfBirth   || null,
-          nationalId:       nationalId    || null,
-          idDocumentUrl:    idDocumentUrl || null,
-          city:             city          || null,
-          country:          country       || null,
-          bankDetails:      (bankName || bankAccount) ? [{ bankName: bankName || null, accountNumber: bankAccount || null }] : [],
-          selfRegistered:   true,
-          requestedRoleKey: requestedRoleKey || null,
+          dateOfBirth:        dateOfBirth    || null,
+          nationalId:         nationalId     || null,
+          idDocumentUrl:      idDocumentUrl  || null,
+          idDocumentFrontUrl: idDocumentFrontUrl || null,
+          idDocumentBackUrl:  idDocumentBackUrl  || null,
+          address:            address        || null,
+          city:               city           || null,
+          country:            country        || null,
+          zipCode:            zipCode        || null,
+          gender:             gender         || null,
+          maritalStatus:      maritalStatus  || null,
+          nationality:        nationality    || null,
+          bankDetails:        (bankName || bankAccount) ? [{ bankName: bankName || null, accountNumber: bankAccount || null }] : [],
+          selfRegistered:     true,
+          requestedRoleKey:   requestedRoleKey || null,
         },
       }).catch(() => null); // Non-fatal if EmployeeRecord creation fails (e.g. missing required fields)
 

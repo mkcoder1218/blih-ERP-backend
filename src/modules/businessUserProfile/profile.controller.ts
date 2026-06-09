@@ -148,10 +148,17 @@ export class ProfileController {
 
   private listDocumentsForProfile = async (userId: string, businessId: string) => {
     const prof = await this.service.ensureForUser(userId, businessId);
+    // Query attachments by both prof.id and userId — self-registered ID docs
+    // were saved with entityId = userId before the profileId was resolved.
+    const { Op } = require('sequelize');
     const attachments = await db.EntityAttachment.findAll({
-      where: { businessId, entityType: "business_user_profile", entityId: prof.id },
+      where: {
+        businessId,
+        entityType: 'business_user_profile',
+        entityId: { [Op.in]: [prof.id, userId] },
+      },
       include: [db.FileAsset],
-      order: [["createdAt", "DESC"]]
+      order: [['createdAt', 'DESC']],
     });
     const user = await db.User.findByPk(userId);
     const offers = await db.OfferLetter.findAll({
@@ -161,15 +168,28 @@ export class ProfileController {
 
     const uploaded = attachments.map((att: any) => {
       const file = att.FileAsset;
+      // Derive a human-readable name for identity documents
+      const typeMap: Record<string, string> = {
+        identity_document_front: 'National ID — Front',
+        identity_document_back:  'National ID — Back',
+        identity_document:       'National ID',
+      };
+      const readableName = typeMap[att.attachmentType]
+        || file?.originalName
+        || 'Document';
+      const readableType = typeMap[att.attachmentType]
+        || file?.mimeType
+        || att.attachmentType
+        || 'Document';
       return {
         id: att.id,
         source: "upload",
-        name: file?.originalName || "Document",
-        type: file?.mimeType || att.attachmentType || "Document",
+        name: readableName,
+        type: readableType,
         uploadedAt: att.createdAt,
         previewUrl: file?.publicUrl || null,
         downloadUrl: file?.id ? `/api/v1/files/${file.id}/download` : null,
-        fileId: file?.id || null
+        fileId: file?.id || null,
       };
     });
 
