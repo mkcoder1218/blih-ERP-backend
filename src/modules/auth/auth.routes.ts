@@ -100,6 +100,29 @@ router.get(
   asyncHandler(controller.getPublicRegistrationConfig),
 );
 
+// ── Public roles list for registration form ───────────────────────────────────
+router.get(
+  "/public-register/:businessSlug/roles",
+  publicRegisterLimiter,
+  asyncHandler(controller.publicListRoles),
+);
+
+// ── Public resubmit flow — fetch pre-fill data + resubmit ──────────────────
+router.get(
+  "/public-register/:businessSlug/resubmit/:token",
+  publicRegisterLimiter,
+  asyncHandler(controller.publicGetResubmitData),
+);
+router.post(
+  "/public-register/resubmit/:token",
+  authRateLimiter,
+  publicUpload.fields([
+    { name: 'idDocumentFront', maxCount: 1 },
+    { name: 'idDocumentBack',  maxCount: 1 },
+  ]),
+  asyncHandler(controller.publicResubmit),
+);
+
 // ── Public department + position lookup for registration form ─────────────────
 router.get(
   "/public-register/:businessSlug/departments",

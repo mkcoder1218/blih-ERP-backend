@@ -34,15 +34,21 @@ export class HRService {
 
   async listRecords(where: any = {}, limit: number = 20, offset: number = 0) {
      return db.EmployeeRecord.findAndCountAll({
-        where, 
-        limit, 
-        offset, 
+        where,
+        limit,
+        offset,
         order: [['createdAt', 'DESC']],
         include: [
-           { model: db.User, as: 'user', attributes: ['id', 'fullName', 'email', 'phone'] },
+           {
+             model: db.User, as: 'user',
+             attributes: ['id', 'fullName', 'email', 'phone', 'status'],
+             // Exclude self-registered users awaiting HR approval
+             where: { status: 'active' },
+             required: true,
+           },
            { model: db.Department, as: 'department', attributes: ['id', 'name'] },
-           { model: db.Position, as: 'position', attributes: ['id', 'title'] }
-        ]
+           { model: db.Position,   as: 'position',   attributes: ['id', 'title'] },
+        ],
      });
   }
 

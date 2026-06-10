@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { authRequired } from "../../middlewares/auth";
 import { requireAnyPermission } from "../../middlewares/permission";
 import { requireActiveModule } from "../../middlewares/requireActiveModule";
@@ -102,6 +102,32 @@ router.patch(
   "/records/me",
   authRequired,
   asyncHandler(controller.updateSelfRecord),
+);
+
+// -- Pending Self-Registrations -- HR Approval Workflow
+router.get(
+  "/pending-registrations",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write"),
+  asyncHandler(controller.listPendingRegistrations),
+);
+router.get(
+  "/pending-registrations/:userId",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write"),
+  asyncHandler(controller.getPendingRegistration),
+);
+router.post(
+  "/pending-registrations/:userId/approve",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(controller.approveRegistration),
+);
+router.post(
+  "/pending-registrations/:userId/reject",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(controller.rejectRegistration),
 );
 
 export const hrRoutes = router;
@@ -273,7 +299,7 @@ publicRecruitmentRoutes.post(
   asyncHandler(recruitmentController.publicUploadResume),
 );
 
-// Public interview acceptance/decline (no auth — candidate clicks link from email)
+// Public interview acceptance/decline (no auth â€” candidate clicks link from email)
 publicRecruitmentRoutes.get(
   "/interviews/respond",
   asyncHandler(recruitmentController.respondToInterview),
@@ -527,3 +553,4 @@ router.patch(
   requireAnyPermission("hr.write"),
   asyncHandler(perfController.updateExitStatus),
 );
+
