@@ -1,96 +1,75 @@
-name: Deploy Backend to Hostinger VPS
+deploy:
+  name: Deploy to Hostinger VPS
+  needs: validate
+  runs-on: ubuntu-latest
+  environment: production
 
-on:
-  push:
-    branches:
-      - master
-  workflow_dispatch:
+  steps:
+    - name: Test whether VPS SSH port is reachable
+      env:
+        SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
+        SSH_PORT: ${{ secrets.HOSTINGER_PORT || 22 }}
+      run: |
+        set -e
 
-concurrency:
-  group: hostinger-backend-production
-  cancel-in-progress: true
+        echo "Testing TCP connection to VPS SSH port..."
 
-jobs:
-  validate:
-    name: Validate backend
-    runs-on: ubuntu-latest
+        if timeout 10 bash -c "</dev/tcp/$SSH_HOST/$SSH_PORT"; then
+          echo "SUCCESS: VPS SSH port is reachable."
+        else
+          echo "FAILED: GitHub runner cannot reach VPS SSH port."
+          exit 1
+        fi
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Deploy over SSH
+      uses: appleboy/ssh-action@v1
+      env:
+        DEPLOY_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH }}
+        REPOSITORY: ${{ github.repository }}
+        BRANCH: ${{ github.ref_name }}
+        ENV_PRODUCTION_B64: ${{ secrets.ENV_PRODUCTION_B64 }}
 
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.12.0
-          cache: npm
+      with:
+        host: ${{ secrets.HOSTINGER_HOST }}
+        username: ${{ secrets.HOSTINGER_USER }}
+        key: ${{ secrets.HOSTINGER_SSH_KEY }}
+        port: ${{ secrets.HOSTINGER_PORT || 22 }}
 
-      - name: Install dependencies
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: "true"
-        run: npm ci
+        timeout: 30s
+        command_timeout: 30m
 
-      - name: Build TypeScript
-        run: npm run build
+        envs: DEPLOY_PATH,REPOSITORY,BRANCH,ENV_PRODUCTION_B64
 
-  deploy:
-    name: Deploy to Hostinger VPS
-    needs: validate
-    runs-on: ubuntu-latest
-    environment: production
+        script: |
+          set -eu
 
-    steps:
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1
-        env:
-          DEPLOY_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH }}
-          REPOSITORY: ${{ github.repository }}
-          BRANCH: ${{ github.ref_name }}
-          ENV_PRODUCTION_B64: ${{ secrets.ENV_PRODUCTION_B64 }}
+          if [ -z "$DEPLOY_PATH" ]; then
+            echo "HOSTINGER_DEPLOY_PATH secret is required"
+            exit 1
+          fi
 
-        with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USER }}
-          key: ${{ secrets.HOSTINGER_SSH_KEY }}
-          port: ${{ secrets.HOSTINGER_PORT || 22 }}
+          mkdir -p "$DEPLOY_PATH"
 
-          timeout: 120s
-          command_timeout: 30m
+          if [ ! -d "$DEPLOY_PATH/.git" ]; then
+            git clone --branch "$BRANCH" "https://github.com/$REPOSITORY.git" "$DEPLOY_PATH"
+          fi
 
-          envs: DEPLOY_PATH,REPOSITORY,BRANCH,ENV_PRODUCTION_B64
+          cd "$DEPLOY_PATH"
 
-          script_stop: true
+          git fetch origin "$BRANCH"
+          git checkout "$BRANCH"
+          git reset --hard "origin/$BRANCH"
 
-          script: |
-            set -eu
+          if [ -z "$ENV_PRODUCTION_B64" ]; then
+            echo "ENV_PRODUCTION_B64 secret is required"
+            exit 1
+          fi
 
-            if [ -z "$DEPLOY_PATH" ]; then
-              echo "HOSTINGER_DEPLOY_PATH secret is required"
-              exit 1
-            fi
+          printf '%s' "$ENV_PRODUCTION_B64" | base64 -d > .env.production
+          chmod 600 .env.production
 
-            mkdir -p "$DEPLOY_PATH"
+          docker compose pull db
+          docker compose up -d --build --remove-orphans
+          docker image prune -f
 
-            if [ ! -d "$DEPLOY_PATH/.git" ]; then
-              git clone --branch "$BRANCH" "https://github.com/$REPOSITORY.git" "$DEPLOY_PATH"
-            fi
-
-            cd "$DEPLOY_PATH"
-
-            git fetch origin "$BRANCH"
-            git checkout "$BRANCH"
-            git reset --hard "origin/$BRANCH"
-
-            if [ -z "$ENV_PRODUCTION_B64" ]; then
-              echo "ENV_PRODUCTION_B64 secret is required"
-              exit 1
-            fi
-
-            printf '%s' "$ENV_PRODUCTION_B64" | base64 -d > .env.production
-            chmod 600 .env.production
-
-            docker compose pull db
-            docker compose up -d --build --remove-orphans
-            docker image prune -f
-
-            docker compose ps
+          docker compose ps
