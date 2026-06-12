@@ -35,8 +35,8 @@ module.exports = {
     if (!(await tableExists(queryInterface, "projects"))) {
       await queryInterface.createTable("projects", {
         ...common(Sequelize),
-        clientId: { type: Sequelize.UUID, allowNull: true, references: { model: "clients", key: "id" }, onDelete: "SET NULL" },
-        dealId: { type: Sequelize.UUID, allowNull: true, references: { model: "deals", key: "id" }, onDelete: "SET NULL" },
+        clientId: { type: Sequelize.UUID, allowNull: true, references: { model: "crm_clients", key: "id" }, onDelete: "SET NULL" },
+        dealId: { type: Sequelize.UUID, allowNull: true, references: { model: "crm_deals", key: "id" }, onDelete: "SET NULL" },
         ownerEmployeeId: { type: Sequelize.UUID, allowNull: true, references: { model: "hr_employee_records", key: "id" }, onDelete: "SET NULL" },
         managerEmployeeId: { type: Sequelize.UUID, allowNull: true, references: { model: "hr_employee_records", key: "id" }, onDelete: "SET NULL" },
         projectManagerUserId: { type: Sequelize.UUID, allowNull: true, references: { model: "users", key: "id" }, onDelete: "SET NULL" },

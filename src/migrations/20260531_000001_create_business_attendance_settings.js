@@ -1,8 +1,25 @@
 'use strict';
 
+async function tableExists(queryInterface, tableName) {
+  try {
+    await queryInterface.describeTable(tableName);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** @type {import('sequelize').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    if (!(await tableExists(queryInterface, 'businesses'))) {
+      return;
+    }
+
+    if (await tableExists(queryInterface, 'business_attendance_settings')) {
+      return;
+    }
+
     await queryInterface.createTable('business_attendance_settings', {
       id: {
         type: Sequelize.UUID,
@@ -35,6 +52,8 @@ module.exports = {
   },
 
   async down(queryInterface) {
-    await queryInterface.dropTable('business_attendance_settings');
+    if (await tableExists(queryInterface, 'business_attendance_settings')) {
+      await queryInterface.dropTable('business_attendance_settings');
+    }
   }
 };
