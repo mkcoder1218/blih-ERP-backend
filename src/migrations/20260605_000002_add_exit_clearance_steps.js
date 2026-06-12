@@ -18,6 +18,10 @@ async function addIndexSafe(queryInterface, tableName, fields, name, options = {
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    if (!(await tableExists(queryInterface, "businesses")) || !(await tableExists(queryInterface, "hr_exit_processes"))) {
+      return;
+    }
+
     if (!(await tableExists(queryInterface, "hr_exit_clearance_steps"))) {
       await queryInterface.createTable("hr_exit_clearance_steps", {
         id: { type: Sequelize.UUID, defaultValue: Sequelize.UUIDV4, primaryKey: true },
