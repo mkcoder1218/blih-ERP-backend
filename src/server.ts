@@ -17,7 +17,7 @@ async function start() {
   initJobs();
 
   server.listen(env.port, () => {
-    // eslint-disable-next-line no-console
+    // -disable-next-line no-console
     console.log(`Blih ERP backend listening on :${env.port} (${env.nodeEnv})`);
   });
 }
