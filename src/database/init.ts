@@ -207,6 +207,7 @@ export async function initDatabase() {
       await ensureRolesDomainSchema();
       await ensureOfferLettersSchema();
       await ensureCandidateOnboardingSchema();
+      await ensurePolicySchema();
       await ensureNewModelsSchema();
     }
 
@@ -225,6 +226,72 @@ export async function initDatabase() {
     // eslint-disable-next-line no-console
     console.error("DB init failed", err);
     throw err;
+  }
+}
+
+async function ensurePolicySchema() {
+  const qi = sequelize.getQueryInterface();
+  const { DataTypes } = require("sequelize");
+
+  const hasPolicies = await tableExists("policies");
+  if (!hasPolicies) {
+    await qi.createTable("policies", {
+      id: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        primaryKey: true,
+        defaultValue: DataTypes.UUIDV4,
+      },
+      businessId: { type: DataTypes.UUID, allowNull: true },
+      policyType: { type: DataTypes.STRING(120), allowNull: false },
+      title: { type: DataTypes.STRING(255), allowNull: false },
+      slug: { type: DataTypes.STRING(160), allowNull: false },
+      version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+      status: { type: DataTypes.STRING(40), allowNull: false, defaultValue: "draft" },
+      isRequired: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      publishedAt: { type: DataTypes.DATE, allowNull: true },
+      contentHtml: { type: DataTypes.TEXT, allowNull: true },
+      contentJson: { type: DataTypes.JSONB, allowNull: true },
+      contentText: { type: DataTypes.TEXT, allowNull: true },
+      createdById: { type: DataTypes.UUID, allowNull: true },
+      updatedById: { type: DataTypes.UUID, allowNull: true },
+      acceptanceCount: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      metadata: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+      createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      deletedAt: { type: DataTypes.DATE, allowNull: true },
+    } as any);
+    await qi.addIndex("policies", ["businessId"], { name: "policies_businessId_idx" } as any);
+    await qi.addIndex("policies", ["policyType", "status"], { name: "policies_policyType_status_idx" } as any);
+    await qi.addIndex("policies", ["slug"], { name: "policies_slug_idx" } as any);
+  }
+
+  const hasAcceptances = await tableExists("policy_acceptances");
+  if (!hasAcceptances) {
+    await qi.createTable("policy_acceptances", {
+      id: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        primaryKey: true,
+        defaultValue: DataTypes.UUIDV4,
+      },
+      policyId: { type: DataTypes.UUID, allowNull: false },
+      userId: { type: DataTypes.UUID, allowNull: false },
+      businessId: { type: DataTypes.UUID, allowNull: true },
+      policyVersion: { type: DataTypes.INTEGER, allowNull: false },
+      acceptedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      metadata: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+      createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      deletedAt: { type: DataTypes.DATE, allowNull: true },
+    } as any);
+    await qi.addIndex("policy_acceptances", ["policyId"], { name: "policy_acceptances_policyId_idx" } as any);
+    await qi.addIndex("policy_acceptances", ["userId"], { name: "policy_acceptances_userId_idx" } as any);
+    await qi.addIndex("policy_acceptances", ["businessId"], { name: "policy_acceptances_businessId_idx" } as any);
+    await qi.addIndex("policy_acceptances", ["policyId", "userId"], {
+      name: "policy_acceptances_policyId_userId_unique",
+      unique: true,
+    } as any);
   }
 }
 

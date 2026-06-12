@@ -26,6 +26,7 @@ export type Env = {
   authRateLimitMaxReqs: number;
   jobWorkerEnabled: boolean;
   jobTimezone: string;
+  guestApiKey?: string;
   nodeEnv: string;
   port: number;
   jwtAccessSecret: string;
@@ -57,6 +58,7 @@ export const env: Env = {
   authRateLimitMaxReqs: Number(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || 20),
   jobWorkerEnabled: toBool(process.env.JOB_WORKER_ENABLED, false),
   jobTimezone: process.env.JOB_TIMEZONE || "UTC",
+  guestApiKey: process.env.GUEST_API_KEY,
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 4000),
 

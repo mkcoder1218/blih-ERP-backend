@@ -119,6 +119,8 @@ import defineLeaveTemplate from "./LeaveTemplate";
 import defineLeaveRequest from "./LeaveRequest";
 import definePromotionRequest from "./PromotionRequest";
 import defineHREvent from "./HREvent";
+import definePolicy from "./Policy";
+import definePolicyAcceptance from "./PolicyAcceptance";
 
 export type DB = {
   sequelize: typeof sequelize;
@@ -240,6 +242,8 @@ export type DB = {
   CandidateOnboarding: any;
   PromotionRequest: any;
   HREvent: any;
+  Policy: any;
+  PolicyAcceptance: any;
 };
 
 export const db: DB = {
@@ -362,6 +366,8 @@ export const db: DB = {
   CandidateOnboarding: defineCandidateOnboarding(sequelize, DataTypes),
   PromotionRequest: definePromotionRequest(sequelize, DataTypes),
   HREvent: defineHREvent(sequelize, DataTypes),
+  Policy: definePolicy(sequelize, DataTypes),
+  PolicyAcceptance: definePolicyAcceptance(sequelize, DataTypes),
 };
 
 Object.values(db).forEach((model: any) => {

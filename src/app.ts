@@ -51,6 +51,7 @@ import { attendanceHrLateReasonsRoutes } from "./modules/attendanceHrLateReasons
 import { attendanceRequestsRoutes } from "./modules/attendanceRequests/attendanceRequests.routes";
 import { overtimeRoutes } from "./modules/overtime/overtime.routes";
 import { leaveRoutes } from "./modules/leave/leave.routes";
+import { policyRoutes } from "./modules/policy/policy.routes";
 
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -80,7 +81,7 @@ const corsOptions: CorsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "x-api-key"],
   exposedHeaders: ["Content-Disposition"],
 };
 app.use(cors(corsOptions));
@@ -151,6 +152,7 @@ apiRouter.use("/attendance/hr/late-reasons", attendanceHrLateReasonsRoutes);
 apiRouter.use("/attendance-requests", attendanceRequestsRoutes);
 apiRouter.use("/overtime-requests", overtimeRoutes);
 apiRouter.use("/leave-requests", leaveRoutes);
+apiRouter.use("/policies", policyRoutes);
 
 app.use(`/api/${env.apiVersion}`, apiRouter);
 

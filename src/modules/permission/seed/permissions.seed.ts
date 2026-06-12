@@ -69,6 +69,7 @@ export const SYSTEM_PERMISSIONS = [
   // ── Attendance & Time ────────────────────────────────────────────────────────
   { module: "attendance", action: "read",   key: "attendance.read",  description: "View attendance logs and timesheets for all staff" },
   { module: "attendance", action: "manage", key: "attendance.manage",description: "Adjust timesheets, manage shifts, and review late reasons" },
+  { module: "attendance", action: "late_reason.read", key: "attendance.late_reason.read", description: "View active late check-in reasons" },
   // Self-service: employees check themselves in and manage their own requests
   { module: "attendance", action: "self",   key: "attendance.self",  description: "Self check-in, view own history, and submit attendance requests" },
   { module: "leave",      action: "read",   key: "leave.read",       description: "View leave balances and requests" },

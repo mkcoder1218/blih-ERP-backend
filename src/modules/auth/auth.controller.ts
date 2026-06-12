@@ -237,6 +237,7 @@ export class AuthController {
     const roles = (user.Roles || []).map((r: any) => r.key);
     const permissionsSet = new Set<string>();
     (user.Roles || []).forEach((r: any) => (r.Permissions || []).forEach((p: any) => permissionsSet.add(p.key)));
+    ["attendance.self", "profiles.self"].forEach((key) => permissionsSet.add(key));
     const department = (profile as any)?.department || (employeeRecord as any)?.department || null;
     const position = (profile as any)?.position || (employeeRecord as any)?.position || null;
 
