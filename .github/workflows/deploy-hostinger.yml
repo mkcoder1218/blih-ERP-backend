@@ -40,6 +40,30 @@ jobs:
     environment: production
 
     steps:
+      - name: Validate deployment secrets
+        env:
+          SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
+          SSH_PORT: ${{ secrets.HOSTINGER_PORT || '22' }}
+          SSH_USER: ${{ secrets.HOSTINGER_USER }}
+          SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH }}
+          ENV_PRODUCTION_B64: ${{ secrets.ENV_PRODUCTION_B64 }}
+        run: |
+          set -e
+
+          missing=0
+          for name in SSH_HOST SSH_PORT SSH_USER SSH_KEY DEPLOY_PATH ENV_PRODUCTION_B64; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required deployment secret/env value: $name"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            echo "Add the missing HOSTINGER_* / ENV_PRODUCTION_B64 secrets to the repository or production environment secrets."
+            exit 1
+          fi
+
       - name: Test whether VPS SSH port is reachable
         env:
           SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
@@ -49,7 +73,7 @@ jobs:
 
           echo "Testing TCP connection to VPS SSH port..."
 
-          if timeout 10 bash -c "</dev/tcp/$SSH_HOST/$SSH_PORT"; then
+          if timeout 10 bash -c "</dev/tcp/${SSH_HOST}/${SSH_PORT}"; then
             echo "SUCCESS: VPS SSH port is reachable."
           else
             echo "FAILED: GitHub runner cannot reach VPS SSH port."
