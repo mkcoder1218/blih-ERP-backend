@@ -513,10 +513,15 @@ export class HRPerformanceController {
                    {
                        model: db.User,
                        as: 'initiator',
-                       attributes: ['id', 'fullName', 'email'],
-                   },
-               ],
-           });
+                   attributes: ['id', 'fullName', 'email'],
+               },
+               {
+                   model: db.User,
+                   as: 'reviewer',
+                   attributes: ['id', 'fullName', 'email'],
+               },
+           ],
+       });
 
            successResponse(res, { rows: result.rows, count: result.count });
        } catch (e: any) { errorResponse(res, e.message); }
@@ -662,7 +667,7 @@ export class HRPerformanceController {
    // POST /hr/exit/resign — employee submits offboarding request with rich text letter
    submitResignation = async (req: Request, res: Response) => {
        try {
-           const { effectiveDate, reason, letterHtml, noticePeriodDays } = req.body;
+           const { effectiveDate, reason, letterHtml, noticePeriodDays, templateId, templateSnapshot, formValues } = req.body;
            const businessId = req.user!.businessId;
 
            if (!effectiveDate) {
@@ -693,10 +698,17 @@ export class HRPerformanceController {
                    effectiveDate,
                    reason:            reason || null,
                    status:            'pending',
+                   reviewedByUserId:   null,
+                   reviewedAt:         null,
+                   approvalNote:       null,
+                   rejectionReason:    null,
                    clearanceData: {
                        ...(existing?.clearanceData || {}),
                        letterHtml:       letterHtml || null,
                        noticePeriodDays: noticePeriodDays || 30,
+                       templateId:        templateId || null,
+                       templateSnapshot:  templateSnapshot || null,
+                       formValues:        formValues || {},
                    },
                };
 
@@ -757,13 +769,22 @@ export class HRPerformanceController {
    updateExitStatus = async (req: Request, res: Response) => {
        try {
            const before = await db.ExitProcess.findOne({ where: { id: req.params.id, businessId: req.user!.businessId } });
-           const result = await this.service.processExit(req.user!.businessId, req.params.id, req.body.status);
+           const result = await this.service.processExit(req.user!.businessId, req.params.id, req.body.status, {
+               reviewedByUserId: req.user!.id,
+               effectiveDate: req.body.effectiveDate || req.body.confirmedLastWorkingDate,
+               approvalNote: req.body.approvalNote,
+               rejectionReason: req.body.rejectionReason || req.body.reason,
+           });
            await AuditLogService.log('UPDATED_EXIT_PROCESS', 'hr_exit_processes', String(result.id), null, { status: req.body.status }, req);
            await this.logExitEvent(
                req,
                String(result.id),
                req.body.status === 'in_progress'
                    ? 'EXIT_APPROVED'
+                   : req.body.status === 'interview_scheduled'
+                   ? 'EXIT_INTERVIEW_SCHEDULED'
+                   : req.body.status === 'rejected'
+                   ? 'EXIT_REJECTED'
                    : req.body.status === 'cancelled' && before?.status === 'pending'
                    ? 'EXIT_REVISION_REQUESTED'
                    : req.body.status === 'cancelled'
@@ -771,12 +792,33 @@ export class HRPerformanceController {
                    : req.body.status === 'completed'
                    ? 'EXIT_PROCESS_COMPLETED'
                    : 'EXIT_STATUS_UPDATED',
-               { fromStatus: before?.status, status: req.body.status }
+               { fromStatus: before?.status, status: req.body.status, approvalNote: req.body.approvalNote, rejectionReason: req.body.rejectionReason || req.body.reason }
            );
            successResponse(res, result);
        } catch (e: any) {
            const statusCode = e.message === 'Exit process not found.' ? 404 : 400;
            errorResponse(res, e.message, statusCode);
+       }
+   };
+
+   approveExitRequest = async (req: Request, res: Response) => {
+       req.body.status = 'in_progress';
+       return this.updateExitStatus(req, res);
+   };
+
+   rejectExitRequest = async (req: Request, res: Response) => {
+       if (!req.body.rejectionReason && !req.body.reason) return errorResponse(res, 'rejectionReason is required', 400);
+       req.body.status = 'rejected';
+       return this.updateExitStatus(req, res);
+   };
+
+   disableExitAccount = async (req: Request, res: Response) => {
+       try {
+           const result = await this.service.disableOffboardingAccount(req.user!.businessId, req.params.id, req.user!.id);
+           await this.logExitEvent(req, String(result.id), 'EXIT_ACCOUNT_DISABLED', { employeeUserId: result.employeeUserId });
+           successResponse(res, result, 'Employee account disabled and historical records preserved.');
+       } catch (e: any) {
+           errorResponse(res, e.message, e.message === 'Exit process not found.' ? 404 : 400);
        }
    };
 
@@ -928,12 +970,18 @@ export class HRPerformanceController {
            const interview = await db.ExitInterview.create({
                businessId: req.user!.businessId,
                exitProcessId: req.params.id,
-               scheduledAt: req.body.scheduledAt || new Date(),
+               title: req.body.title || 'Exit Interview',
+               scheduledAt: req.body.scheduledAt || (req.body.interviewDate ? new Date(`${req.body.interviewDate}T${req.body.startTime || '09:00'}:00`) : new Date()),
+               startTime: req.body.startTime || null,
+               endTime: req.body.endTime || null,
+               interviewType: req.body.interviewType || 'in-person',
                location: req.body.location || null,
                meetingUrl: req.body.meetingUrl || null,
                interviewerUserId: req.body.interviewerUserId || req.user!.id,
+               panel: req.body.panel || [],
                status: 'scheduled',
            });
+           await exitProcess.update({ status: 'interview_scheduled' });
            await this.logExitEvent(req, req.params.id, 'EXIT_INTERVIEW_SCHEDULED', { interviewId: interview.id, scheduledAt: interview.scheduledAt });
            successResponse(res, interview, 'Exit interview scheduled.', 201);
        } catch (e: any) { errorResponse(res, e.message); }
@@ -944,9 +992,9 @@ export class HRPerformanceController {
            const interview = await db.ExitInterview.findOne({ where: { id: req.params.interviewId, businessId: req.user!.businessId } });
            if (!interview) return errorResponse(res, 'Exit interview not found', 404);
            const allowed = [
-               'scheduledAt', 'location', 'meetingUrl', 'interviewerUserId', 'status', 'rating',
+               'title', 'scheduledAt', 'startTime', 'endTime', 'interviewType', 'location', 'meetingUrl', 'interviewerUserId', 'panel', 'status', 'rating',
                'reasonForLeaving', 'satisfactionScore', 'managementFeedback', 'workEnvironmentFeedback',
-               'careerDevelopmentFeedback', 'suggestions', 'wouldRecommendCompany', 'remarks'
+               'careerDevelopmentFeedback', 'suggestions', 'employeeConcerns', 'rehireEligibility', 'handoverNotes', 'finalRecommendation', 'wouldRecommendCompany', 'remarks'
            ];
            const payload: any = {};
            for (const key of allowed) if (req.body[key] !== undefined) payload[key] = req.body[key];
@@ -975,10 +1023,15 @@ export class HRPerformanceController {
                    workEnvironmentFeedback: req.body.workEnvironmentFeedback ?? interview.workEnvironmentFeedback,
                    careerDevelopmentFeedback: req.body.careerDevelopmentFeedback ?? interview.careerDevelopmentFeedback,
                    suggestions: req.body.suggestions ?? interview.suggestions,
+                   employeeConcerns: req.body.employeeConcerns ?? interview.employeeConcerns,
+                   rehireEligibility: req.body.rehireEligibility ?? interview.rehireEligibility,
+                   handoverNotes: req.body.handoverNotes ?? interview.handoverNotes,
+                   finalRecommendation: req.body.finalRecommendation ?? interview.finalRecommendation,
                    wouldRecommendCompany: req.body.wouldRecommendCompany ?? interview.wouldRecommendCompany,
                    remarks: req.body.remarks ?? interview.remarks,
                };
                const updated = await interview.update(payload, { transaction });
+               await db.ExitProcess.update({ status: 'interview_completed' }, { where: { id: interview.exitProcessId, businessId: req.user!.businessId }, transaction });
                await this.service.completeClearanceStepByKey(
                    req.user!.businessId,
                    interview.exitProcessId,

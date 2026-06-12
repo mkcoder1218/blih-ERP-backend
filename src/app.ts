@@ -57,7 +57,7 @@ import { swaggerSpec } from "./config/swagger";
 
 const app = express();
 
-// CORS must be first — before helmet, rate limiter, and everything else.
+// CORS must be first — before helmet, rat limiter, and everhing else.
 // The browser sends a preflight OPTIONS request before any authenticated request;
 // if CORS headers aren't on that response the browser blocks the actual request.
 const corsOptions: CorsOptions = {

@@ -553,4 +553,22 @@ router.patch(
   requireAnyPermission("hr.write"),
   asyncHandler(perfController.updateExitStatus),
 );
+router.post(
+  "/exit/:id/approve",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.approveExitRequest),
+);
+router.post(
+  "/exit/:id/reject",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.rejectExitRequest),
+);
+router.post(
+  "/exit/:id/disable-account",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.disableExitAccount),
+);
 

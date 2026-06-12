@@ -2,7 +2,7 @@
 /**
  * Sequelize CLI config (CommonJS).
  *
- * This file is referenced by `.sequelizerc` so that `npx sequelize-cli db:migrate`
+ * This file is referenced by `.sequelizerc` so that `npm run db:migrate`
  * works in local/dev/prod without needing `sequelize init`.
  */
 
@@ -31,7 +31,6 @@ module.exports = {
   test: { ...common, database: process.env.DB_NAME_TEST || common.database },
   production: {
     ...common,
-    database: process.env.DB_NAME_PRODUCTION || common.database,
+    database: common.database,
   },
 };
-

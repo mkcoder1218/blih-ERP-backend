@@ -8,9 +8,14 @@ const APPROVED_TASK_STATUSES = new Set(['APPROVED']);
 const BLOCKED_TASK_STATUSES = new Set(['BLOCKED']);
 const EXCLUDED_BLOCKER_TYPES = new Set(['dependency', 'client', 'resource', 'management']);
 const EXIT_STATUS_TRANSITIONS: Record<string, Set<string>> = {
-  pending: new Set(['in_progress', 'cancelled']),
+  pending: new Set(['in_progress', 'cancelled', 'rejected', 'interview_scheduled']),
+  interview_scheduled: new Set(['interview_completed', 'in_progress', 'cancelled', 'rejected']),
+  interview_completed: new Set(['in_progress', 'cancelled', 'rejected']),
+  rejected: new Set(['pending']),
   cancelled: new Set(['pending']),
-  in_progress: new Set(['completed', 'cancelled'])
+  in_progress: new Set(['completed', 'cancelled', 'clearance_pending']),
+  clearance_pending: new Set(['completed', 'cancelled']),
+  completed: new Set(['account_disabled'])
 };
 
 export const EXIT_CLEARANCE_STEP_DEFINITIONS = [
@@ -90,7 +95,7 @@ export class HRPerformanceService {
      }
   }
 
-  async processExit(businessId: string, exitId: string, status: string) {
+  async processExit(businessId: string, exitId: string, status: string, options: any = {}) {
      const p = await db.ExitProcess.findOne({ where: { id: exitId, businessId } });
      if(!p) throw new Error("Exit process not found.");
 
@@ -101,10 +106,24 @@ export class HRPerformanceService {
 
      const employeeUserId = p.employeeUserId;
      
+     const payload: any = { status };
+     if (['in_progress', 'rejected', 'cancelled'].includes(status)) {
+        payload.reviewedByUserId = options.reviewedByUserId;
+        payload.reviewedAt = new Date();
+     }
+     if (status === 'in_progress') {
+        payload.effectiveDate = options.effectiveDate || p.effectiveDate;
+        payload.approvalNote = options.approvalNote ?? p.approvalNote;
+        payload.rejectionReason = null;
+     }
+     if (['rejected', 'cancelled'].includes(status)) {
+        payload.rejectionReason = options.rejectionReason ?? p.rejectionReason;
+     }
+
      if (status === 'completed') {
+        await this.assertOffboardingCanComplete(businessId, p);
         const emp = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
         if (emp) await emp.update({ employmentStatus: TERMINATED_EMPLOYMENT_STATUS });
-        // Normally disable db.User connection access implicitly here
      } else if (status === 'in_progress') {
         const emp = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
         if (emp) await emp.update({ employmentStatus: INACTIVE_EMPLOYMENT_STATUS });
@@ -112,7 +131,35 @@ export class HRPerformanceService {
         const emp = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
         if (emp) await emp.update({ employmentStatus: ACTIVE_EMPLOYMENT_STATUS });
      }
-     return p.update({ status });
+     return p.update(payload);
+  }
+
+  async assertOffboardingCanComplete(businessId: string, exitProcess: any) {
+     const interviews = await db.ExitInterview.findAll({ where: { businessId, exitProcessId: exitProcess.id } });
+     const hasOpenInterview = interviews.some((item: any) => item.status === 'scheduled');
+     if (hasOpenInterview) throw new Error('Exit interview must be completed, cancelled, or waived before completion.');
+
+     const mandatorySteps = await db.ExitClearanceStep.findAll({ where: { businessId, exitProcessId: exitProcess.id, required: true } });
+     const incompleteSteps = mandatorySteps.filter((step: any) => !['completed', 'waived'].includes(step.status));
+     if (incompleteSteps.length) throw new Error('All mandatory clearance and checklist items must be completed before completion.');
+
+     const mandatoryDocs = await db.ExitDocument.findAll({ where: { businessId, exitProcessId: exitProcess.id, required: true } });
+     const incompleteDocs = mandatoryDocs.filter((doc: any) => !['uploaded', 'verified', 'waived'].includes(doc.status));
+     if (incompleteDocs.length) throw new Error('All required documents must be generated, uploaded, verified, or waived before completion.');
+  }
+
+  async disableOffboardingAccount(businessId: string, exitId: string, actingUserId: string) {
+     const exitProcess = await db.ExitProcess.findOne({ where: { id: exitId, businessId } });
+     if (!exitProcess) throw new Error('Exit process not found.');
+     if (exitProcess.status !== 'completed') throw new Error('Offboarding must be completed before account deactivation.');
+     if (exitProcess.accountDisabledAt) return exitProcess;
+
+     await db.User.update({ status: 'inactive' }, { where: { id: exitProcess.employeeUserId, businessId } });
+     return exitProcess.update({
+       status: 'account_disabled',
+       accountDisabledAt: new Date(),
+       accountDisabledByUserId: actingUserId
+     });
   }
 
   async seedExitClearanceSteps(businessId: string, exitProcessId: string, transaction?: any) {
@@ -190,11 +237,14 @@ export class HRPerformanceService {
      if (updates.required !== undefined) payload.required = Boolean(updates.required);
      if (updates.notes !== undefined) payload.notes = updates.notes;
      if (updates.status !== undefined) {
-       if (!['pending', 'completed', 'waived'].includes(updates.status)) throw new Error('Invalid clearance step status.');
+       if (!['pending', 'completed', 'waived', 'blocked'].includes(updates.status)) throw new Error('Invalid clearance step status.');
        payload.status = updates.status;
-       payload.completedAt = updates.status === 'pending' ? null : new Date();
-       payload.completedByUserId = updates.status === 'pending' ? null : actingUserId;
+       payload.completedAt = ['pending', 'blocked'].includes(updates.status) ? null : new Date();
+       payload.completedByUserId = ['pending', 'blocked'].includes(updates.status) ? null : actingUserId;
+       payload.blockedReason = updates.status === 'blocked' ? (updates.blockedReason || updates.notes || 'Blocked') : null;
      }
+     if (updates.blockedReason !== undefined) payload.blockedReason = updates.blockedReason;
+     if (updates.attachments !== undefined) payload.attachments = Array.isArray(updates.attachments) ? updates.attachments : [];
 
      return step.update(payload);
   }

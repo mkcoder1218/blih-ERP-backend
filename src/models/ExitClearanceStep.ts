@@ -15,7 +15,9 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): ExitClearanc
     status: { type: dataTypes.STRING(50), allowNull: false, defaultValue: "pending" },
     completedAt: { type: dataTypes.DATE, allowNull: true },
     completedByUserId: { type: dataTypes.UUID, allowNull: true },
-    notes: { type: dataTypes.TEXT, allowNull: true }
+    notes: { type: dataTypes.TEXT, allowNull: true },
+    blockedReason: { type: dataTypes.TEXT, allowNull: true },
+    attachments: { type: dataTypes.JSONB, allowNull: false, defaultValue: [] }
   }, { tableName: "hr_exit_clearance_steps", timestamps: true, paranoid: true }) as ExitClearanceStepModel;
 
   ExitClearanceStep.associate = (models: any) => {
