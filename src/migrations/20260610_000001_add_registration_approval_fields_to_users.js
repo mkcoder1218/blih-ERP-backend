@@ -1,5 +1,14 @@
 "use strict";
 
+async function tableExists(queryInterface, tableName) {
+  try {
+    await queryInterface.describeTable(tableName);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Migration: add self-registration approval workflow fields to users table.
  *
@@ -14,6 +23,10 @@
  */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    if (!(await tableExists(queryInterface, "users"))) {
+      return;
+    }
+
     const table = await queryInterface.describeTable("users");
 
     if (!table.registrationToken) {
@@ -53,6 +66,10 @@ module.exports = {
   },
 
   async down(queryInterface) {
+    if (!(await tableExists(queryInterface, "users"))) {
+      return;
+    }
+
     const table = await queryInterface.describeTable("users");
 
     if (table.approvedByUserId)   await queryInterface.removeColumn("users", "approvedByUserId");

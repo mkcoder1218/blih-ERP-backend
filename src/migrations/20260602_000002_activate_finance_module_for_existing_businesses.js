@@ -2,8 +2,21 @@
 
 const { randomUUID } = require("crypto");
 
+async function tableExists(queryInterface, tableName) {
+  try {
+    await queryInterface.describeTable(tableName);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
   async up(queryInterface, Sequelize) {
+    if (!(await tableExists(queryInterface, "businesses")) || !(await tableExists(queryInterface, "business_modules"))) {
+      return;
+    }
+
     const [businesses] = await queryInterface.sequelize.query(`
       SELECT b.id
       FROM businesses b
@@ -43,6 +56,10 @@ module.exports = {
   },
 
   async down(queryInterface) {
+    if (!(await tableExists(queryInterface, "business_modules"))) {
+      return;
+    }
+
     await queryInterface.sequelize.query(`
       UPDATE business_modules
       SET "status" = 'inactive',

@@ -24,10 +24,14 @@ module.exports = {
       return;
     }
 
+    const departmentReference = (await tableExists(queryInterface, "departments"))
+      ? { references: { model: "departments", key: "id" }, onDelete: "SET NULL" }
+      : {};
+
     if (!(await tableExists(queryInterface, "finance_budgets"))) {
       await queryInterface.createTable("finance_budgets", {
         ...common(queryInterface, Sequelize),
-        departmentId: { type: Sequelize.UUID, allowNull: true, references: { model: "departments", key: "id" }, onDelete: "SET NULL" },
+        departmentId: { type: Sequelize.UUID, allowNull: true, ...departmentReference },
         name: { type: Sequelize.STRING(255), allowNull: false },
         periodType: { type: Sequelize.STRING(50), defaultValue: "annual" },
         periodStart: { type: Sequelize.DATEONLY, allowNull: true },
@@ -44,7 +48,7 @@ module.exports = {
       ...common(queryInterface, Sequelize),
       employeeUserId: { type: Sequelize.UUID, allowNull: false, references: { model: "users", key: "id" }, onDelete: "CASCADE" },
       requestedByUserId: { type: Sequelize.UUID, allowNull: true, references: { model: "users", key: "id" }, onDelete: "SET NULL" },
-      departmentId: { type: Sequelize.UUID, allowNull: true, references: { model: "departments", key: "id" }, onDelete: "SET NULL" },
+      departmentId: { type: Sequelize.UUID, allowNull: true, ...departmentReference },
       currentSalary: { type: Sequelize.FLOAT, allowNull: false, defaultValue: 0 },
       requestedSalary: { type: Sequelize.FLOAT, allowNull: false, defaultValue: 0 },
       reason: { type: Sequelize.TEXT, allowNull: true },
@@ -59,7 +63,7 @@ module.exports = {
       await queryInterface.createTable("finance_payroll_records", {
       ...common(queryInterface, Sequelize),
       employeeUserId: { type: Sequelize.UUID, allowNull: false, references: { model: "users", key: "id" }, onDelete: "CASCADE" },
-      departmentId: { type: Sequelize.UUID, allowNull: true, references: { model: "departments", key: "id" }, onDelete: "SET NULL" },
+      departmentId: { type: Sequelize.UUID, allowNull: true, ...departmentReference },
       periodStart: { type: Sequelize.DATEONLY, allowNull: false },
       periodEnd: { type: Sequelize.DATEONLY, allowNull: false },
       payDate: { type: Sequelize.DATEONLY, allowNull: true },
@@ -79,7 +83,7 @@ module.exports = {
     if (!(await tableExists(queryInterface, "finance_benefits"))) {
       await queryInterface.createTable("finance_benefits", {
       ...common(queryInterface, Sequelize),
-      departmentId: { type: Sequelize.UUID, allowNull: true, references: { model: "departments", key: "id" }, onDelete: "SET NULL" },
+      departmentId: { type: Sequelize.UUID, allowNull: true, ...departmentReference },
       name: { type: Sequelize.STRING(160), allowNull: false },
       category: { type: Sequelize.STRING(80), allowNull: false },
       monthlyBudget: { type: Sequelize.FLOAT, defaultValue: 0 },
@@ -97,7 +101,7 @@ module.exports = {
       ...common(queryInterface, Sequelize),
       benefitId: { type: Sequelize.UUID, allowNull: false, references: { model: "finance_benefits", key: "id" }, onDelete: "CASCADE" },
       employeeUserId: { type: Sequelize.UUID, allowNull: false, references: { model: "users", key: "id" }, onDelete: "CASCADE" },
-      departmentId: { type: Sequelize.UUID, allowNull: true, references: { model: "departments", key: "id" }, onDelete: "SET NULL" },
+      departmentId: { type: Sequelize.UUID, allowNull: true, ...departmentReference },
       value: { type: Sequelize.FLOAT, defaultValue: 0 },
       status: { type: Sequelize.STRING(50), defaultValue: "active" },
       enrolledAt: { type: Sequelize.DATEONLY, allowNull: true }

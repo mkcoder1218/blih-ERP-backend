@@ -32,14 +32,34 @@ async function addIndexSafe(queryInterface, tableName, fields, name, options = {
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    if (!(await tableExists(queryInterface, "businesses"))) {
+      return;
+    }
+
+    const userReference = (await tableExists(queryInterface, "users"))
+      ? { references: { model: "users", key: "id" }, onDelete: "SET NULL" }
+      : {};
+    const clientReference = (await tableExists(queryInterface, "crm_clients"))
+      ? { references: { model: "crm_clients", key: "id" }, onDelete: "SET NULL" }
+      : {};
+    const dealReference = (await tableExists(queryInterface, "crm_deals"))
+      ? { references: { model: "crm_deals", key: "id" }, onDelete: "SET NULL" }
+      : {};
+    const employeeReference = (await tableExists(queryInterface, "hr_employee_records"))
+      ? { references: { model: "hr_employee_records", key: "id" }, onDelete: "SET NULL" }
+      : {};
+    const employeeCascadeReference = (await tableExists(queryInterface, "hr_employee_records"))
+      ? { references: { model: "hr_employee_records", key: "id" }, onDelete: "CASCADE" }
+      : {};
+
     if (!(await tableExists(queryInterface, "projects"))) {
       await queryInterface.createTable("projects", {
         ...common(Sequelize),
-        clientId: { type: Sequelize.UUID, allowNull: true, references: { model: "crm_clients", key: "id" }, onDelete: "SET NULL" },
-        dealId: { type: Sequelize.UUID, allowNull: true, references: { model: "crm_deals", key: "id" }, onDelete: "SET NULL" },
-        ownerEmployeeId: { type: Sequelize.UUID, allowNull: true, references: { model: "hr_employee_records", key: "id" }, onDelete: "SET NULL" },
-        managerEmployeeId: { type: Sequelize.UUID, allowNull: true, references: { model: "hr_employee_records", key: "id" }, onDelete: "SET NULL" },
-        projectManagerUserId: { type: Sequelize.UUID, allowNull: true, references: { model: "users", key: "id" }, onDelete: "SET NULL" },
+        clientId: { type: Sequelize.UUID, allowNull: true, ...clientReference },
+        dealId: { type: Sequelize.UUID, allowNull: true, ...dealReference },
+        ownerEmployeeId: { type: Sequelize.UUID, allowNull: true, ...employeeReference },
+        managerEmployeeId: { type: Sequelize.UUID, allowNull: true, ...employeeReference },
+        projectManagerUserId: { type: Sequelize.UUID, allowNull: true, ...userReference },
         title: { type: Sequelize.STRING(255), allowNull: false },
         code: { type: Sequelize.STRING(50), allowNull: true },
         type: { type: Sequelize.STRING(100), allowNull: false, defaultValue: "standard" },
@@ -53,8 +73,8 @@ module.exports = {
         status: { type: Sequelize.STRING(50), allowNull: false, defaultValue: "DRAFT" }
       });
     } else {
-      await addColumnIfMissing(queryInterface, "projects", "ownerEmployeeId", { type: Sequelize.UUID, allowNull: true, references: { model: "hr_employee_records", key: "id" }, onDelete: "SET NULL" });
-      await addColumnIfMissing(queryInterface, "projects", "managerEmployeeId", { type: Sequelize.UUID, allowNull: true, references: { model: "hr_employee_records", key: "id" }, onDelete: "SET NULL" });
+      await addColumnIfMissing(queryInterface, "projects", "ownerEmployeeId", { type: Sequelize.UUID, allowNull: true, ...employeeReference });
+      await addColumnIfMissing(queryInterface, "projects", "managerEmployeeId", { type: Sequelize.UUID, allowNull: true, ...employeeReference });
       await addColumnIfMissing(queryInterface, "projects", "priority", { type: Sequelize.STRING(50), allowNull: false, defaultValue: "NORMAL" });
       await addColumnIfMissing(queryInterface, "projects", "progressPercent", { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 });
     }
@@ -76,8 +96,8 @@ module.exports = {
         ...common(Sequelize),
         projectId: { type: Sequelize.UUID, allowNull: false, references: { model: "projects", key: "id" }, onDelete: "CASCADE" },
         milestoneId: { type: Sequelize.UUID, allowNull: true, references: { model: "project_milestones", key: "id" }, onDelete: "SET NULL" },
-        assigneeEmployeeId: { type: Sequelize.UUID, allowNull: true, references: { model: "hr_employee_records", key: "id" }, onDelete: "SET NULL" },
-        assignedToUserId: { type: Sequelize.UUID, allowNull: true, references: { model: "users", key: "id" }, onDelete: "SET NULL" },
+        assigneeEmployeeId: { type: Sequelize.UUID, allowNull: true, ...employeeReference },
+        assignedToUserId: { type: Sequelize.UUID, allowNull: true, ...userReference },
         code: { type: Sequelize.STRING(60), allowNull: true },
         title: { type: Sequelize.STRING(255), allowNull: false },
         description: { type: Sequelize.TEXT, allowNull: true },
@@ -90,7 +110,7 @@ module.exports = {
         actualHours: { type: Sequelize.FLOAT, allowNull: false, defaultValue: 0 }
       });
     } else {
-      await addColumnIfMissing(queryInterface, "project_tasks", "assigneeEmployeeId", { type: Sequelize.UUID, allowNull: true, references: { model: "hr_employee_records", key: "id" }, onDelete: "SET NULL" });
+      await addColumnIfMissing(queryInterface, "project_tasks", "assigneeEmployeeId", { type: Sequelize.UUID, allowNull: true, ...employeeReference });
       await addColumnIfMissing(queryInterface, "project_tasks", "code", { type: Sequelize.STRING(60), allowNull: true });
       await addColumnIfMissing(queryInterface, "project_tasks", "weight", { type: Sequelize.FLOAT, allowNull: false, defaultValue: 1 });
     }
@@ -99,7 +119,7 @@ module.exports = {
       await queryInterface.createTable("project_members", {
         ...common(Sequelize),
         projectId: { type: Sequelize.UUID, allowNull: false, references: { model: "projects", key: "id" }, onDelete: "CASCADE" },
-        employeeId: { type: Sequelize.UUID, allowNull: false, references: { model: "hr_employee_records", key: "id" }, onDelete: "CASCADE" },
+        employeeId: { type: Sequelize.UUID, allowNull: false, ...employeeCascadeReference },
         role: { type: Sequelize.STRING(80), allowNull: false, defaultValue: "MEMBER" },
         allocationPercent: { type: Sequelize.FLOAT, allowNull: false, defaultValue: 100 },
         startDate: { type: Sequelize.DATEONLY, allowNull: true },
@@ -113,7 +133,7 @@ module.exports = {
         ...common(Sequelize),
         projectId: { type: Sequelize.UUID, allowNull: false, references: { model: "projects", key: "id" }, onDelete: "CASCADE" },
         taskId: { type: Sequelize.UUID, allowNull: false, references: { model: "project_tasks", key: "id" }, onDelete: "CASCADE" },
-        authorEmployeeId: { type: Sequelize.UUID, allowNull: false, references: { model: "hr_employee_records", key: "id" }, onDelete: "CASCADE" },
+        authorEmployeeId: { type: Sequelize.UUID, allowNull: false, ...employeeCascadeReference },
         body: { type: Sequelize.TEXT, allowNull: false }
       });
     }
@@ -123,7 +143,7 @@ module.exports = {
         ...common(Sequelize, false),
         projectId: { type: Sequelize.UUID, allowNull: false, references: { model: "projects", key: "id" }, onDelete: "CASCADE" },
         taskId: { type: Sequelize.UUID, allowNull: true, references: { model: "project_tasks", key: "id" }, onDelete: "SET NULL" },
-        actorEmployeeId: { type: Sequelize.UUID, allowNull: true, references: { model: "hr_employee_records", key: "id" }, onDelete: "SET NULL" },
+        actorEmployeeId: { type: Sequelize.UUID, allowNull: true, ...employeeReference },
         action: { type: Sequelize.STRING(120), allowNull: false },
         entityType: { type: Sequelize.STRING(80), allowNull: false },
         entityId: { type: Sequelize.UUID, allowNull: true },
