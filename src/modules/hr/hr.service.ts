@@ -117,6 +117,10 @@ export class HRService {
     const records = await db.EmployeeRecord.findAll({
       where: { businessId },
       attributes: ['userId', 'managerUserId', 'employmentStatus'],
+      include: [
+        { model: db.Department, as: 'department', attributes: ['id', 'name'] },
+        { model: db.Position, as: 'position', attributes: ['id', 'title'] },
+      ],
       paranoid: true,
     });
     const recordMap = new Map<string, any>();
@@ -174,12 +178,33 @@ export class HRService {
     };
 
     // ── 5. Build node map ─────────────────────────────────────────────────────
-    const nodeMap = new Map<string, any>();
+    const departments = await db.Department.findAll({
+      where: { businessId },
+      attributes: ['id', 'name'],
+      order: [['name', 'ASC']],
+    });
+
+    const departmentMap = new Map<string, any>();
+    departments.forEach((department: any) => {
+      departmentMap.set(department.id, {
+        id: `department:${department.id}`,
+        departmentId: department.id,
+        type: 'department',
+        name: department.name,
+        title: 'Department',
+        department: '',
+        children: [],
+      });
+    });
+
+    const people: any[] = [];
 
     users.forEach((u: any) => {
       const profile  = u.BusinessUserProfile;
       const record   = recordMap.get(u.id);
       const role     = getUserRole(u);
+      const department = profile?.department || record?.department || null;
+      const position = profile?.position || record?.position || null;
       const email    = (u.email || '').toLowerCase();
       const hiredViaOnboarding = onboardingManagerByEmail.has(email);
 
@@ -199,11 +224,14 @@ export class HRService {
         record?.managerUserId ||
         (hiredViaOnboarding ? (onboardingManagerByEmail.get(email) ?? null) : null);
 
-      nodeMap.set(u.id, {
+      people.push({
         id:           u.id,
+        userId:       u.id,
+        type:         role.priority <= 0 ? 'admin' : 'employee',
         name:         u.fullName,
-        title:        profile?.position?.title || role.label,
-        department:   profile?.department?.name || role.label,
+        title:        position?.title || role.label,
+        department:   department?.name || role.label,
+        departmentId: department?.id || null,
         roleKey:      role.key,
         rolePriority: role.priority,
         managerId,
@@ -212,49 +240,46 @@ export class HRService {
     });
 
     // ── 6. Pass 1 — wire explicit manager links ───────────────────────────────
-    const unlinked: any[] = [];
-    const tree: any[] = [];
+    const byRoleThenName = (a: any, b: any) =>
+      a.rolePriority - b.rolePriority || a.name.localeCompare(b.name);
 
-    nodeMap.forEach(node => {
-      if (node.managerId && node.managerId !== node.id && nodeMap.has(node.managerId)) {
-        nodeMap.get(node.managerId).children.push(node);
-      } else {
-        unlinked.push(node);
-      }
-    });
-
-    // ── 7. Pass 2 — priority-based fallback for unlinked nodes ───────────────
-    unlinked.sort((a, b) => a.rolePriority - b.rolePriority);
-
-    const findBestParent = (node: any): any | null => {
-      const candidates: any[] = [];
-      nodeMap.forEach(c => {
-        if (c.id !== node.id && c.rolePriority < node.rolePriority) candidates.push(c);
-      });
-      if (!candidates.length) return null;
-      const closestPriority = Math.max(...candidates.map(c => c.rolePriority));
-      const closest = candidates.filter(c => c.rolePriority === closestPriority);
-      closest.sort((a, b) => a.children.length - b.children.length);
-      return closest[0];
+    const admins = people.filter((person) => person.rolePriority <= 0).sort(byRoleThenName);
+    const departmentPeople = people.filter((person) => person.rolePriority > 0);
+    const unassignedDepartment: any = {
+      id: 'department:unassigned',
+      departmentId: null,
+      type: 'department',
+      name: 'Unassigned',
+      title: 'Department not set',
+      department: '',
+      children: [],
     };
 
-    unlinked.forEach(node => {
-      const parent = findBestParent(node);
-      if (parent) parent.children.push(node);
-      else tree.push(node);
+    departmentPeople.forEach((person) => {
+      const departmentNode = person.departmentId
+        ? departmentMap.get(person.departmentId) || unassignedDepartment
+        : unassignedDepartment;
+      departmentNode.children.push(person);
     });
 
-    // ── 8. Sort every level by priority then name ─────────────────────────────
-    const sortLevel = (nodes: any[]) => {
-      nodes.sort((a, b) =>
-        a.rolePriority !== b.rolePriority
-          ? a.rolePriority - b.rolePriority
-          : a.name.localeCompare(b.name)
-      );
-      nodes.forEach(n => sortLevel(n.children));
-    };
-    sortLevel(tree);
+    const departmentNodes = Array.from(departmentMap.values());
+    if (unassignedDepartment.children.length) departmentNodes.push(unassignedDepartment);
 
-    return tree;
+    departmentNodes.forEach((departmentNode) => {
+      departmentNode.children.sort(byRoleThenName);
+      departmentNode.title = `${departmentNode.children.length} ${departmentNode.children.length === 1 ? 'person' : 'people'}`;
+    });
+
+    const populatedDepartments = departmentNodes
+      .filter((departmentNode) => departmentNode.children.length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (admins.length) {
+      const root = admins[0];
+      root.children = [...admins.slice(1), ...populatedDepartments];
+      return [root];
+    }
+
+    return populatedDepartments;
   }
 }

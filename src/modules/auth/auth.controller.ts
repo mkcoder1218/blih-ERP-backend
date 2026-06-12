@@ -215,9 +215,30 @@ export class AuthController {
       attributes: ["moduleKey", "moduleName", "status", "enabledAt"]
     });
 
+    const [profile, employeeRecord] = await Promise.all([
+      db.BusinessUserProfile.findOne({
+        where: { businessId: user.businessId, userId: user.id },
+        attributes: ["departmentId", "positionId"],
+        include: [
+          { model: db.Department, as: "department", attributes: ["id", "name"] },
+          { model: db.Position, as: "position", attributes: ["id", "title"] },
+        ],
+      }),
+      db.EmployeeRecord.findOne({
+        where: { businessId: user.businessId, userId: user.id },
+        attributes: ["departmentId", "positionId"],
+        include: [
+          { model: db.Department, as: "department", attributes: ["id", "name"] },
+          { model: db.Position, as: "position", attributes: ["id", "title"] },
+        ],
+      }),
+    ]);
+
     const roles = (user.Roles || []).map((r: any) => r.key);
     const permissionsSet = new Set<string>();
     (user.Roles || []).forEach((r: any) => (r.Permissions || []).forEach((p: any) => permissionsSet.add(p.key)));
+    const department = (profile as any)?.department || (employeeRecord as any)?.department || null;
+    const position = (profile as any)?.position || (employeeRecord as any)?.position || null;
 
     return ok(res, {
       user: {
@@ -229,6 +250,10 @@ export class AuthController {
         status: user.status,
         isPlatformSuperAdmin: Boolean(user.isPlatformSuperAdmin) || roles.includes("PLATFORM_SUPER_ADMIN"),
         lastLoginAt: user.lastLoginAt
+      },
+      profile: {
+        department: department ? { id: department.id, name: department.name } : null,
+        position: position ? { id: position.id, title: position.title } : null,
       },
       business: (user as any).Business || null,
       roles,
