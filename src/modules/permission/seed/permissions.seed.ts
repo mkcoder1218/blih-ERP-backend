@@ -52,7 +52,10 @@ export const SYSTEM_PERMISSIONS = [
   { module: "crm",     action: "read",   key: "crm.read",     description: "View leads and customers" },
   { module: "crm",     action: "manage", key: "crm.manage",   description: "Manage sales deals and accounts" },
   { module: "project", action: "read",   key: "project.read", description: "View project dashboards" },
-  { module: "project", action: "manage", key: "project.manage",description: "Manage project tasks and timelines" },
+  { module: "project", action: "self",   key: "project.self", description: "View projects and tasks assigned to self" },
+  { module: "project", action: "create", key: "project.create",description: "Create new projects" },
+  { module: "project", action: "task",   key: "project.task", description: "Create and move project tasks" },
+  { module: "project", action: "manage", key: "project.manage",description: "Manage projects, tasks, members, and timelines" },
 
   // ── Finance & Operations ─────────────────────────────────────────────────────
   { module: "finance", action: "read",   key: "finance.read",  description: "View financial reports and workforce finance dashboard" },

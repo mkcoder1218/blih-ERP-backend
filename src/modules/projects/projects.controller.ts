@@ -3,9 +3,37 @@ import type { Request, Response } from 'express';
 import { ProjectsService } from './projects.service';
 import { AuditLogService } from '../../services/auditLog.service';
 import { errorResponse, successResponse, paginationResponse } from '../../utils/response';
+import { db } from '../../models';
 
 export class ProjectsController {
   private service = new ProjectsService();
+
+  private hasFullProjectAccess(req: Request) {
+    const permissions = new Set(req.user!.permissions || []);
+    return Boolean(
+      req.user!.isPlatformSuperAdmin ||
+      (req.user!.roles || []).includes("BUSINESS_ADMIN") ||
+      permissions.has("project.read") ||
+      permissions.has("project.manage")
+    );
+  }
+
+  private async canAccessProject(req: Request, projectId: string) {
+    if (this.hasFullProjectAccess(req)) return true;
+    const employee = await db.EmployeeRecord.findOne({ where: { businessId: req.user!.businessId, userId: req.user!.id }, attributes: ["id"] });
+    if (!employee) return false;
+    const project = await db.Project.findOne({
+      where: { id: projectId, businessId: req.user!.businessId },
+      attributes: ["id", "ownerEmployeeId", "managerEmployeeId", "projectManagerUserId"]
+    });
+    if (!project) return false;
+    if (project.projectManagerUserId === req.user!.id || project.ownerEmployeeId === employee.id || project.managerEmployeeId === employee.id) return true;
+    const [member, task] = await Promise.all([
+      db.ProjectMember.findOne({ where: { businessId: req.user!.businessId, projectId, employeeId: employee.id }, attributes: ["id"] }),
+      db.ProjectTask.findOne({ where: { businessId: req.user!.businessId, projectId, assigneeEmployeeId: employee.id }, attributes: ["id"] })
+    ]);
+    return Boolean(member || task);
+  }
 
   seedForms = async (req: Request, res: Response) => {
     await this.service.provisionForms(req.user!.businessId);
@@ -45,6 +73,7 @@ export class ProjectsController {
 
   viewProject = async (req: Request, res: Response) => {
     try {
+      if (!(await this.canAccessProject(req, req.params.id))) return errorResponse(res, "Project not found", 404);
       const project = await this.service.getProjectById(req.user!.businessId, req.params.id);
       successResponse(res, project);
     } catch(e: any) { errorResponse(res, e.message, e.message === "Project not found" ? 404 : 400); }
@@ -175,6 +204,7 @@ export class ProjectsController {
 
   createNestedTask = async (req: Request, res: Response) => {
     try {
+      if (!(await this.canAccessProject(req, req.params.projectId))) return errorResponse(res, "Project not found", 404);
       const task = await this.service.createNestedTask(req.user!.businessId, req.params.projectId, req.body);
       await AuditLogService.log('CREATE_PROJECT_TASK', 'project_task', String(task.id), null, task, req);
       await this.service.logActivity(req.user!.businessId, {
@@ -192,6 +222,7 @@ export class ProjectsController {
 
   listNestedTasks = async (req: Request, res: Response) => {
     try {
+      if (!(await this.canAccessProject(req, req.params.projectId))) return errorResponse(res, "Project not found", 404);
       const page = Number(req.query.page) || 1;
       const size = Number(req.query.size) || 50;
       const data = await this.service.listNestedTasks(req.user!.businessId, req.params.projectId, page, size, req.query);
@@ -260,6 +291,7 @@ export class ProjectsController {
 
   changeNestedTaskStatus = async (req: Request, res: Response) => {
     try {
+      if (!(await this.canAccessProject(req, req.params.projectId))) return errorResponse(res, "Project not found", 404);
       const { before, task } = await this.service.changeNestedTaskStatus(req.user!.businessId, req.params.projectId, req.params.taskId, req.body.status);
       await AuditLogService.log('CHANGE_PROJECT_TASK_STATUS', 'project_task', String(task.id), before, task, req);
       await this.service.logActivity(req.user!.businessId, {

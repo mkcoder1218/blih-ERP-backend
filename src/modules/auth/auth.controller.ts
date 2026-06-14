@@ -170,6 +170,7 @@ export class AuthController {
     const roles = (fullUser.Roles || []).map((r: any) => r.key);
     const permissionsSet = new Set<string>();
     (fullUser.Roles || []).forEach((r: any) => (r.Permissions || []).forEach((p: any) => permissionsSet.add(p.key)));
+    ["attendance.self", "profiles.self", "project.self", "project.task"].forEach((key) => permissionsSet.add(key));
 
     return ok(res, {
       accessToken: token,
@@ -237,7 +238,7 @@ export class AuthController {
     const roles = (user.Roles || []).map((r: any) => r.key);
     const permissionsSet = new Set<string>();
     (user.Roles || []).forEach((r: any) => (r.Permissions || []).forEach((p: any) => permissionsSet.add(p.key)));
-    ["attendance.self", "profiles.self"].forEach((key) => permissionsSet.add(key));
+    ["attendance.self", "profiles.self", "project.self", "project.task"].forEach((key) => permissionsSet.add(key));
     const department = (profile as any)?.department || (employeeRecord as any)?.department || null;
     const position = (profile as any)?.position || (employeeRecord as any)?.position || null;
 
