@@ -78,57 +78,33 @@ export function calculateAttendanceDay(params: {
   const clampNow = new Date(Math.min(nowUtc.getTime(), dayEndUtc.getTime()));
   const calculationEndMinute = checkOutAtUtc ? localMinutes(checkOutAtUtc, tz) : localMinutes(clampNow, tz);
 
+  const checkInMinute = checkInAtUtc ? localMinutes(checkInAtUtc, tz) : null;
+  const lunchOutMinute = lunchOutAtUtc ? localMinutes(lunchOutAtUtc, tz) : null;
+  const lunchInMinute = lunchInAtUtc ? localMinutes(lunchInAtUtc, tz) : null;
+
   // Build intervals with support for multiple breaks:
   // Work intervals: CHECK_IN -> LUNCH_OUT, LUNCH_IN -> LUNCH_OUT, LUNCH_IN -> CHECK_OUT
   let totalWorkedMinutes = 0;
   let totalBreakMinutes = 0;
 
-  let lastWorkStart: number | null = null;
-  let lastBreakStart: number | null = null;
-  let latestCalculatedType: AttendanceEventType | null = null;
+  if (checkInMinute !== null) {
+    const hasValidLunch =
+      lunchOutMinute !== null &&
+      lunchInMinute !== null &&
+      lunchOutMinute >= checkInMinute &&
+      lunchInMinute >= lunchOutMinute &&
+      lunchOutMinute <= calculationEndMinute;
 
-  for (const ev of localOrdered) {
-    const ts = ev.localMinute;
-    if (ts > calculationEndMinute) continue;
-
-    if (ev.type === "CHECK_IN") {
-      lastWorkStart = ts;
-      lastBreakStart = null;
-      latestCalculatedType = ev.type;
-      continue;
-    }
-
-    if (ev.type === "LUNCH_OUT") {
-      if (lastWorkStart !== null) totalWorkedMinutes += minutesBetweenLocal(lastWorkStart, ts);
-      lastWorkStart = null;
-      lastBreakStart = ts;
-      latestCalculatedType = ev.type;
-      continue;
-    }
-
-    if (ev.type === "LUNCH_IN") {
-      if (lastBreakStart !== null) totalBreakMinutes += minutesBetweenLocal(lastBreakStart, ts);
-      lastBreakStart = null;
-      lastWorkStart = ts;
-      latestCalculatedType = ev.type;
-      continue;
-    }
-
-    if (ev.type === "CHECK_OUT") {
-      if (lastWorkStart !== null) totalWorkedMinutes += minutesBetweenLocal(lastWorkStart, ts);
-      lastWorkStart = null;
-      if (lastBreakStart !== null) {
-        totalBreakMinutes += minutesBetweenLocal(lastBreakStart, ts);
-        lastBreakStart = null;
+    if (hasValidLunch) {
+      totalWorkedMinutes += minutesBetweenLocal(checkInMinute, lunchOutMinute);
+      totalBreakMinutes += minutesBetweenLocal(lunchOutMinute, Math.min(lunchInMinute, calculationEndMinute));
+      if (lunchInMinute <= calculationEndMinute) {
+        totalWorkedMinutes += minutesBetweenLocal(lunchInMinute, calculationEndMinute);
       }
-      latestCalculatedType = ev.type;
-      continue;
+    } else {
+      totalWorkedMinutes += minutesBetweenLocal(checkInMinute, calculationEndMinute);
     }
   }
-
-  // Still working: count work time to now (clamped to day end).
-  if (lastWorkStart !== null) totalWorkedMinutes += minutesBetweenLocal(lastWorkStart, calculationEndMinute);
-  // If currently on break, do not count break time until it completes.
 
   const expectedMinutes = Number(settings.expectedDailyMinutes || 0);
   const remainingMinutes = Math.max(0, expectedMinutes - totalWorkedMinutes);
@@ -136,7 +112,13 @@ export function calculateAttendanceDay(params: {
   const missingMinutes = Math.max(0, expectedMinutes - totalWorkedMinutes);
 
   const isComplete = Boolean(checkOutAtUtc);
-  const latestType = latestCalculatedType || (localOrdered.length ? localOrdered[localOrdered.length - 1].type : null);
+  const latestType = checkOutAtUtc
+    ? "CHECK_OUT"
+    : lunchOutAtUtc && (!lunchInAtUtc || localMinutes(lunchOutAtUtc, tz) > localMinutes(lunchInAtUtc, tz))
+      ? "LUNCH_OUT"
+      : checkInAtUtc
+        ? "CHECK_IN"
+        : null;
   const isInProgress = !isComplete && Boolean(checkInAtUtc);
 
   let currentStatus: AttendanceStatus = "NOT_STARTED";

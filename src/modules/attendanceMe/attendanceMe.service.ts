@@ -62,6 +62,7 @@ export class AttendanceMeService {
     });
 
     return {
+      serverNowUtc: now.toISOString(),
       settings,
       disabledReason: settings.attendanceEnabled ? null : "Attendance is disabled",
       timeline: events.map((e: any) => ({
