@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import { db } from "../../models";
-import { businessDateEndUtc, businessDateStartUtc, localWallTimeToUtc } from "../../utils/timezone";
+import { businessDateEndUtc, businessDateStartUtc, dateWallTimeToUtc } from "../../utils/timezone";
 
 const VALID_TYPES = new Set(["work_from_home", "memo_log", "check_in_correction"]);
 const VALID_STATUSES = new Set(["pending", "approved", "rejected"]);
@@ -8,16 +8,6 @@ const CORRECTION_EVENT_TYPES = new Set(["CHECK_IN", "LUNCH_OUT", "LUNCH_IN", "CH
 
 function assertType(type: string) {
   if (!VALID_TYPES.has(type)) throw new Error("Invalid attendance request type.");
-}
-
-function parseCorrectionWallTime(value: unknown, timeZone: string) {
-  const raw = String(value || "").trim();
-  const match = raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2})?$/);
-  if (match) return localWallTimeToUtc(match[1], match[2], timeZone);
-
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed;
 }
 
 function businessDateYmd(dateUtc: Date, timeZone: string) {
@@ -86,15 +76,12 @@ export class AttendanceRequestsService {
     if (!data.title || !data.reason) throw new Error("title and reason are required.");
     const isCorrection = data.requestType === "check_in_correction";
     const targetEmployeeUserId = isCorrection ? String(data.employeeUserId || "") : employeeUserId;
-    let correctionFromAt: Date | null = null;
     if (isCorrection) {
       if (!targetEmployeeUserId) throw new Error("Employee is required for check-in correction requests.");
       if (!CORRECTION_EVENT_TYPES.has(String(data.category || ""))) {
         throw new Error("Valid correction type is required.");
       }
-      const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
-      correctionFromAt = parseCorrectionWallTime(data.fromAt, settings?.timezone || "UTC");
-      if (!correctionFromAt) {
+      if (!data.fromAt || Number.isNaN(new Date(data.fromAt).getTime())) {
         throw new Error("Valid correction date and time is required.");
       }
       const employee = await db.User.findOne({ where: { id: targetEmployeeUserId, businessId } });
@@ -107,7 +94,7 @@ export class AttendanceRequestsService {
       category: data.category || null,
       title: data.title,
       reason: data.reason,
-      fromAt: isCorrection ? correctionFromAt : data.fromAt || null,
+      fromAt: data.fromAt || null,
       toAt: data.toAt || null,
       durationMinutes: data.durationMinutes ?? null,
       status: "pending",
@@ -128,7 +115,7 @@ export class AttendanceRequestsService {
     if (status === "approved" && record.requestType === "check_in_correction") {
       const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
       const tz = settings?.timezone || "UTC";
-      const correctedAtUtc = new Date(record.fromAt);
+      const correctedAtUtc = dateWallTimeToUtc(new Date(record.fromAt), tz);
       const correctionDate = businessDateYmd(correctedAtUtc, tz);
       const dayStartUtc = businessDateStartUtc(correctionDate, tz);
       const dayEndUtc = businessDateEndUtc(correctionDate, tz);
@@ -174,7 +161,7 @@ export class AttendanceRequestsService {
 
     for (const record of requests) {
       if (!CORRECTION_EVENT_TYPES.has(String(record.category || "")) || !record.fromAt) continue;
-      const correctedAtUtc = new Date(record.fromAt);
+      const correctedAtUtc = dateWallTimeToUtc(new Date(record.fromAt), tz);
       const correctionDate = businessDateYmd(correctedAtUtc, tz);
       if (query.date && query.date !== correctionDate) continue;
 
