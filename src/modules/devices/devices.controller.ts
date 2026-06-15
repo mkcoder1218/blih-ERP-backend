@@ -75,6 +75,17 @@ export class DevicesController {
       return ok(res, { device: existing, requiresApproval: existing.status !== "approved" }, "Device registration updated");
     }
 
+    const legacyDeviceKey = cleanDeviceKey(req.body?.legacyDeviceKey);
+    if (legacyDeviceKey && legacyDeviceKey !== deviceKey) {
+      const legacyDevice = await db.TrustedDevice.findOne({
+        where: { businessId: req.user!.businessId, userId: req.user!.id, deviceKey: legacyDeviceKey },
+      });
+      if (legacyDevice) {
+        await legacyDevice.update({ ...payload, deviceKey });
+        return ok(res, { device: legacyDevice, requiresApproval: legacyDevice.status !== "approved" }, "Device registration upgraded");
+      }
+    }
+
     const approvedCount = await db.TrustedDevice.count({
       where: { businessId: req.user!.businessId, userId: req.user!.id, status: "approved" },
     });
