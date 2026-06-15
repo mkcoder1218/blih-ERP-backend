@@ -47,6 +47,8 @@ export const SYSTEM_PERMISSIONS = [
   { module: "position",   action: "create", key: "position.create",  description: "Create positions" },
   { module: "position",   action: "update", key: "position.update",  description: "Update positions" },
   { module: "position",   action: "delete", key: "position.delete",  description: "Delete positions" },
+  { module: "device",     action: "read",   key: "device.read",      description: "View employee registered devices" },
+  { module: "device",     action: "approve",key: "device.approve",   description: "Approve or reject employee device registrations" },
 
   // ── CRM & Projects ───────────────────────────────────────────────────────────
   { module: "crm",     action: "read",   key: "crm.read",     description: "View leads and customers" },

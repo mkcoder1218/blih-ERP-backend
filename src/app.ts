@@ -52,6 +52,7 @@ import { attendanceRequestsRoutes } from "./modules/attendanceRequests/attendanc
 import { overtimeRoutes } from "./modules/overtime/overtime.routes";
 import { leaveRoutes } from "./modules/leave/leave.routes";
 import { policyRoutes } from "./modules/policy/policy.routes";
+import { devicesRoutes } from "./modules/devices/devices.routes";
 
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -144,6 +145,7 @@ apiRouter.use("/notifications", notificationRoutes);
 apiRouter.use("/departments", departmentRoutes);
 apiRouter.use("/positions", positionRoutes);
 apiRouter.use("/profiles", businessUserProfileRoutes);
+apiRouter.use("/devices", devicesRoutes);
 apiRouter.use("/roles", roleRoutes);
 apiRouter.use("/permissions", permissionRoutes);
 apiRouter.use("/attendance", attendanceMeRoutes);

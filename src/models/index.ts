@@ -121,6 +121,7 @@ import definePromotionRequest from "./PromotionRequest";
 import defineHREvent from "./HREvent";
 import definePolicy from "./Policy";
 import definePolicyAcceptance from "./PolicyAcceptance";
+import defineTrustedDevice from "./TrustedDevice";
 
 export type DB = {
   sequelize: typeof sequelize;
@@ -244,6 +245,7 @@ export type DB = {
   HREvent: any;
   Policy: any;
   PolicyAcceptance: any;
+  TrustedDevice: any;
 };
 
 export const db: DB = {
@@ -368,6 +370,7 @@ export const db: DB = {
   HREvent: defineHREvent(sequelize, DataTypes),
   Policy: definePolicy(sequelize, DataTypes),
   PolicyAcceptance: definePolicyAcceptance(sequelize, DataTypes),
+  TrustedDevice: defineTrustedDevice(sequelize, DataTypes),
 };
 
 Object.values(db).forEach((model: any) => {
