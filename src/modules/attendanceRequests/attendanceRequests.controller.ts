@@ -65,6 +65,16 @@ export class AttendanceRequestsController {
     }
   };
 
+  fixManualTimes = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.svc.syncApprovedCorrections(req.user!.businessId, req.body || {});
+      await AuditLogService.log("FIX_MANUAL_TIMES", "attendance_request", "approved_corrections", null, result, req);
+      res.json({ success: true, message: "Manual attendance times fixed", data: result });
+    } catch (err: any) {
+      next({ statusCode: err.statusCode || 400, message: err.message });
+    }
+  };
+
   private assertCanAction = async (req: Request, requestId: string) => {
     await this.svc.findBasic(req.user!.businessId, requestId);
     const roles = new Set(req.user!.roles || []);

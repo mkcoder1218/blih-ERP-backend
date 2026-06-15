@@ -14,6 +14,11 @@ router.get("/mine", asyncHandler(ctrl.listMine));
 router.post("/", requireAnyPermission("attendance.self", "attendance.checkin_correction.request", "attendance.manage"), asyncHandler(ctrl.submit));
 
 router.get("/", requireRole("HR_MANAGER", "BUSINESS_ADMIN"), requireAnyPermission("attendance.read", "attendance.checkin_correction.approve"), asyncHandler(ctrl.listAll));
+router.post(
+  "/fix-manual-times",
+  requireAnyPermission("attendance.read", "attendance.manage", "attendance.checkin_correction.request", "attendance.checkin_correction.approve"),
+  asyncHandler(ctrl.fixManualTimes)
+);
 router.post("/:id/approve", requireRole("BUSINESS_ADMIN"), asyncHandler(ctrl.approve));
 router.post("/:id/reject", requireRole("BUSINESS_ADMIN"), asyncHandler(ctrl.reject));
 
