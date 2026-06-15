@@ -11,7 +11,7 @@ const controller = new LateReasonsController();
 
 router.use(authRequired);
 
-router.get("/", requireAnyPermission("attendance.late_reason.read", "attendance.manage"), asyncHandler(controller.list));
+router.get("/", requireAnyPermission("attendance.late_reason.read", "attendance.manage", "attendance.self"), asyncHandler(controller.list));
 router.post("/", requireAnyPermission("attendance.manage"), validate(createLateReasonSchema), asyncHandler(controller.create));
 router.put("/:reasonId", requireAnyPermission("attendance.manage"), validate(updateLateReasonSchema), asyncHandler(controller.update));
 router.delete("/:reasonId", requireAnyPermission("attendance.manage"), asyncHandler(controller.remove));
