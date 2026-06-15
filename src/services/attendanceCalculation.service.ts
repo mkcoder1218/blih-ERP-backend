@@ -61,12 +61,11 @@ export function calculateAttendanceDay(params: {
   const tz = settings.timezone || "UTC";
 
   const ordered = [...events].sort((a, b) => a.timestampUtc.getTime() - b.timestampUtc.getTime());
-
-  const pickFirst = (t: AttendanceEventType) => ordered.find((e) => e.type === t)?.timestampUtc ?? null;
-  const checkInAtUtc = pickFirst("CHECK_IN");
-  const lunchOutAtUtc = pickFirst("LUNCH_OUT");
-  const lunchInAtUtc = pickFirst("LUNCH_IN");
-  const checkOutAtUtc = pickFirst("CHECK_OUT");
+  const pickFirst = (t: AttendanceEventType) => ordered.find((e) => e.type === t && e.timestampUtc >= dayStartUtc && e.timestampUtc < dayEndUtc)?.timestampUtc ?? null;
+  const displayedCheckInAtUtc = pickFirst("CHECK_IN");
+  const displayedLunchOutAtUtc = pickFirst("LUNCH_OUT");
+  const displayedLunchInAtUtc = pickFirst("LUNCH_IN");
+  const displayedCheckOutAtUtc = pickFirst("CHECK_OUT");
 
   // Build intervals with support for multiple breaks:
   // Work intervals: CHECK_IN -> LUNCH_OUT, LUNCH_IN -> LUNCH_OUT, LUNCH_IN -> CHECK_OUT
@@ -75,28 +74,41 @@ export function calculateAttendanceDay(params: {
 
   let lastWorkStart: Date | null = null;
   let lastBreakStart: Date | null = null;
+  let checkInAtUtc: Date | null = null;
+  let lunchOutAtUtc: Date | null = null;
+  let lunchInAtUtc: Date | null = null;
+  let checkOutAtUtc: Date | null = null;
+  let latestValidType: AttendanceEventType | null = null;
 
   for (const ev of ordered) {
     const ts = ev.timestampUtc;
     if (ts < dayStartUtc || ts >= dayEndUtc) continue;
 
     if (ev.type === "CHECK_IN") {
+      if (!checkInAtUtc) checkInAtUtc = ts;
       lastWorkStart = ts;
       lastBreakStart = null;
+      latestValidType = ev.type;
       continue;
     }
 
     if (ev.type === "LUNCH_OUT") {
-      if (lastWorkStart) totalWorkedMinutes += minutesBetween(lastWorkStart, ts);
+      if (!lastWorkStart) continue;
+      totalWorkedMinutes += minutesBetween(lastWorkStart, ts);
+      if (!lunchOutAtUtc) lunchOutAtUtc = ts;
       lastWorkStart = null;
       lastBreakStart = ts;
+      latestValidType = ev.type;
       continue;
     }
 
     if (ev.type === "LUNCH_IN") {
-      if (lastBreakStart) totalBreakMinutes += minutesBetween(lastBreakStart, ts);
+      if (!lastBreakStart) continue;
+      totalBreakMinutes += minutesBetween(lastBreakStart, ts);
+      if (!lunchInAtUtc) lunchInAtUtc = ts;
       lastBreakStart = null;
       lastWorkStart = ts;
+      latestValidType = ev.type;
       continue;
     }
 
@@ -107,6 +119,8 @@ export function calculateAttendanceDay(params: {
         totalBreakMinutes += minutesBetween(lastBreakStart, ts);
         lastBreakStart = null;
       }
+      if (!checkOutAtUtc) checkOutAtUtc = ts;
+      latestValidType = ev.type;
       continue;
     }
   }
@@ -122,13 +136,12 @@ export function calculateAttendanceDay(params: {
   const missingMinutes = Math.max(0, expectedMinutes - totalWorkedMinutes);
 
   const isComplete = Boolean(checkOutAtUtc);
-  const latestType = ordered.length ? ordered[ordered.length - 1].type : null;
   const isInProgress = !isComplete && Boolean(checkInAtUtc);
 
   let currentStatus: AttendanceStatus = "NOT_STARTED";
   if (!checkInAtUtc) currentStatus = "NOT_STARTED";
-  else if (latestType === "LUNCH_OUT") currentStatus = "ON_BREAK";
-  else if (latestType === "CHECK_OUT") currentStatus = "COMPLETED";
+  else if (latestValidType === "LUNCH_OUT") currentStatus = "ON_BREAK";
+  else if (latestValidType === "CHECK_OUT") currentStatus = "COMPLETED";
   else currentStatus = "IN_PROGRESS";
 
   // Late logic (only when check-in exists)
@@ -157,7 +170,11 @@ export function calculateAttendanceDay(params: {
       isInProgress,
       currentStatus
     },
-    normalized: { checkInAtUtc, lunchOutAtUtc, lunchInAtUtc, checkOutAtUtc }
+    normalized: {
+      checkInAtUtc: displayedCheckInAtUtc,
+      lunchOutAtUtc: displayedLunchOutAtUtc,
+      lunchInAtUtc: displayedLunchInAtUtc,
+      checkOutAtUtc: displayedCheckOutAtUtc
+    }
   };
 }
-
