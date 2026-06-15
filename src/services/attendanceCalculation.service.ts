@@ -50,6 +50,10 @@ function localMinutes(dateUtc: Date, timeZone: string): number {
   return get("hour") * 60 + get("minute");
 }
 
+function minutesBetweenLocal(a: number, b: number) {
+  return Math.max(0, b - a);
+}
+
 export function calculateAttendanceDay(params: {
   events: EventRow[];
   settings: BusinessAttendanceSettings;
@@ -61,59 +65,69 @@ export function calculateAttendanceDay(params: {
   const tz = settings.timezone || "UTC";
 
   const ordered = [...events].sort((a, b) => a.timestampUtc.getTime() - b.timestampUtc.getTime());
+  const localOrdered = ordered
+    .filter((e) => e.timestampUtc >= dayStartUtc && e.timestampUtc < dayEndUtc)
+    .map((e) => ({ ...e, localMinute: localMinutes(e.timestampUtc, tz) }))
+    .sort((a, b) => a.localMinute - b.localMinute || a.timestampUtc.getTime() - b.timestampUtc.getTime());
 
-  const pickFirst = (t: AttendanceEventType) => ordered.find((e) => e.type === t)?.timestampUtc ?? null;
+  const pickFirst = (t: AttendanceEventType) => localOrdered.find((e) => e.type === t)?.timestampUtc ?? null;
   const checkInAtUtc = pickFirst("CHECK_IN");
   const lunchOutAtUtc = pickFirst("LUNCH_OUT");
   const lunchInAtUtc = pickFirst("LUNCH_IN");
   const checkOutAtUtc = pickFirst("CHECK_OUT");
+  const clampNow = new Date(Math.min(nowUtc.getTime(), dayEndUtc.getTime()));
+  const calculationEndMinute = checkOutAtUtc ? localMinutes(checkOutAtUtc, tz) : localMinutes(clampNow, tz);
 
   // Build intervals with support for multiple breaks:
   // Work intervals: CHECK_IN -> LUNCH_OUT, LUNCH_IN -> LUNCH_OUT, LUNCH_IN -> CHECK_OUT
   let totalWorkedMinutes = 0;
   let totalBreakMinutes = 0;
 
-  let lastWorkStart: Date | null = null;
-  let lastBreakStart: Date | null = null;
+  let lastWorkStart: number | null = null;
+  let lastBreakStart: number | null = null;
+  let latestCalculatedType: AttendanceEventType | null = null;
 
-  for (const ev of ordered) {
-    const ts = ev.timestampUtc;
-    if (ts < dayStartUtc || ts >= dayEndUtc) continue;
+  for (const ev of localOrdered) {
+    const ts = ev.localMinute;
+    if (ts > calculationEndMinute) continue;
 
     if (ev.type === "CHECK_IN") {
       lastWorkStart = ts;
       lastBreakStart = null;
+      latestCalculatedType = ev.type;
       continue;
     }
 
     if (ev.type === "LUNCH_OUT") {
-      if (lastWorkStart) totalWorkedMinutes += minutesBetween(lastWorkStart, ts);
+      if (lastWorkStart !== null) totalWorkedMinutes += minutesBetweenLocal(lastWorkStart, ts);
       lastWorkStart = null;
       lastBreakStart = ts;
+      latestCalculatedType = ev.type;
       continue;
     }
 
     if (ev.type === "LUNCH_IN") {
-      if (lastBreakStart) totalBreakMinutes += minutesBetween(lastBreakStart, ts);
+      if (lastBreakStart !== null) totalBreakMinutes += minutesBetweenLocal(lastBreakStart, ts);
       lastBreakStart = null;
       lastWorkStart = ts;
+      latestCalculatedType = ev.type;
       continue;
     }
 
     if (ev.type === "CHECK_OUT") {
-      if (lastWorkStart) totalWorkedMinutes += minutesBetween(lastWorkStart, ts);
+      if (lastWorkStart !== null) totalWorkedMinutes += minutesBetweenLocal(lastWorkStart, ts);
       lastWorkStart = null;
-      if (lastBreakStart) {
-        totalBreakMinutes += minutesBetween(lastBreakStart, ts);
+      if (lastBreakStart !== null) {
+        totalBreakMinutes += minutesBetweenLocal(lastBreakStart, ts);
         lastBreakStart = null;
       }
+      latestCalculatedType = ev.type;
       continue;
     }
   }
 
   // Still working: count work time to now (clamped to day end).
-  const clampNow = new Date(Math.min(nowUtc.getTime(), dayEndUtc.getTime()));
-  if (lastWorkStart) totalWorkedMinutes += minutesBetween(lastWorkStart, clampNow);
+  if (lastWorkStart !== null) totalWorkedMinutes += minutesBetweenLocal(lastWorkStart, calculationEndMinute);
   // If currently on break, do not count break time until it completes.
 
   const expectedMinutes = Number(settings.expectedDailyMinutes || 0);
@@ -122,7 +136,7 @@ export function calculateAttendanceDay(params: {
   const missingMinutes = Math.max(0, expectedMinutes - totalWorkedMinutes);
 
   const isComplete = Boolean(checkOutAtUtc);
-  const latestType = ordered.length ? ordered[ordered.length - 1].type : null;
+  const latestType = latestCalculatedType || (localOrdered.length ? localOrdered[localOrdered.length - 1].type : null);
   const isInProgress = !isComplete && Boolean(checkInAtUtc);
 
   let currentStatus: AttendanceStatus = "NOT_STARTED";
