@@ -139,4 +139,63 @@ export class AttendanceRequestsService {
     }
     return db.AttendanceRequest.findOne({ where: { id: requestId, businessId }, include: employeeInclude() });
   }
+
+  async syncApprovedCorrections(businessId: string, query: any = {}) {
+    const where: any = {
+      businessId,
+      requestType: "check_in_correction",
+      status: "approved",
+      fromAt: { [Op.ne]: null },
+    };
+    if (query.employeeUserId) where.employeeUserId = query.employeeUserId;
+
+    const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
+    const tz = settings?.timezone || "UTC";
+    const requests = await db.AttendanceRequest.findAll({ where, order: [["actionedAt", "ASC"], ["updatedAt", "ASC"]] });
+    let created = 0;
+    let updated = 0;
+
+    for (const record of requests) {
+      if (!CORRECTION_EVENT_TYPES.has(String(record.category || "")) || !record.fromAt) continue;
+      const correctedAtUtc = dateWallTimeToUtc(new Date(record.fromAt), tz);
+      const correctionDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(correctedAtUtc);
+      if (query.date && query.date !== correctionDate) continue;
+
+      const dayStartUtc = businessDateStartUtc(correctionDate, tz);
+      const dayEndUtc = businessDateEndUtc(correctionDate, tz);
+      const payload = {
+        businessId,
+        employeeId: record.employeeUserId,
+        type: record.category,
+        timestampUtc: correctedAtUtc,
+        latitude: 0,
+        longitude: 0,
+        distanceMeters: 0,
+        withinAllowedRadius: true,
+      };
+      const existing = await db.AttendanceEvent.findOne({
+        where: {
+          businessId,
+          employeeId: record.employeeUserId,
+          type: record.category,
+          timestampUtc: { [Op.gte]: dayStartUtc, [Op.lt]: dayEndUtc },
+        },
+        order: [["timestampUtc", "ASC"]],
+      });
+      if (existing) {
+        await existing.update(payload);
+        updated += 1;
+      } else {
+        await db.AttendanceEvent.create(payload);
+        created += 1;
+      }
+    }
+
+    return { scanned: requests.length, created, updated };
+  }
 }
