@@ -1,7 +1,7 @@
 import { Op } from "sequelize";
 import { sequelize } from "../database/sequelize";
 import { db } from "../models";
-import { businessDateEndUtc, businessDateStartUtc, dateWallTimeToUtc } from "../utils/timezone";
+import { businessDateEndUtc, businessDateStartUtc } from "../utils/timezone";
 
 async function main() {
   const approvedCorrections = await db.AttendanceRequest.findAll({
@@ -19,7 +19,7 @@ async function main() {
   for (const correction of approvedCorrections as any[]) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId: correction.businessId } });
     const tz = settings?.timezone || "UTC";
-    const correctedAtUtc = dateWallTimeToUtc(new Date(correction.fromAt), tz);
+    const correctedAtUtc = new Date(correction.fromAt);
     const correctionDate = new Intl.DateTimeFormat("en-CA", {
       timeZone: tz,
       year: "numeric",
