@@ -129,20 +129,10 @@ router.get(
   publicRegisterLimiter,
   asyncHandler(controller.publicListDepartments),
 );
-router.post(
-  "/public-register/:businessSlug/departments",
-  authRateLimiter,
-  asyncHandler(controller.publicCreateDepartment),
-);
 router.get(
   "/public-register/:businessSlug/positions",
   publicRegisterLimiter,
   asyncHandler(controller.publicListPositions),
-);
-router.post(
-  "/public-register/:businessSlug/positions",
-  authRateLimiter,
-  asyncHandler(controller.publicCreatePosition),
 );
 router.post(
   "/public-register",

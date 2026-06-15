@@ -815,7 +815,7 @@ export class AuthController {
         const { Op } = require('sequelize');
         where.name = { [Op.iLike]: `%${q}%` };
       }
-      const rows = await db.Department.findAll({ where, attributes: ['id', 'name'], order: [['name', 'ASC']], limit: 50 });
+      const rows = await db.Department.findAll({ where, attributes: ['id', 'name'], order: [['name', 'ASC']], limit: 1000 });
       return ok(res, { departments: rows });
     } catch (e: any) { return next({ statusCode: 500, message: e.message }); }
   };
@@ -857,7 +857,7 @@ export class AuthController {
         const { Op } = require('sequelize');
         where.title = { [Op.iLike]: `%${q}%` };
       }
-      const rows = await db.Position.findAll({ where, attributes: ['id', 'title'], order: [['title', 'ASC']], limit: 50 });
+      const rows = await db.Position.findAll({ where, attributes: ['id', 'title', 'departmentId'], order: [['title', 'ASC']], limit: 1000 });
       return ok(res, { positions: rows });
     } catch (e: any) { return next({ statusCode: 500, message: e.message }); }
   };
