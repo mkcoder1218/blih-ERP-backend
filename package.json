@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest",
     "seed:project-tasks": "ts-node src/scripts/seedProjectTasks.ts",
+    "sync:attendance-corrections": "ts-node src/scripts/syncApprovedAttendanceCorrections.ts",
     "db:migrate": "sequelize-cli db:migrate",
     "db:seed": "sequelize-cli db:seed:all",
     "db:reset": "sequelize-cli db:migrate:undo:all && sequelize-cli db:migrate && sequelize-cli db:seed:all",

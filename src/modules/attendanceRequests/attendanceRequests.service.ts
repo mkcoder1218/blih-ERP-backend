@@ -1,5 +1,6 @@
 import { Op } from "sequelize";
 import { db } from "../../models";
+import { businessDateEndUtc, businessDateStartUtc, dateWallTimeToUtc } from "../../utils/timezone";
 
 const VALID_TYPES = new Set(["work_from_home", "memo_log", "check_in_correction"]);
 const VALID_STATUSES = new Set(["pending", "approved", "rejected"]);
@@ -103,16 +104,38 @@ export class AttendanceRequestsService {
       actionNote: note || null,
     });
     if (status === "approved" && record.requestType === "check_in_correction") {
-      await db.AttendanceEvent.create({
+      const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
+      const tz = settings?.timezone || "UTC";
+      const correctedAtUtc = dateWallTimeToUtc(new Date(record.fromAt), tz);
+      const correctionDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(correctedAtUtc);
+      const dayStartUtc = businessDateStartUtc(correctionDate, tz);
+      const dayEndUtc = businessDateEndUtc(correctionDate, tz);
+      const existing = await db.AttendanceEvent.findOne({
+        where: {
+          businessId,
+          employeeId: record.employeeUserId,
+          type: record.category,
+          timestampUtc: { [Op.gte]: dayStartUtc, [Op.lt]: dayEndUtc },
+        },
+        order: [["timestampUtc", "ASC"]],
+      });
+      const payload = {
         businessId,
         employeeId: record.employeeUserId,
         type: record.category,
-        timestampUtc: record.fromAt,
+        timestampUtc: correctedAtUtc,
         latitude: 0,
         longitude: 0,
         distanceMeters: 0,
         withinAllowedRadius: true,
-      });
+      };
+      if (existing) await existing.update(payload);
+      else await db.AttendanceEvent.create(payload);
     }
     return db.AttendanceRequest.findOne({ where: { id: requestId, businessId }, include: employeeInclude() });
   }
