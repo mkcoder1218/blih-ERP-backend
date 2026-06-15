@@ -22,6 +22,7 @@ module.exports = {
         businessId: { type: Sequelize.UUID, allowNull: false, references: { model: "businesses", key: "id" }, onDelete: "CASCADE" },
         userId: { type: Sequelize.UUID, allowNull: false, references: { model: "users", key: "id" }, onDelete: "CASCADE" },
         deviceKey: { type: Sequelize.STRING(120), allowNull: false },
+        deviceSignature: { type: Sequelize.STRING(255), allowNull: true },
         label: { type: Sequelize.STRING(160), allowNull: false },
         userAgent: { type: Sequelize.TEXT, allowNull: true },
         status: { type: Sequelize.STRING(40), allowNull: false, defaultValue: "approved" },
@@ -37,6 +38,7 @@ module.exports = {
     }
 
     await addIndexSafe(queryInterface, "trusted_devices", ["businessId", "userId", "deviceKey"], "uniq_trusted_devices_business_user_key", { unique: true });
+    await addIndexSafe(queryInterface, "trusted_devices", ["businessId", "userId", "deviceSignature"], "idx_trusted_devices_business_user_signature");
     await addIndexSafe(queryInterface, "trusted_devices", ["businessId", "status"], "idx_trusted_devices_business_status");
   },
 

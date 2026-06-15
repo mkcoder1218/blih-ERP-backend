@@ -10,6 +10,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): TrustedDevic
       businessId: { type: dataTypes.UUID, allowNull: false },
       userId: { type: dataTypes.UUID, allowNull: false },
       deviceKey: { type: dataTypes.STRING(120), allowNull: false },
+      deviceSignature: { type: dataTypes.STRING(255), allowNull: true },
       label: { type: dataTypes.STRING(160), allowNull: false },
       userAgent: { type: dataTypes.TEXT, allowNull: true },
       status: { type: dataTypes.STRING(40), allowNull: false, defaultValue: "approved" },
@@ -25,6 +26,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): TrustedDevic
       paranoid: true,
       indexes: [
         { unique: true, fields: ["businessId", "userId", "deviceKey"] },
+        { fields: ["businessId", "userId", "deviceSignature"] },
         { fields: ["businessId", "status"] },
       ],
     }

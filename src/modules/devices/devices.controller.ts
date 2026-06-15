@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { db } from "../../models";
 import { ok } from "../../utils/apiResponse";
+import { Op } from "sequelize";
 
 const AUTO_APPROVED_DEVICE_LIMIT = 2;
 
@@ -16,6 +17,11 @@ function cleanLabel(value: unknown) {
 function cleanUserAgent(value: unknown) {
   const userAgent = String(value || "").trim();
   return userAgent ? userAgent.slice(0, 1000) : null;
+}
+
+function cleanDeviceSignature(value: unknown) {
+  const signature = String(value || "").trim();
+  return signature ? signature.slice(0, 255) : null;
 }
 
 export class DevicesController {
@@ -52,7 +58,24 @@ export class DevicesController {
     const payload = {
       label: cleanLabel(req.body?.label),
       userAgent: cleanUserAgent(req.body?.userAgent),
+      deviceSignature: cleanDeviceSignature(req.body?.deviceSignature),
       lastSeenAt: new Date(),
+    };
+
+    const findApprovedSameDevice = async (excludeId?: string) => {
+      const baseWhere: any = {
+        businessId: req.user!.businessId,
+        userId: req.user!.id,
+        status: "approved",
+      };
+      if (excludeId) baseWhere.id = { [Op.ne]: excludeId };
+
+      if (payload.deviceSignature) {
+        const bySignature = await db.TrustedDevice.findOne({ where: { ...baseWhere, deviceSignature: payload.deviceSignature } });
+        if (bySignature) return bySignature;
+      }
+
+      return db.TrustedDevice.findOne({ where: { ...baseWhere, label: payload.label } });
     };
 
     const existing = await db.TrustedDevice.findOne({
@@ -60,6 +83,22 @@ export class DevicesController {
     });
 
     if (existing) {
+      if (existing.status === "pending") {
+        const approvedSameDevice = await findApprovedSameDevice(existing.id);
+        if (approvedSameDevice) {
+          await approvedSameDevice.destroy();
+          await existing.update({
+            ...payload,
+            status: "approved",
+            approvedAt: approvedSameDevice.approvedAt || new Date(),
+            approvedByUserId: approvedSameDevice.approvedByUserId || req.user!.id,
+            rejectedAt: null,
+            rejectedByUserId: null,
+          });
+          return ok(res, { device: existing, requiresApproval: false }, "Device registration matched approved device");
+        }
+      }
+
       const next: any = { ...payload };
       if (existing.status === "rejected") {
         const approvedCount = await db.TrustedDevice.count({
@@ -84,6 +123,12 @@ export class DevicesController {
         await legacyDevice.update({ ...payload, deviceKey });
         return ok(res, { device: legacyDevice, requiresApproval: legacyDevice.status !== "approved" }, "Device registration upgraded");
       }
+    }
+
+    const approvedSameDevice = await findApprovedSameDevice();
+    if (approvedSameDevice) {
+      await approvedSameDevice.update({ ...payload, deviceKey });
+      return ok(res, { device: approvedSameDevice, requiresApproval: false }, "Device registration matched approved device");
     }
 
     const approvedCount = await db.TrustedDevice.count({
