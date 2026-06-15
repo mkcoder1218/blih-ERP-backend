@@ -23,6 +23,17 @@ export class AttendanceMeController {
     }
   };
 
+  revertLastEvent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const businessId = req.user!.businessId;
+      const data = await this.service.revertLastEvent(userId, businessId);
+      return ok(res, data, "Last attendance event reverted");
+    } catch (e: any) {
+      return next({ statusCode: e.statusCode || 500, message: e.message || "Failed to revert attendance event" });
+    }
+  };
+
   history = async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const businessId = req.user!.businessId;

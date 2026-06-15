@@ -12,7 +12,7 @@ router.use(authRequired);
 
 router.get("/me/today", asyncHandler(controller.today));
 router.post("/me/events", validate(createAttendanceEventSchema), asyncHandler(controller.createEvent));
+router.post("/me/events/revert-last", asyncHandler(controller.revertLastEvent));
 router.get("/me/history", validate(historyQuerySchema, "query"), asyncHandler(controller.history));
 
 export const attendanceMeRoutes = router;
-

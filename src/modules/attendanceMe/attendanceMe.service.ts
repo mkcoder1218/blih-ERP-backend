@@ -232,6 +232,43 @@ export class AttendanceMeService {
     });
   }
 
+  async revertLastEvent(userId: string, businessId: string) {
+    const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
+    if (!settings) throw Object.assign(new Error("Attendance settings not found"), { statusCode: 400 });
+    if (!settings.attendanceEnabled) throw Object.assign(new Error("Attendance is disabled"), { statusCode: 400 });
+
+    const tz = settings.timezone || "UTC";
+    const now = new Date();
+    const startUtc = startOfBusinessDayUtc(now, tz);
+    const endUtc = endOfBusinessDayUtc(now, tz);
+
+    return db.sequelize.transaction(async (t: Transaction) => {
+      await db.User.findOne({
+        where: { id: userId, businessId },
+        transaction: t,
+        lock: t.LOCK.UPDATE
+      });
+
+      const events = await db.AttendanceEvent.findAll({
+        where: { businessId, employeeId: userId, timestampUtc: { [Op.gte]: startUtc, [Op.lt]: endUtc } },
+        order: [["timestampUtc", "ASC"]],
+        transaction: t,
+        lock: t.LOCK.UPDATE
+      });
+
+      if (!events.length) throw Object.assign(new Error("No attendance event to revert today"), { statusCode: 400 });
+      const last = events[events.length - 1] as any;
+
+      await db.AttendanceLateExplanation.destroy({
+        where: { businessId, attendanceEventId: last.id },
+        transaction: t
+      });
+      await last.destroy({ transaction: t });
+
+      return this.getTodaySummary(userId, businessId);
+    });
+  }
+
   async getHistory(userId: string, businessId: string, query: any) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     if (!settings) throw Object.assign(new Error("Attendance settings not found"), { statusCode: 400 });
