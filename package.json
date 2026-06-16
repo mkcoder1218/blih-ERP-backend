@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest",
     "seed:project-tasks": "ts-node src/scripts/seedProjectTasks.ts",
-    "backfill:yesterday-lunch": "ts-node src/scripts/backfillYesterdayLunchBreaks.ts",
+    "backfill:yesterday-lunch": "node dist/scripts/backfillYesterdayLunchBreaks.js",
     "sync:attendance-corrections": "node -e \"console.error('Disabled: broad attendance correction sync is unsafe for mixed manual correction data.'); process.exit(1)\"",
     "db:migrate": "sequelize-cli db:migrate",
     "db:seed": "sequelize-cli db:seed:all",
