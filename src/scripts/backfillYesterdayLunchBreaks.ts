@@ -90,13 +90,31 @@ async function createSyntheticLunchEvents(params: {
   );
 }
 
+async function removeExistingLunchEvents(params: {
+  businessId: string;
+  employeeId: string;
+  dayStartUtc: Date;
+  dayEndUtc: Date;
+  transaction: Transaction;
+}) {
+  await db.AttendanceEvent.destroy({
+    where: {
+      businessId: params.businessId,
+      employeeId: params.employeeId,
+      type: { [Op.in]: ["LUNCH_OUT", "LUNCH_IN"] as AttendanceEventType[] },
+      timestampUtc: { [Op.gte]: params.dayStartUtc, [Op.lt]: params.dayEndUtc },
+    },
+    transaction: params.transaction,
+  });
+}
+
 async function main() {
   const shouldApply = String(process.env.APPLY || "").toLowerCase() === "true";
   const businesses = await db.BusinessAttendanceSettings.findAll({ order: [["businessId", "ASC"]] });
 
   let eligible = 0;
   let insertedEvents = 0;
-  let skippedAlreadyHasLunch = 0;
+  let replacedLunchBreaks = 0;
   let skippedIncomplete = 0;
   let skippedTooShort = 0;
 
@@ -125,11 +143,6 @@ async function main() {
 
     for (const [employeeId, employeeEvents] of byEmployee.entries()) {
       const hasLunch = employeeEvents.some((event) => event.type === "LUNCH_OUT" || event.type === "LUNCH_IN");
-      if (hasLunch) {
-        skippedAlreadyHasLunch += 1;
-        continue;
-      }
-
       const checkIn = employeeEvents.filter((event) => event.type === "CHECK_IN").sort((a, b) => eventTime(a) - eventTime(b))[0];
       const checkOut = employeeEvents.filter((event) => event.type === "CHECK_OUT").sort((a, b) => eventTime(a) - eventTime(b)).at(-1);
 
@@ -153,12 +166,12 @@ async function main() {
 
       eligible += 1;
       console.log(
-        `${shouldApply ? "Backfilling" : "Would backfill"} ${dateYmd} business=${businessId} employee=${employeeId} lunchOut=${lunchWindow.lunchOutAt.toISOString()} lunchIn=${lunchWindow.lunchInAt.toISOString()}`
+        `${shouldApply ? "Normalizing" : "Would normalize"} ${dateYmd} business=${businessId} employee=${employeeId} lunchOut=${lunchWindow.lunchOutAt.toISOString()} lunchIn=${lunchWindow.lunchInAt.toISOString()}${hasLunch ? " replacingExistingLunch=true" : ""}`
       );
 
       if (shouldApply) {
         await sequelize.transaction(async (transaction) => {
-          const existingLunch = await db.AttendanceEvent.findOne({
+          await db.AttendanceEvent.findAll({
             where: {
               businessId,
               employeeId,
@@ -169,16 +182,25 @@ async function main() {
             lock: transaction.LOCK.UPDATE,
           });
 
-          if (!existingLunch) {
-            await createSyntheticLunchEvents({
+          if (hasLunch) {
+            await removeExistingLunchEvents({
               businessId,
               employeeId,
-              lunchOutAt: lunchWindow.lunchOutAt,
-              lunchInAt: lunchWindow.lunchInAt,
+              dayStartUtc,
+              dayEndUtc,
               transaction,
             });
-            insertedEvents += 2;
+            replacedLunchBreaks += 1;
           }
+
+          await createSyntheticLunchEvents({
+            businessId,
+            employeeId,
+            lunchOutAt: lunchWindow.lunchOutAt,
+            lunchInAt: lunchWindow.lunchInAt,
+            transaction,
+          });
+          insertedEvents += 2;
         });
       }
     }
@@ -189,7 +211,7 @@ async function main() {
       shouldApply ? "Applied yesterday lunch backfill." : "Dry run complete. Re-run with APPLY=true to write changes.",
       `Eligible employees: ${eligible}.`,
       `Inserted events: ${insertedEvents}.`,
-      `Skipped with lunch already: ${skippedAlreadyHasLunch}.`,
+      `Replaced existing lunch breaks: ${replacedLunchBreaks}.`,
       `Skipped incomplete days: ${skippedIncomplete}.`,
       `Skipped shifts too short: ${skippedTooShort}.`,
     ].join(" ")
