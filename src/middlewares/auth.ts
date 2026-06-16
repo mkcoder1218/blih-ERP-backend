@@ -38,7 +38,7 @@ export async function authRequired(req: Request, res: Response, next: NextFuncti
     (user.Roles || []).forEach((r: any) => {
       (r.Permissions || []).forEach((p: any) => permissions.add(p.key));
     });
-    ["attendance.self", "profiles.self", "project.self", "project.task"].forEach((key) => permissions.add(key));
+    ["attendance.self", "profiles.self", "performance.self", "project.self", "project.task"].forEach((key) => permissions.add(key));
 
     req.user = {
       id: user.id,

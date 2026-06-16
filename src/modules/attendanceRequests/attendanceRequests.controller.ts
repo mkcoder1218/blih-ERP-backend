@@ -78,9 +78,10 @@ export class AttendanceRequestsController {
   private assertCanAction = async (req: Request, requestId: string) => {
     await this.svc.findBasic(req.user!.businessId, requestId);
     const roles = new Set(req.user!.roles || []);
+    const perms = new Set(req.user!.permissions || []);
     if (req.user!.isPlatformSuperAdmin) return;
-    if (!roles.has("BUSINESS_ADMIN")) {
-      throw Object.assign(new Error("Attendance request approval requires Business Admin approval."), { statusCode: 403 });
+    if (!roles.has("BUSINESS_ADMIN") && !roles.has("HR_MANAGER") && !perms.has("attendance.manage") && !perms.has("attendance.checkin_correction.approve")) {
+      throw Object.assign(new Error("Attendance request approval requires HR or Business Admin approval."), { statusCode: 403 });
     }
   };
 }

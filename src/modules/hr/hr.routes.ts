@@ -395,7 +395,7 @@ router.post(
 router.get(
   "/disciplinary",
   authRequired,
-  requireAnyPermission("performance.read", "performance.manage"),
+  requireAnyPermission("performance.self", "performance.read", "performance.manage"),
   asyncHandler(perfController.listDisciplinaryCases),
 );
 router.post(
@@ -403,6 +403,12 @@ router.post(
   authRequired,
   requireAnyPermission("performance.manage", "attendance.manage"),
   asyncHandler(perfController.analyzeAttendanceDiscipline),
+);
+router.post(
+  "/disciplinary/analyze-attendance/send",
+  authRequired,
+  requireAnyPermission("performance.manage", "attendance.manage"),
+  asyncHandler(perfController.sendAttendanceDisciplineAnalysis),
 );
 router.delete(
   "/disciplinary/analyze-attendance",

@@ -2,7 +2,7 @@ import { Op } from "sequelize";
 import { db } from "../../models";
 import { businessDateEndUtc, businessDateStartUtc, localWallTimeToUtc } from "../../utils/timezone";
 
-const VALID_TYPES = new Set(["work_from_home", "memo_log", "check_in_correction"]);
+const VALID_TYPES = new Set(["work_from_home", "memo_log", "check_in_correction", "not_available"]);
 const VALID_STATUSES = new Set(["pending", "approved", "rejected"]);
 const CORRECTION_EVENT_TYPES = new Set(["CHECK_IN", "LUNCH_OUT", "LUNCH_IN", "CHECK_OUT"]);
 
