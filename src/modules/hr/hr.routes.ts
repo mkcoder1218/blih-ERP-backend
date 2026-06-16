@@ -145,6 +145,12 @@ router.get(
   requireAnyPermission("job_template.read", "job_template.manage"),
   asyncHandler(recruitmentController.listTemplates),
 );
+router.delete(
+  "/recruitment/templates/:id",
+  authRequired,
+  requireAnyPermission("job_template.manage"),
+  asyncHandler(recruitmentController.deleteTemplate),
+);
 router.post(
   "/recruitment/templates/seed",
   authRequired,
@@ -397,6 +403,12 @@ router.post(
   authRequired,
   requireAnyPermission("performance.manage", "attendance.manage"),
   asyncHandler(perfController.analyzeAttendanceDiscipline),
+);
+router.delete(
+  "/disciplinary/analyze-attendance",
+  authRequired,
+  requireAnyPermission("performance.manage", "attendance.manage"),
+  asyncHandler(perfController.resetAttendanceDisciplineAnalysis),
 );
 router.post(
   "/disciplinary",
