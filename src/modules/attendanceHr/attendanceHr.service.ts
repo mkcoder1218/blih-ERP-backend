@@ -5,6 +5,29 @@ import { calculateAttendanceDay } from "../../services/attendanceCalculation.ser
 
 type Status = string;
 
+const REMOTE_WORKED_MINUTES = 8 * 60;
+
+function isRemoteEmployee(employeeRecord: any) {
+  return String(employeeRecord?.employmentType || "").toLowerCase().includes("remote");
+}
+
+function applyRemoteAttendanceOverride(calculation: any) {
+  return {
+    ...calculation,
+    totalWorkedMinutes: REMOTE_WORKED_MINUTES,
+    totalBreakMinutes: 0,
+    expectedMinutes: REMOTE_WORKED_MINUTES,
+    remainingMinutes: 0,
+    overtimeMinutes: 0,
+    missingMinutes: 0,
+    isLate: false,
+    lateByMinutes: 0,
+    isComplete: true,
+    isInProgress: false,
+    currentStatus: "REMOTE"
+  };
+}
+
 export class AttendanceHrService {
   async buildDaily(businessId: string, opts: { dateYmd: string; departmentId?: string | null; status?: Status | null; search?: string | null; sortBy: string; sortOrder: string }) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
@@ -75,8 +98,9 @@ export class AttendanceHrService {
         nowUtc: new Date()
       });
 
+      const finalCalculation = isRemoteEmployee(er) ? applyRemoteAttendanceOverride(calculation) : calculation;
       const finalStatus: Status =
-        calculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : calculation.currentStatus;
+        finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
 
       return {
         employeeId: user.id,
@@ -89,14 +113,14 @@ export class AttendanceHrService {
           lunchInAtUtc: normalized.lunchInAtUtc,
           checkOutAtUtc: normalized.checkOutAtUtc
         },
-        workedMinutes: calculation.totalWorkedMinutes,
-        breakMinutes: calculation.totalBreakMinutes,
-        expectedMinutes: calculation.expectedMinutes,
-        overtimeMinutes: calculation.overtimeMinutes,
-        missingMinutes: calculation.missingMinutes,
+        workedMinutes: finalCalculation.totalWorkedMinutes,
+        breakMinutes: finalCalculation.totalBreakMinutes,
+        expectedMinutes: finalCalculation.expectedMinutes,
+        overtimeMinutes: finalCalculation.overtimeMinutes,
+        missingMinutes: finalCalculation.missingMinutes,
         status: finalStatus,
-        isLate: calculation.isLate,
-        lateByMinutes: calculation.lateByMinutes
+        isLate: finalCalculation.isLate,
+        lateByMinutes: finalCalculation.lateByMinutes
       };
     }).filter((row): row is NonNullable<typeof row> => Boolean(row));
 
@@ -300,7 +324,8 @@ export class AttendanceHrService {
           nowUtc: new Date()
         });
 
-        const status = calculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : calculation.currentStatus;
+        const finalCalculation = isRemoteEmployee(er) ? applyRemoteAttendanceOverride(calculation) : calculation;
+        const status = finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
         if (opts.status && status !== opts.status) continue;
 
         rows.push({
@@ -312,7 +337,7 @@ export class AttendanceHrService {
           lunchOutAtUtc: normalized.lunchOutAtUtc,
           lunchInAtUtc: normalized.lunchInAtUtc,
           checkOutAtUtc: normalized.checkOutAtUtc,
-          ...calculation,
+          ...finalCalculation,
           currentStatus: status
         });
       }
