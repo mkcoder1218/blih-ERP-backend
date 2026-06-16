@@ -5,6 +5,14 @@ import { businessDateEndUtc, businessDateStartUtc, endOfBusinessDayUtc, startOfB
 import { calculateAttendanceDay } from "../../services/attendanceCalculation.service";
 
 type AttendanceEventType = "CHECK_IN" | "LUNCH_OUT" | "LUNCH_IN" | "CHECK_OUT";
+type AttendanceActionCooldown = {
+  action: AttendanceEventType;
+  active: boolean;
+  startedAtUtc: string;
+  untilUtc: string;
+  remainingMinutes: number;
+};
+const POST_CHECKOUT_COOLDOWN_MS = 60 * 60 * 1000;
 
 const EVENT_LABEL: Record<AttendanceEventType, string> = {
   CHECK_IN: "Checked in",
@@ -31,6 +39,21 @@ function nextAllowedTypes(params: {
   return []; // CHECK_OUT -> none
 }
 
+function buildCooldown(lastEvent: any | null, now: Date, action: AttendanceEventType): AttendanceActionCooldown | null {
+  if (!lastEvent) return null;
+  const lastTs = new Date(lastEvent.timestampUtc).getTime();
+  if (Number.isNaN(lastTs)) return null;
+  const untilTs = lastTs + POST_CHECKOUT_COOLDOWN_MS;
+  if (now.getTime() >= untilTs) return null;
+  return {
+    action,
+    active: true,
+    startedAtUtc: new Date(lastTs).toISOString(),
+    untilUtc: new Date(untilTs).toISOString(),
+    remainingMinutes: Math.max(1, Math.ceil((untilTs - now.getTime()) / 60_000))
+  };
+}
+
 export class AttendanceMeService {
   async getTodaySummary(userId: string, businessId: string) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
@@ -51,7 +74,25 @@ export class AttendanceMeService {
     const allowMultipleLunchBreaks = Boolean(settings.allowMultipleLunchBreaks);
     const lunchOutCount = events.filter((e: any) => e.type === "LUNCH_OUT").length;
     const hasTakenLunchAlready = lunchOutCount > 0;
-    const nextAllowed = nextAllowedTypes({ latestType: latest, lunchBreakEnabled, allowMultipleLunchBreaks, hasTakenLunchAlready });
+    let nextAllowed = nextAllowedTypes({ latestType: latest, lunchBreakEnabled, allowMultipleLunchBreaks, hasTakenLunchAlready });
+    let cooldown: AttendanceActionCooldown | null = null;
+
+    if (latest === "LUNCH_OUT") {
+      cooldown = buildCooldown(events[events.length - 1], now, "LUNCH_IN");
+      if (cooldown) nextAllowed = nextAllowed.filter((type) => type !== "LUNCH_IN");
+    }
+
+    if (nextAllowed.includes("CHECK_IN")) {
+      const lastCheckout = await db.AttendanceEvent.findOne({
+        where: { businessId, employeeId: userId, type: "CHECK_OUT", timestampUtc: { [Op.lt]: now } },
+        order: [["timestampUtc", "DESC"]]
+      });
+      const checkInCooldown = buildCooldown(lastCheckout, now, "CHECK_IN");
+      if (checkInCooldown) {
+        cooldown = checkInCooldown;
+        nextAllowed = nextAllowed.filter((type) => type !== "CHECK_IN");
+      }
+    }
 
     const { calculation, normalized } = calculateAttendanceDay({
       events: events.map((e: any) => ({ type: e.type, timestampUtc: new Date(e.timestampUtc) })),
@@ -75,6 +116,7 @@ export class AttendanceMeService {
       })),
       // Return empty nextAllowed when attendance is disabled so the UI shows no action buttons.
       nextAllowed: settings.attendanceEnabled ? nextAllowed : [],
+      cooldown: settings.attendanceEnabled ? cooldown : null,
       day: {
         checkInAtUtc: normalized.checkInAtUtc,
         lunchOutAtUtc: normalized.lunchOutAtUtc,
@@ -133,9 +175,29 @@ export class AttendanceMeService {
 
       const latest: AttendanceEventType | null = existing.length ? (existing[existing.length - 1].type as AttendanceEventType) : null;
 
+      if (input.type === "CHECK_IN") {
+        const lastCheckout = await db.AttendanceEvent.findOne({
+          where: { businessId, employeeId: userId, type: "CHECK_OUT", timestampUtc: { [Op.lt]: now } },
+          order: [["timestampUtc", "DESC"]],
+          transaction: t,
+          lock: t.LOCK.UPDATE
+        });
+        const cooldown = buildCooldown(lastCheckout, now, "CHECK_IN");
+        if (cooldown) {
+          throw Object.assign(new Error(`Check-in is available after the mandatory 1 hour checkout break (${cooldown.remainingMinutes} min remaining)`), { statusCode: 400 });
+        }
+      }
+
       // Prevent final checkout while employee is on lunch.
       if (input.type === "CHECK_OUT" && latest === "LUNCH_OUT") {
         throw Object.assign(new Error("Return from lunch before checking out for the day"), { statusCode: 400 });
+      }
+
+      if (input.type === "LUNCH_IN" && latest === "LUNCH_OUT") {
+        const cooldown = buildCooldown(existing[existing.length - 1], now, "LUNCH_IN");
+        if (cooldown) {
+          throw Object.assign(new Error(`Lunch check-in is available after the mandatory 1 hour lunch break (${cooldown.remainingMinutes} min remaining)`), { statusCode: 400 });
+        }
       }
 
       // Fixed lunch window enforcement (business-local time)
