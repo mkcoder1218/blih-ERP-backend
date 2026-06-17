@@ -2,10 +2,10 @@ import crypto from "crypto";
 import { Op } from "sequelize";
 import { db } from "../../models";
 import { AttendanceHrService } from "../attendanceHr/attendanceHr.service";
-import { businessDateEndUtc, businessDateStartUtc } from "../../utils/timezone";
 import { toCsv } from "../../utils/csv";
 
 type BotType = "ATTENDANCE_SUMMARY" | "LATE_REASON" | "PERSONAL_SUMMARY";
+const MAIN_BOT_TYPE: BotType = "PERSONAL_SUMMARY";
 
 const DEFAULT_SETTINGS: Record<BotType, any> = {
   ATTENDANCE_SUMMARY: { enabled: false, sendTime: "20:00", timezone: "UTC", chatId: null, botToken: null },
@@ -70,6 +70,7 @@ function assertBotType(botType: string): asserts botType is BotType {
 function mainMenuKeyboard(linked: boolean) {
   const rows = linked
     ? [
+        [{ text: "Check In", callback_data: "attendance:check_in" }, { text: "Check Out", callback_data: "attendance:check_out" }],
         [{ text: "Add late reason", callback_data: "reason:late" }, { text: "Add unavailability", callback_data: "reason:unavailable" }],
         [{ text: "Today", callback_data: "summary:today" }, { text: "This week", callback_data: "summary:week" }],
         [{ text: "This month", callback_data: "summary:month" }, { text: "Unlink", callback_data: "account:unlink" }]
@@ -80,11 +81,30 @@ function mainMenuKeyboard(linked: boolean) {
 
 function replyKeyboard() {
   return {
-    keyboard: [["Add late reason", "Add unavailability"], ["Today", "This week", "This month"], ["Link account", "Unlink"]],
+    keyboard: [["Check In", "Check Out"], ["Add late reason", "Add unavailability"], ["Today", "This week", "This month"], ["Link account", "Unlink"]],
     resize_keyboard: true,
     one_time_keyboard: false,
     input_field_placeholder: "Tap a button or paste your link code"
   };
+}
+
+function locationKeyboard(actionLabel: string) {
+  return {
+    keyboard: [[{ text: "Share phone location", request_location: true }], ["Cancel"]],
+    resize_keyboard: true,
+    one_time_keyboard: false,
+    input_field_placeholder: `${actionLabel}: share your current location`
+  };
+}
+
+function parseCoordinates(text: string) {
+  const match = String(text || "").trim().match(/^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$/);
+  if (!match) return null;
+  const latitude = Number(match[1]);
+  const longitude = Number(match[2]);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+  return { latitude, longitude };
 }
 
 async function telegramRequest(botToken: string, method: string, body: any) {
@@ -99,7 +119,7 @@ async function telegramRequest(botToken: string, method: string, body: any) {
 }
 
 async function telegramGetUpdates(botToken: string, offset?: number | null) {
-  const query = new URLSearchParams({ timeout: "0", allowed_updates: JSON.stringify(["message", "callback_query"]) });
+  const query = new URLSearchParams({ timeout: "0", allowed_updates: JSON.stringify(["message", "edited_message", "callback_query"]) });
   if (offset) query.set("offset", String(offset));
   const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?${query.toString()}`);
   const data = await res.json().catch(() => ({}));
@@ -123,24 +143,36 @@ export class AttendanceTelegramService {
   async getSettings(businessId: string) {
     const rows = await db.TelegramBotSetting.findAll({ where: { businessId } });
     const byType = new Map<string, any>(rows.map((r: any) => [r.botType, r]));
-    return (Object.keys(DEFAULT_SETTINGS) as BotType[]).map((botType) => {
-      const row: any = byType.get(botType);
-      const raw = row ? row.toJSON() : { businessId, botType, ...DEFAULT_SETTINGS[botType] };
-      return { ...raw, botToken: undefined, botTokenMasked: maskToken(raw.botToken) };
-    });
+    const legacySummary = byType.get("ATTENDANCE_SUMMARY");
+    const main = byType.get(MAIN_BOT_TYPE);
+    const mainRaw = main
+      ? main.toJSON()
+      : {
+          businessId,
+          botType: MAIN_BOT_TYPE,
+          ...DEFAULT_SETTINGS[MAIN_BOT_TYPE],
+          chatId: legacySummary?.chatId || null,
+          sendTime: legacySummary?.sendTime || "20:00",
+          timezone: legacySummary?.timezone || "UTC",
+          enabled: Boolean(legacySummary?.enabled)
+        };
+    return [{ ...mainRaw, botToken: undefined, botTokenMasked: maskToken(mainRaw.botToken || legacySummary?.botToken) }];
   }
 
   async upsertSetting(businessId: string, botType: BotType, payload: any) {
     assertBotType(botType);
-    const defaults = DEFAULT_SETTINGS[botType];
-    const [row] = await db.TelegramBotSetting.findOrCreate({ where: { businessId, botType }, defaults: { businessId, botType, ...defaults } });
+    const effectiveBotType = MAIN_BOT_TYPE;
+    const defaults = { ...DEFAULT_SETTINGS[effectiveBotType], sendTime: "20:00" };
+    const [row] = await db.TelegramBotSetting.findOrCreate({ where: { businessId, botType: effectiveBotType }, defaults: { businessId, botType: effectiveBotType, ...defaults } });
+    const legacySummary = await db.TelegramBotSetting.findOne({ where: { businessId, botType: "ATTENDANCE_SUMMARY" } });
     const update: any = {
       enabled: Boolean(payload.enabled),
       chatId: payload.chatId ?? null,
       timezone: payload.timezone || defaults.timezone,
-      sendTime: botType === "ATTENDANCE_SUMMARY" ? normalizeHhmm(payload.sendTime, "20:00") : null
+      sendTime: normalizeHhmm(payload.sendTime, "20:00")
     };
     if (typeof payload.botToken === "string" && payload.botToken.trim()) update.botToken = payload.botToken.trim();
+    else if (!row.botToken && legacySummary?.botToken) update.botToken = legacySummary.botToken;
     await row.update(update);
     const raw = row.toJSON();
     return { ...raw, botToken: undefined, botTokenMasked: maskToken(raw.botToken) };
@@ -168,7 +200,7 @@ export class AttendanceTelegramService {
 
   async sendTest(businessId: string, botType: BotType) {
     assertBotType(botType);
-    const setting = await db.TelegramBotSetting.findOne({ where: { businessId, botType } });
+    const setting = await this.getMainSetting(businessId, true);
     if (!setting?.botToken) throw Object.assign(new Error("Telegram bot token is not configured"), { statusCode: 400 });
     if (!setting.chatId) throw Object.assign(new Error("Telegram chat ID or group ID is not configured"), { statusCode: 400 });
 
@@ -178,10 +210,7 @@ export class AttendanceTelegramService {
       return { sent: true };
     }
 
-    const text =
-      botType === "LATE_REASON"
-        ? "Telegram late reason notification test from Blih attendance."
-        : "Telegram personal attendance bot test from Blih. Use /start in Telegram for instructions.";
+    const text = "Telegram attendance bot test from Blih. Employees can use /start for attendance actions and summaries.";
     await this.sendAndLog(setting, "manual_test", { chat_id: setting.chatId, text });
     return { sent: true };
   }
@@ -189,19 +218,31 @@ export class AttendanceTelegramService {
   async handleWebhook(businessId: string, update: any) {
     if (update?.callback_query) return this.handleCallbackQuery(businessId, update.callback_query);
 
-    const message = update?.message;
-    if (!message?.text || !message?.from?.id) return { ignored: true };
-    const setting = await db.TelegramBotSetting.findOne({ where: { businessId, botType: "PERSONAL_SUMMARY", enabled: true } });
+    const message = update?.message || update?.edited_message;
+    if (!message?.from?.id) return { ignored: true };
+    const setting = await this.getMainSetting(businessId, true);
     if (!setting?.botToken) return { ignored: true };
 
-    const text = String(message.text).trim();
+    const text = String(message.text || "").trim();
     const chatId = String(message.chat.id);
     const telegramUserId = String(message.from.id);
     const username = message.from.username || null;
     const [command, arg] = text.split(/\s+/, 2);
 
+    const sharedLocation = message.location || message.venue?.location;
+    if (sharedLocation) {
+      console.log(`[TelegramPersonalBot] location update received for ${businessId} from ${telegramUserId}`);
+      return this.handleSharedLocation(businessId, setting, chatId, telegramUserId, sharedLocation);
+    }
+
     if (command === "/start") {
       await this.sendMenu(setting, businessId, chatId, telegramUserId);
+      return { ok: true };
+    }
+    if (["Check In", "/checkin"].includes(text)) return this.requestAttendanceLocation(businessId, setting, chatId, telegramUserId, "CHECK_IN");
+    if (["Check Out", "/checkout"].includes(text)) return this.requestAttendanceLocation(businessId, setting, chatId, telegramUserId, "CHECK_OUT");
+    if (text === "Share current location" || text === "Share phone location") {
+      await this.sendPersonal(setting, chatId, "Telegram did not send your location. On your phone, allow location permission for Telegram, then tap Share phone location again.", false, mainMenuKeyboard(true));
       return { ok: true };
     }
     if (["Add late reason", "Late reason"].includes(text)) return this.showReasonPicker(businessId, setting, chatId, telegramUserId, "late");
@@ -214,9 +255,18 @@ export class AttendanceTelegramService {
       return { ok: true };
     }
     if (["Unlink", "/unlink"].includes(text)) return this.unlinkTelegramChat(businessId, setting, chatId, telegramUserId);
+    if (["Cancel"].includes(text)) return this.cancelPendingAction(businessId, setting, chatId, telegramUserId);
     if (command === "/link") return this.linkTelegramUser(businessId, setting, chatId, telegramUserId, username, arg);
 
     const link = await db.TelegramAccountLink.findOne({ where: { businessId, telegramUserId, isActive: true } });
+    if (link?.pendingAction?.kind === "attendance_event_location") {
+      const coordinates = parseCoordinates(text);
+      if (coordinates) return this.handleSharedLocation(businessId, setting, chatId, telegramUserId, coordinates);
+      if (text) {
+        await this.sendPersonal(setting, chatId, "I am still waiting for your location. Use Telegram on your phone, or paste coordinates like 9.0100, 38.7600.", false, locationKeyboard(link.pendingAction.type === "CHECK_IN" ? "Check in" : "Check out"));
+        return { ok: true };
+      }
+    }
     if (link?.pendingAction?.kind === "daily_reason_comment") {
       await this.saveDailyReasonFromPending(businessId, setting, chatId, link, text);
       return { ok: true };
@@ -225,18 +275,23 @@ export class AttendanceTelegramService {
     const maybeCode = text.replace(/\s+/g, "").toUpperCase();
     if (/^[A-F0-9]{6}$/.test(maybeCode)) return this.linkTelegramUser(businessId, setting, chatId, telegramUserId, username, maybeCode);
 
+    console.log(`[TelegramPersonalBot] unsupported message for ${businessId}: ${JSON.stringify({ text: message.text || null, hasLocation: Boolean(message.location), hasVenue: Boolean(message.venue), keys: Object.keys(message || {}) })}`);
     await this.sendMenu(setting, businessId, chatId, telegramUserId, "Choose an option below.");
     return { ok: true };
   }
 
   private async handleCallbackQuery(businessId: string, callback: any) {
-    const setting = await db.TelegramBotSetting.findOne({ where: { businessId, botType: "PERSONAL_SUMMARY", enabled: true } });
+    const setting = await this.getMainSetting(businessId, true);
     if (!setting?.botToken) return { ignored: true };
     const chatId = String(callback.message?.chat?.id || callback.from?.id);
     const telegramUserId = String(callback.from.id);
     const data = String(callback.data || "");
 
-    await telegramRequest(setting.botToken, "answerCallbackQuery", { callback_query_id: callback.id });
+    const isAttendanceAction = data === "attendance:check_in" || data === "attendance:check_out";
+    await telegramRequest(setting.botToken, "answerCallbackQuery", {
+      callback_query_id: callback.id,
+      ...(isAttendanceAction ? { text: "Use Telegram on your phone to share location for attendance.", show_alert: true } : {})
+    });
 
     if (data === "account:link") {
       await this.sendPersonal(setting, chatId, "Paste the one-time code from ERP here. No email or password needed.", false);
@@ -246,6 +301,8 @@ export class AttendanceTelegramService {
     if (data === "summary:today") return this.replyWithSummary(businessId, setting, chatId, telegramUserId, "today");
     if (data === "summary:week") return this.replyWithSummary(businessId, setting, chatId, telegramUserId, "week");
     if (data === "summary:month") return this.replyWithSummary(businessId, setting, chatId, telegramUserId, "month");
+    if (data === "attendance:check_in") return this.requestAttendanceLocation(businessId, setting, chatId, telegramUserId, "CHECK_IN");
+    if (data === "attendance:check_out") return this.requestAttendanceLocation(businessId, setting, chatId, telegramUserId, "CHECK_OUT");
     if (data === "reason:late") return this.showReasonPicker(businessId, setting, chatId, telegramUserId, "late");
     if (data === "reason:unavailable") return this.showReasonPicker(businessId, setting, chatId, telegramUserId, "unavailable");
     if (data.startsWith("reason_pick:")) {
@@ -262,12 +319,76 @@ export class AttendanceTelegramService {
     await this.sendPersonal(setting, chatId, link ? text : "Link your ERP account first, then you can view attendance summaries.", true, mainMenuKeyboard(Boolean(link)));
   }
 
+  private async requestAttendanceLocation(businessId: string, setting: any, chatId: string, telegramUserId: string, type: "CHECK_IN" | "CHECK_OUT") {
+    const link = await db.TelegramAccountLink.findOne({ where: { businessId, telegramUserId, isActive: true } });
+    if (!link) {
+      await this.sendPersonal(setting, chatId, "Link your ERP account before using Telegram attendance.", true, mainMenuKeyboard(false));
+      return { ok: true };
+    }
+    await link.update({ pendingAction: { kind: "attendance_event_location", type } });
+    await this.sendPersonal(
+      setting,
+      chatId,
+      `${type === "CHECK_IN" ? "Check in" : "Check out"} needs your phone location. Open Telegram on your phone, allow Telegram location permission if asked, then tap Share phone location. If Telegram does not send it, paste coordinates like 9.0100, 38.7600.`,
+      true,
+      locationKeyboard(type === "CHECK_IN" ? "Check in" : "Check out")
+    );
+    console.log(`[TelegramPersonalBot] requested ${type} location from ${telegramUserId} for ${businessId}`);
+    return { ok: true };
+  }
+
+  private async cancelPendingAction(businessId: string, setting: any, chatId: string, telegramUserId: string) {
+    const link = await db.TelegramAccountLink.findOne({ where: { businessId, telegramUserId, isActive: true } });
+    if (link) await link.update({ pendingAction: null });
+    await this.sendPersonal(setting, chatId, "Cancelled.", true, mainMenuKeyboard(Boolean(link)));
+    return { ok: true };
+  }
+
+  private async handleSharedLocation(businessId: string, setting: any, chatId: string, telegramUserId: string, location: any) {
+    const link = await db.TelegramAccountLink.findOne({ where: { businessId, telegramUserId, isActive: true } });
+    if (!link) {
+      await this.sendPersonal(setting, chatId, "Link your ERP account before using Telegram attendance.", true, mainMenuKeyboard(false));
+      return { ok: true };
+    }
+    const pending = link.pendingAction;
+    if (pending?.kind !== "attendance_event_location") {
+      await this.sendPersonal(setting, chatId, "Choose Check In or Check Out first, then share your location.", true, mainMenuKeyboard(true));
+      return { ok: true };
+    }
+    await this.sendPersonal(setting, chatId, "Location received. Checking your attendance area...", false);
+    try {
+      const { AttendanceMeService } = require("../attendanceMe/attendanceMe.service");
+      const result = await new AttendanceMeService().createEvent(link.userId, businessId, {
+        type: pending.type,
+        latitude: Number(location.latitude),
+        longitude: Number(location.longitude)
+      });
+      await link.update({ pendingAction: null });
+      const label = pending.type === "CHECK_IN" ? "Checked in" : "Checked out";
+      const latest = result.timeline?.[result.timeline.length - 1];
+      const distance = latest?.distanceMeters != null ? ` Distance: ${Math.round(Number(latest.distanceMeters))}m.` : "";
+      await this.sendPersonal(setting, chatId, `${label} successfully.${distance}`, true, mainMenuKeyboard(true));
+      return { ok: true };
+    } catch (err: any) {
+      const message = err?.message || "Attendance action failed.";
+      if (message.includes("Outside allowed workplace radius")) {
+        await this.sendPersonal(setting, chatId, "You are outside the allowed office area. Add a late/outside-area reason or ask HR to enable remote/field attendance for this case.", true, mainMenuKeyboard(true));
+      } else if (message.includes("Late check-in requires a reason")) {
+        await this.sendPersonal(setting, chatId, "You are late today. Add a late reason first, then tap Check In again.", true, mainMenuKeyboard(true));
+      } else {
+        await this.sendPersonal(setting, chatId, message, true, mainMenuKeyboard(true));
+      }
+      return { ok: true };
+    }
+  }
+
   private async replyWithSummary(businessId: string, setting: any, chatId: string, telegramUserId: string, range: "today" | "week" | "month") {
     const link = await db.TelegramAccountLink.findOne({ where: { businessId, telegramUserId, isActive: true } });
     if (!link) {
       await this.sendPersonal(setting, chatId, "This Telegram account is not linked yet. Tap Link account, then paste your one-time ERP code.", true, mainMenuKeyboard(false));
       return { ok: true };
     }
+    await this.sendPersonal(setting, chatId, "Loading your attendance summary...", false);
     const summary = await this.buildPersonalSummary(businessId, link.userId, range);
     await this.sendPersonal(setting, chatId, summary, true, mainMenuKeyboard(true));
     return { ok: true };
@@ -276,6 +397,7 @@ export class AttendanceTelegramService {
   private async unlinkTelegramChat(businessId: string, setting: any, chatId: string, telegramUserId: string) {
     const link = await db.TelegramAccountLink.findOne({ where: { businessId, telegramUserId, isActive: true } });
     if (link) await link.update({ isActive: false, unlinkedAt: new Date() });
+    await this.sendPersonal(setting, chatId, "Disconnecting Telegram access...", false);
     await this.sendPersonal(setting, chatId, "Telegram access has been disconnected.", true, mainMenuKeyboard(false));
     return { ok: true };
   }
@@ -286,6 +408,7 @@ export class AttendanceTelegramService {
       await this.sendPersonal(setting, chatId, "Link your ERP account before adding attendance reasons.", true, mainMenuKeyboard(false));
       return { ok: true };
     }
+    await this.sendPersonal(setting, chatId, "Loading attendance reasons...", false);
     const reasons = await db.AttendanceLateReason.findAll({ where: { businessId, isActive: true }, order: [["name", "ASC"]] });
     if (!reasons.length) {
       await this.sendPersonal(setting, chatId, "No active attendance reasons are configured yet.", true, mainMenuKeyboard(true));
@@ -319,6 +442,7 @@ export class AttendanceTelegramService {
       await this.sendPersonal(setting, chatId, `Add a short comment for "${reason.name}".`, false);
       return { ok: true };
     }
+    await this.sendPersonal(setting, chatId, "Saving your reason...", false);
     await this.createDailyReason(businessId, link.userId, reasonType, reasonId, null, "telegram");
     await this.sendPersonal(setting, chatId, `${reasonType === "late" ? "Late" : "Unavailability"} reason added for today: ${reason.name}`, true, mainMenuKeyboard(true));
     return { ok: true };
@@ -332,6 +456,7 @@ export class AttendanceTelegramService {
       await this.sendPersonal(setting, chatId, "That reason is no longer available.", true, mainMenuKeyboard(true));
       return;
     }
+    await this.sendPersonal(setting, chatId, "Saving your reason...", false);
     await this.createDailyReason(businessId, link.userId, pending.reasonType, pending.reasonId, comment.trim() || null, "telegram");
     await link.update({ pendingAction: null });
     await this.sendPersonal(setting, chatId, `${pending.reasonType === "late" ? "Late" : "Unavailability"} reason added for today: ${reason.name}`, true, mainMenuKeyboard(true));
@@ -370,7 +495,7 @@ export class AttendanceTelegramService {
   }
 
   private async notifyDailyLateReason(businessId: string, employeeId: string, dailyReasonId: string) {
-    const setting = await db.TelegramBotSetting.findOne({ where: { businessId, botType: "LATE_REASON", enabled: true } });
+    const setting = await this.getMainSetting(businessId, true);
     if (!setting?.botToken || !setting.chatId) return;
 
     const dailyReason = await db.AttendanceDailyReason.findByPk(dailyReasonId, {
@@ -392,6 +517,7 @@ export class AttendanceTelegramService {
       "Late duration: Pending check-in",
       `Reason: ${reason}`,
       `Department: ${record?.department?.name || "N/A"}`,
+      "Attendance mode: Pending check-in",
       `Source: ${dailyReason.source || "telegram"}`
     ].join("\n");
 
@@ -399,7 +525,7 @@ export class AttendanceTelegramService {
   }
 
   async pollPersonalBotUpdates() {
-    const settings = await db.TelegramBotSetting.findAll({ where: { botType: "PERSONAL_SUMMARY", enabled: true } });
+    const settings = await db.TelegramBotSetting.findAll({ where: { botType: MAIN_BOT_TYPE, enabled: true } });
     console.log(`[TelegramPersonalBot] enabled personal bot configs: ${settings.length}`);
     for (const setting of settings) {
       if (!setting.botToken) {
@@ -423,6 +549,10 @@ export class AttendanceTelegramService {
         const updateId = Number(update.update_id);
         if (Number.isFinite(updateId)) nextOffset = Math.max(nextOffset, updateId + 1);
         try {
+          const message = update.message || update.edited_message;
+          console.log(
+            `[TelegramPersonalBot] update ${update.update_id} kind=${update.callback_query ? "callback_query" : update.edited_message ? "edited_message" : update.message ? "message" : "unknown"} text=${message?.text ? JSON.stringify(String(message.text).slice(0, 60)) : "-"} location=${Boolean(message?.location || message?.venue?.location)}`
+          );
           await this.handleWebhook(setting.businessId, update);
         } catch (err: any) {
           const details = Array.isArray(err?.errors)
@@ -440,6 +570,7 @@ export class AttendanceTelegramService {
       await this.sendPersonal(setting, chatId, "Send /link CODE using the code generated inside ERP.");
       return { ok: true };
     }
+    await this.sendPersonal(setting, chatId, "Checking your link code...", false);
     const row = await db.TelegramLinkCode.findOne({
       where: { businessId, codeHash: hashCode(code), usedAt: null, expiresAt: { [Op.gt]: new Date() } }
     });
@@ -481,7 +612,7 @@ export class AttendanceTelegramService {
   }
 
   async notifyLateReason(businessId: string, employeeId: string, attendanceEventId: string, explanationId: string) {
-    const setting = await db.TelegramBotSetting.findOne({ where: { businessId, botType: "LATE_REASON", enabled: true } });
+    const setting = await this.getMainSetting(businessId, true);
     if (!setting?.botToken || !setting.chatId) return;
     const employee = await db.User.findOne({ where: { id: employeeId, businessId } });
     const event = await db.AttendanceEvent.findByPk(attendanceEventId);
@@ -497,13 +628,14 @@ export class AttendanceTelegramService {
       `Check-in: ${localTimeHhmm(new Date(event.timestampUtc), tz)} (${tz})`,
       `Late duration: ${minutesLabel(explanation.lateByMinutes || 0)}`,
       `Reason: ${reason}`,
-      `Department: ${record?.department?.name || "N/A"}`
+      `Department: ${record?.department?.name || "N/A"}`,
+      `Attendance mode: ${event?.withinAllowedRadius ? "office" : "field"}`
     ].join("\n");
     await this.sendAndLog(setting, "late_reason_submitted", { chat_id: setting.chatId, text: msg });
   }
 
   async runDailySummarySweep(now = new Date()) {
-    const settings = await db.TelegramBotSetting.findAll({ where: { botType: "ATTENDANCE_SUMMARY", enabled: true } });
+    const settings = await db.TelegramBotSetting.findAll({ where: { botType: MAIN_BOT_TYPE, enabled: true } });
     console.log(`[TelegramAttendanceSummary] enabled summary configs: ${settings.length}`);
     for (const setting of settings) {
       if (!setting.botToken || !setting.chatId || !setting.sendTime) {
@@ -551,6 +683,12 @@ export class AttendanceTelegramService {
       caption: `${isTest ? "Test: " : ""}Attendance summary for ${dateYmd}`,
       document: `${isTest ? "test-" : ""}attendance-summary-${dateYmd}.csv`
     }, csv);
+  }
+
+  private async getMainSetting(businessId: string, enabledOnly = false) {
+    const main = await db.TelegramBotSetting.findOne({ where: { businessId, botType: MAIN_BOT_TYPE, ...(enabledOnly ? { enabled: true } : {}) } });
+    if (main?.botToken) return main;
+    return db.TelegramBotSetting.findOne({ where: { businessId, botType: "ATTENDANCE_SUMMARY", ...(enabledOnly ? { enabled: true } : {}) } });
   }
 
   private async buildPersonalSummary(businessId: string, userId: string, range: "today" | "week" | "month") {

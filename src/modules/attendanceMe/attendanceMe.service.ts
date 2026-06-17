@@ -294,11 +294,19 @@ export class AttendanceMeService {
           const dateYmd = localDateKey(now, tz);
           const preSubmittedReasons = await db.AttendanceDailyReason.findAll({
             where: { businessId, employeeId: userId, dateYmd, reasonType: "late" },
-            include: [{ model: db.AttendanceLateReason, as: "lateReason", attributes: ["id", "name", "requiresComment"] }],
             order: [["createdAt", "ASC"]],
             transaction: t,
             lock: t.LOCK.UPDATE
           });
+          const preSubmittedReasonIds = preSubmittedReasons.map((item: any) => item.lateReasonId).filter(Boolean);
+          const preSubmittedReasonRows = preSubmittedReasonIds.length
+            ? await db.AttendanceLateReason.findAll({
+                where: { id: { [Op.in]: preSubmittedReasonIds }, businessId },
+                attributes: ["id", "name", "requiresComment"],
+                transaction: t
+              })
+            : [];
+          const preSubmittedReasonById = new Map<string, any>(preSubmittedReasonRows.map((item: any) => [item.id, item]));
           if (!lateReasonId && !customReason && !preSubmittedReasons.length) {
             throw Object.assign(new Error("Late check-in requires a reason"), { statusCode: 400 });
           }
@@ -331,7 +339,7 @@ export class AttendanceMeService {
           const combinedReason = preSubmittedReasons.length
             ? preSubmittedReasons
                 .map((item: any, index: number) => {
-                  const name = item.lateReason?.name || "Custom reason";
+                  const name = preSubmittedReasonById.get(item.lateReasonId)?.name || "Custom reason";
                   return `${index + 1}. ${name}${item.comment ? ` - ${item.comment}` : ""}`;
                 })
                 .join("\n")
