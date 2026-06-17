@@ -425,7 +425,10 @@ export class AttendanceTelegramService {
         try {
           await this.handleWebhook(setting.businessId, update);
         } catch (err: any) {
-          console.error(`[TelegramPersonalBot] update ${update.update_id} failed for ${setting.businessId}: ${err.message}`);
+          const details = Array.isArray(err?.errors)
+            ? ` ${err.errors.map((item: any) => `${item.path || "field"}: ${item.message}`).join("; ")}`
+            : "";
+          console.error(`[TelegramPersonalBot] update ${update.update_id} failed for ${setting.businessId}: ${err.message}${details}`);
         }
       }
       await setting.update({ updateOffset: nextOffset });
@@ -446,10 +449,32 @@ export class AttendanceTelegramService {
     }
     await db.sequelize.transaction(async (transaction: any) => {
       await row.update({ usedAt: new Date() }, { transaction });
-      await db.TelegramAccountLink.upsert(
-        { businessId, userId: row.userId, telegramUserId, telegramChatId: chatId, telegramUsername: username, isActive: true, linkedAt: new Date(), unlinkedAt: null },
-        { transaction }
-      );
+      const existingLinks = await db.TelegramAccountLink.findAll({
+        where: {
+          businessId,
+          [Op.or]: [{ userId: row.userId }, { telegramUserId }]
+        },
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+      const primary = existingLinks[0] || null;
+      const payload = {
+        businessId,
+        userId: row.userId,
+        telegramUserId,
+        telegramChatId: chatId,
+        telegramUsername: username,
+        pendingAction: null,
+        isActive: true,
+        linkedAt: new Date(),
+        unlinkedAt: null
+      };
+      if (primary) {
+        for (const extra of existingLinks.slice(1)) await extra.destroy({ transaction });
+        await primary.update(payload, { transaction });
+      } else {
+        await db.TelegramAccountLink.create(payload, { transaction });
+      }
     });
     await this.sendPersonal(setting, chatId, "Your Telegram account is linked.", true, mainMenuKeyboard(true));
     return { ok: true };
