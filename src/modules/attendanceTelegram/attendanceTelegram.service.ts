@@ -13,6 +13,8 @@ const DEFAULT_SETTINGS: Record<BotType, any> = {
   PERSONAL_SUMMARY: { enabled: false, sendTime: null, timezone: "UTC", chatId: null, botToken: null }
 };
 
+const LINK_HELP_TEXT = "To link Telegram with ERP: open ERP, go to Attendance, click Link Telegram Account, copy the short code, then send /link CODE here.";
+
 function maskToken(token?: string | null) {
   if (!token) return null;
   return `${token.slice(0, 6)}...${token.slice(-4)}`;
@@ -334,7 +336,7 @@ export class AttendanceTelegramService {
 
   private async sendMenu(setting: any, businessId: string, chatId: string, telegramUserId: string, text = "Attendance bot menu") {
     const link = await db.TelegramAccountLink.findOne({ where: { businessId, telegramUserId, isActive: true } });
-    await this.sendPersonal(setting, chatId, link ? text : "Link your ERP account first, then you can view attendance summaries.", true, mainMenuKeyboard(Boolean(link)));
+    await this.sendPersonal(setting, chatId, link ? text : LINK_HELP_TEXT, true, mainMenuKeyboard(Boolean(link)));
   }
 
   private async requestAttendanceLocation(businessId: string, setting: any, chatId: string, telegramUserId: string, type: "CHECK_IN" | "CHECK_OUT") {
@@ -403,7 +405,7 @@ export class AttendanceTelegramService {
   private async replyWithSummary(businessId: string, setting: any, chatId: string, telegramUserId: string, range: "today" | "week" | "month") {
     const link = await db.TelegramAccountLink.findOne({ where: { businessId, telegramUserId, isActive: true } });
     if (!link) {
-      await this.sendPersonal(setting, chatId, "This Telegram account is not linked yet. Tap Link account, then paste your one-time ERP code.", true, mainMenuKeyboard(false));
+      await this.sendPersonal(setting, chatId, LINK_HELP_TEXT, true, mainMenuKeyboard(false));
       return { ok: true };
     }
     await this.sendPersonal(setting, chatId, "Loading your attendance summary...", false);
