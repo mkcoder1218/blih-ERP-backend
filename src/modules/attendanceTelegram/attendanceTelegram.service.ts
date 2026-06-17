@@ -349,6 +349,11 @@ export class AttendanceTelegramService {
       comment,
       source
     });
+    if (reasonType === "late") {
+      this.notifyDailyLateReason(businessId, userId, record.id).catch((err) => {
+        console.error(`[TelegramLateReason] notification failed for daily reason ${record.id}: ${err.message}`);
+      });
+    }
     if (reasonType === "unavailable") {
       const reason = reasonId ? await db.AttendanceLateReason.findByPk(reasonId) : null;
       await db.AttendanceRequest.create({
@@ -362,6 +367,35 @@ export class AttendanceTelegramService {
       });
     }
     return record;
+  }
+
+  private async notifyDailyLateReason(businessId: string, employeeId: string, dailyReasonId: string) {
+    const setting = await db.TelegramBotSetting.findOne({ where: { businessId, botType: "LATE_REASON", enabled: true } });
+    if (!setting?.botToken || !setting.chatId) return;
+
+    const dailyReason = await db.AttendanceDailyReason.findByPk(dailyReasonId, {
+      include: [{ model: db.AttendanceLateReason, as: "lateReason", attributes: ["id", "name", "requiresComment"] }]
+    });
+    if (!dailyReason) return;
+
+    const employee = await db.User.findOne({ where: { id: employeeId, businessId } });
+    const record = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeId }, include: [{ model: db.Department, as: "department" }] });
+    const reason = dailyReason.comment
+      ? `${dailyReason.lateReason?.name || "Custom reason"} - ${dailyReason.comment}`
+      : dailyReason.lateReason?.name || "Custom reason";
+
+    const msg = [
+      "Late reason submitted",
+      `Employee: ${employee?.fullName || "Unknown"}`,
+      `Date: ${dailyReason.dateYmd}`,
+      "Check-in: Not checked in yet",
+      "Late duration: Pending check-in",
+      `Reason: ${reason}`,
+      `Department: ${record?.department?.name || "N/A"}`,
+      `Source: ${dailyReason.source || "telegram"}`
+    ].join("\n");
+
+    await this.sendAndLog(setting, "late_reason_submitted_precheckin", { chat_id: setting.chatId, text: msg });
   }
 
   async pollPersonalBotUpdates() {
