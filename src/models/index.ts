@@ -114,6 +114,7 @@ import defineAttendanceEvent from "./AttendanceEvent";
 import defineAttendanceLateReason from "./AttendanceLateReason";
 import defineAttendanceLateExplanation from "./AttendanceLateExplanation";
 import defineAttendanceRequest from "./AttendanceRequest";
+import defineAttendanceDailyReason from "./AttendanceDailyReason";
 import defineOvertimeRequest from "./OvertimeRequest";
 import defineLeaveTemplate from "./LeaveTemplate";
 import defineLeaveRequest from "./LeaveRequest";
@@ -122,6 +123,10 @@ import defineHREvent from "./HREvent";
 import definePolicy from "./Policy";
 import definePolicyAcceptance from "./PolicyAcceptance";
 import defineTrustedDevice from "./TrustedDevice";
+import defineTelegramBotSetting from "./TelegramBotSetting";
+import defineTelegramAccountLink from "./TelegramAccountLink";
+import defineTelegramLinkCode from "./TelegramLinkCode";
+import defineTelegramNotificationLog from "./TelegramNotificationLog";
 
 export type DB = {
   sequelize: typeof sequelize;
@@ -131,6 +136,7 @@ export type DB = {
   AttendanceLateReason: any;
   AttendanceLateExplanation: any;
   AttendanceRequest: any;
+  AttendanceDailyReason: any;
   OvertimeRequest: any;
   LeaveTemplate: any;
   LeaveRequest: any;
@@ -246,6 +252,10 @@ export type DB = {
   Policy: any;
   PolicyAcceptance: any;
   TrustedDevice: any;
+  TelegramBotSetting: any;
+  TelegramAccountLink: any;
+  TelegramLinkCode: any;
+  TelegramNotificationLog: any;
 };
 
 export const db: DB = {
@@ -256,6 +266,7 @@ export const db: DB = {
   AttendanceLateReason: defineAttendanceLateReason(sequelize, DataTypes),
   AttendanceLateExplanation: defineAttendanceLateExplanation(sequelize, DataTypes),
   AttendanceRequest: defineAttendanceRequest(sequelize, DataTypes),
+  AttendanceDailyReason: defineAttendanceDailyReason(sequelize, DataTypes),
   OvertimeRequest: defineOvertimeRequest(sequelize, DataTypes),
   LeaveTemplate: defineLeaveTemplate(sequelize, DataTypes),
   LeaveRequest: defineLeaveRequest(sequelize, DataTypes),
@@ -371,6 +382,10 @@ export const db: DB = {
   Policy: definePolicy(sequelize, DataTypes),
   PolicyAcceptance: definePolicyAcceptance(sequelize, DataTypes),
   TrustedDevice: defineTrustedDevice(sequelize, DataTypes),
+  TelegramBotSetting: defineTelegramBotSetting(sequelize, DataTypes),
+  TelegramAccountLink: defineTelegramAccountLink(sequelize, DataTypes),
+  TelegramLinkCode: defineTelegramLinkCode(sequelize, DataTypes),
+  TelegramNotificationLog: defineTelegramNotificationLog(sequelize, DataTypes),
 };
 
 Object.values(db).forEach((model: any) => {

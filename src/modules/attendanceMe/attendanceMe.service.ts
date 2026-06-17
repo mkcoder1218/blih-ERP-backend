@@ -3,6 +3,7 @@ import { db } from "../../models";
 import { haversineDistanceMeters } from "../../utils/geo";
 import { businessDateEndUtc, businessDateStartUtc, endOfBusinessDayUtc, startOfBusinessDayUtc } from "../../utils/timezone";
 import { calculateAttendanceDay } from "../../services/attendanceCalculation.service";
+import { AttendanceTelegramService } from "../attendanceTelegram/attendanceTelegram.service";
 
 type AttendanceEventType = "CHECK_IN" | "LUNCH_OUT" | "LUNCH_IN" | "CHECK_OUT";
 type AttendanceActionCooldown = {
@@ -54,7 +55,12 @@ function buildCooldown(lastEvent: any | null, now: Date, action: AttendanceEvent
   };
 }
 
+function localDateKey(date: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
+
 export class AttendanceMeService {
+  private telegram = new AttendanceTelegramService();
   async getTodaySummary(userId: string, businessId: string) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     if (!settings) return { settings: null, disabledReason: "Attendance settings not found", timeline: [], nextAllowed: [] };
@@ -67,6 +73,12 @@ export class AttendanceMeService {
     const events = await db.AttendanceEvent.findAll({
       where: { businessId, employeeId: userId, timestampUtc: { [Op.gte]: startUtc, [Op.lt]: endUtc } },
       order: [["timestampUtc", "ASC"]]
+    });
+    const dateYmd = localDateKey(now, tz);
+    const dailyReasons = await db.AttendanceDailyReason.findAll({
+      where: { businessId, employeeId: userId, dateYmd },
+      include: [{ model: db.AttendanceLateReason, as: "lateReason", attributes: ["id", "name", "requiresComment"] }],
+      order: [["createdAt", "ASC"]]
     });
 
     const latest: AttendanceEventType | null = events.length ? (events[events.length - 1].type as AttendanceEventType) : null;
@@ -130,6 +142,22 @@ export class AttendanceMeService {
         fixedLunchStartTime: settings.fixedLunchStartTime || null,
         fixedLunchEndTime: settings.fixedLunchEndTime || null,
         allowMultipleLunchBreaks: Boolean(settings.allowMultipleLunchBreaks)
+      },
+      dailyReasons: {
+        late: dailyReasons.filter((item: any) => item.reasonType === "late").map((item: any) => ({
+          id: item.id,
+          reasonName: item.lateReason?.name || "Custom reason",
+          comment: item.comment || null,
+          source: item.source,
+          createdAt: item.createdAt
+        })),
+        unavailable: dailyReasons.filter((item: any) => item.reasonType === "unavailable").map((item: any) => ({
+          id: item.id,
+          reasonName: item.lateReason?.name || "Unavailable",
+          comment: item.comment || null,
+          source: item.source,
+          createdAt: item.createdAt
+        }))
       }
     };
   }
@@ -263,7 +291,15 @@ export class AttendanceMeService {
         if (lateByMinutes > 0) {
           const lateReasonId = (input as any).lateReasonId || null;
           const customReason = ((input as any).customReason || "").trim() || null;
-          if (!lateReasonId && !customReason) {
+          const dateYmd = localDateKey(now, tz);
+          const preSubmittedReasons = await db.AttendanceDailyReason.findAll({
+            where: { businessId, employeeId: userId, dateYmd, reasonType: "late" },
+            include: [{ model: db.AttendanceLateReason, as: "lateReason", attributes: ["id", "name", "requiresComment"] }],
+            order: [["createdAt", "ASC"]],
+            transaction: t,
+            lock: t.LOCK.UPDATE
+          });
+          if (!lateReasonId && !customReason && !preSubmittedReasons.length) {
             throw Object.assign(new Error("Late check-in requires a reason"), { statusCode: 400 });
           }
 
@@ -276,17 +312,55 @@ export class AttendanceMeService {
             }
           }
 
-          await db.AttendanceLateExplanation.create(
+          if (lateReasonId || customReason) {
+            await db.AttendanceDailyReason.create(
+              {
+                businessId,
+                employeeId: userId,
+                dateYmd,
+                reasonType: "late",
+                lateReasonId: reasonRow ? reasonRow.id : null,
+                comment: customReason,
+                source: "erp",
+                attendanceEventId: event.id
+              },
+              { transaction: t }
+            );
+          }
+
+          const combinedReason = preSubmittedReasons.length
+            ? preSubmittedReasons
+                .map((item: any, index: number) => {
+                  const name = item.lateReason?.name || "Custom reason";
+                  return `${index + 1}. ${name}${item.comment ? ` - ${item.comment}` : ""}`;
+                })
+                .join("\n")
+            : customReason;
+
+          const explanation = await db.AttendanceLateExplanation.create(
             {
               businessId,
               employeeId: userId,
               attendanceEventId: event.id,
               lateReasonId: reasonRow ? reasonRow.id : null,
-              customReason,
+              customReason: combinedReason,
               lateByMinutes
             },
             { transaction: t }
           );
+
+          if (preSubmittedReasons.length) {
+            await db.AttendanceDailyReason.update(
+              { attendanceEventId: event.id },
+              { where: { id: preSubmittedReasons.map((item: any) => item.id) }, transaction: t }
+            );
+          }
+
+          t.afterCommit(() => {
+            this.telegram.notifyLateReason(businessId, userId, event.id, explanation.id).catch((err) => {
+              console.error(`Telegram late reason notification failed: ${err.message}`);
+            });
+          });
         }
       }
 

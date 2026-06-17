@@ -10,11 +10,13 @@ import { BusinessController } from "./business.controller";
 import { createBusinessAdminSchema } from "../../validators/businessAdmin.validator";
 import { BusinessAdminController } from "./businessAdmin.controller";
 import { AttendanceSettingsController } from "../attendanceSettings/attendanceSettings.controller";
+import { AttendanceTelegramController } from "../attendanceTelegram/attendanceTelegram.controller";
 
 const router = Router();
 const controller = new BusinessController();
 const adminController = new BusinessAdminController();
 const attendanceSettingsController = new AttendanceSettingsController();
+const attendanceTelegramController = new AttendanceTelegramController();
 
 router.use(authRequired);
 
@@ -143,6 +145,27 @@ router.put(
   requirePermission("business.update"),
   validate(upsertAttendanceSettingsSchema),
   asyncHandler(attendanceSettingsController.upsert)
+);
+
+router.get(
+  "/:businessId/telegram-settings",
+  requireRole("PLATFORM_SUPER_ADMIN"),
+  requirePermission("business.read"),
+  asyncHandler(attendanceTelegramController.settings)
+);
+
+router.put(
+  "/:businessId/telegram-settings/:botType",
+  requireRole("PLATFORM_SUPER_ADMIN"),
+  requirePermission("business.update"),
+  asyncHandler(attendanceTelegramController.upsertSetting)
+);
+
+router.post(
+  "/:businessId/telegram-settings/:botType/test",
+  requireRole("PLATFORM_SUPER_ADMIN"),
+  requirePermission("business.update"),
+  asyncHandler(attendanceTelegramController.sendTest)
 );
 router.delete(
   "/:id",
