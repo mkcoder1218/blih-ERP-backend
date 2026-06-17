@@ -204,7 +204,7 @@ export class AttendanceTelegramService {
     if (!setting?.botToken) throw Object.assign(new Error("Telegram bot token is not configured"), { statusCode: 400 });
     if (!setting.chatId) throw Object.assign(new Error("Telegram chat ID or group ID is not configured"), { statusCode: 400 });
 
-    if (botType === "ATTENDANCE_SUMMARY") {
+    if (botType === "ATTENDANCE_SUMMARY" || botType === MAIN_BOT_TYPE) {
       const dateYmd = localDateYmd(new Date(), setting.timezone || "UTC");
       await this.sendDailySummaryCsv(businessId, dateYmd, setting, true);
       return { sent: true };
@@ -220,6 +220,19 @@ export class AttendanceTelegramService {
 
     const message = update?.message || update?.edited_message;
     if (!message?.from?.id) return { ignored: true };
+    if (message.chat?.type && message.chat.type !== "private") {
+      const setting = await this.getMainSetting(businessId, true);
+      const text = String(message.text || "").trim().toLowerCase();
+      if (setting?.botToken && ["/chatid", "/chatid@blih_attendance_bot"].some((command) => text.startsWith(command))) {
+        await telegramRequest(setting.botToken, "sendMessage", {
+          chat_id: message.chat.id,
+          text: `This group's chat ID is:\n${message.chat.id}\n\nPaste this value into ERP as the Admin/HR Group Chat ID.`
+        });
+        return { ok: true };
+      }
+      console.log(`[TelegramPersonalBot] ignored group message for ${businessId} chat=${message.chat.id} type=${message.chat.type}`);
+      return { ignored: true };
+    }
     const setting = await this.getMainSetting(businessId, true);
     if (!setting?.botToken) return { ignored: true };
 
@@ -284,6 +297,11 @@ export class AttendanceTelegramService {
     const setting = await this.getMainSetting(businessId, true);
     if (!setting?.botToken) return { ignored: true };
     const chatId = String(callback.message?.chat?.id || callback.from?.id);
+    if (callback.message?.chat?.type && callback.message.chat.type !== "private") {
+      await telegramRequest(setting.botToken, "answerCallbackQuery", { callback_query_id: callback.id });
+      console.log(`[TelegramPersonalBot] ignored group callback for ${businessId} chat=${chatId} type=${callback.message.chat.type}`);
+      return { ignored: true };
+    }
     const telegramUserId = String(callback.from.id);
     const data = String(callback.data || "");
 
@@ -644,8 +662,13 @@ export class AttendanceTelegramService {
       }
       const ymd = localDateYmd(now, setting.timezone || "UTC");
       if (setting.lastSentForDate === ymd) {
-        console.log(`[TelegramAttendanceSummary] skipped ${setting.businessId}: already sent for ${ymd}`);
-        continue;
+        const lastSentAt = setting.lastSentAt ? new Date(setting.lastSentAt).getTime() : 0;
+        const updatedAt = setting.updatedAt ? new Date(setting.updatedAt).getTime() : 0;
+        if (!updatedAt || updatedAt <= lastSentAt) {
+          console.log(`[TelegramAttendanceSummary] skipped ${setting.businessId}: already sent for ${ymd}`);
+          continue;
+        }
+        console.log(`[TelegramAttendanceSummary] resending ${setting.businessId}: settings changed after last send for ${ymd}`);
       }
       const currentMinutes = hhmmToMinutes(localTimeHhmm(now, setting.timezone || "UTC"));
       const scheduledMinutes = hhmmToMinutes(setting.sendTime);
@@ -656,11 +679,38 @@ export class AttendanceTelegramService {
       console.log(`[TelegramAttendanceSummary] sending ${setting.businessId}: ${ymd} at ${localTimeHhmm(now, setting.timezone || "UTC")} (${setting.timezone || "UTC"})`);
       await this.sendDailySummaryCsv(setting.businessId, ymd, setting);
       await setting.update({ lastSentForDate: ymd, lastSentAt: new Date() });
+      console.log(`[TelegramAttendanceSummary] sent ${setting.businessId}: ${ymd} to ${setting.chatId}`);
     }
   }
 
   private async sendDailySummaryCsv(businessId: string, dateYmd: string, setting: any, isTest = false) {
     const report = await this.hr.report(businessId, { startDate: dateYmd, endDate: dateYmd, sortBy: "name", sortOrder: "asc" });
+    const totalEmployees = report.rows.length;
+    const checkedIn = report.rows.filter((r: any) => Boolean(r.checkInAtUtc)).length;
+    const checkedOut = report.rows.filter((r: any) => Boolean(r.checkOutAtUtc)).length;
+    const late = report.rows.filter((r: any) => Boolean(r.isLate)).length;
+    const absent = report.rows.filter((r: any) => r.currentStatus === "MISSED").length;
+    const remote = report.rows.filter((r: any) => r.currentStatus === "REMOTE").length;
+    const office = Math.max(0, checkedIn - remote);
+    const workedRows = report.rows.filter((r: any) => Number(r.totalWorkedMinutes || 0) > 0);
+    const totalWorkedMinutes = workedRows.reduce((sum: number, r: any) => sum + Number(r.totalWorkedMinutes || 0), 0);
+    const averageWorkedMinutes = workedRows.length > 0 ? Math.round(totalWorkedMinutes / workedRows.length) : 0;
+    const summary = [
+      `${isTest ? "Test: " : ""}Overall attendance summary`,
+      `Date: ${dateYmd}`,
+      `Employees: ${totalEmployees}`,
+      `Checked in: ${checkedIn}`,
+      `Checked out: ${checkedOut}`,
+      `Late: ${late}`,
+      `Absent: ${absent}`,
+      `Office / Remote: ${office} / ${remote}`,
+      `Average worked: ${minutesLabel(averageWorkedMinutes)}`,
+      "",
+      "CSV report attached below."
+    ].join("\n");
+    console.log(`[TelegramAttendanceSummary] sending overall summary message to ${setting.chatId} for ${businessId} ${dateYmd}`);
+    await this.sendAndLog(setting, "daily_attendance_overall_summary", { chat_id: setting.chatId, text: summary });
+
     const headers = ["date", "employeeName", "department", "checkIn", "checkOut", "workedHours", "status", "late", "lateMinutes", "mode", "remoteOrOffice", "lateReason", "lateExplanation"];
     const rows = report.rows.map((r: any) => ({
       date: r.date,
@@ -678,6 +728,7 @@ export class AttendanceTelegramService {
       lateExplanation: r.lateExplanation || ""
     }));
     const csv = toCsv(rows, headers);
+    console.log(`[TelegramAttendanceSummary] sending CSV report to ${setting.chatId} for ${businessId} ${dateYmd}`);
     await this.sendAndLog(setting, "daily_attendance_summary_csv", {
       chat_id: setting.chatId,
       caption: `${isTest ? "Test: " : ""}Attendance summary for ${dateYmd}`,
