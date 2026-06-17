@@ -713,14 +713,17 @@ export class AttendanceTelegramService {
     console.log(`[TelegramAttendanceSummary] sending overall summary message to ${setting.chatId} for ${businessId} ${dateYmd}`);
     await this.sendAndLog(setting, "daily_attendance_overall_summary", { chat_id: setting.chatId, text: summary });
 
-    const headers = ["date", "employeeName", "department", "checkIn", "checkOut", "workedHours", "status", "late", "lateMinutes", "mode", "remoteOrOffice", "lateReason", "lateExplanation"];
+    const headers = ["date", "employeeName", "department", "checkIn", "checkOut", "rawWorkedHours", "workedHours", "penaltyMinutes", "penaltyReason", "status", "late", "lateMinutes", "mode", "remoteOrOffice", "lateReason", "lateExplanation"];
     const rows = report.rows.map((r: any) => ({
       date: r.date,
       employeeName: r.employeeName,
       department: r.department?.name || "",
       checkIn: r.checkInAtUtc || "",
       checkOut: r.checkOutAtUtc || "",
+      rawWorkedHours: (Number(r.rawWorkedMinutes || r.totalWorkedMinutes || 0) / 60).toFixed(2),
       workedHours: (Number(r.totalWorkedMinutes || 0) / 60).toFixed(2),
+      penaltyMinutes: r.penaltyMinutes || 0,
+      penaltyReason: r.penaltyReason || "",
       status: r.currentStatus,
       late: r.isLate ? "Yes" : "No",
       lateMinutes: r.lateByMinutes || 0,

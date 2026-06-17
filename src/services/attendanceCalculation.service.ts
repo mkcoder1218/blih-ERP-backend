@@ -13,8 +13,11 @@ export type AttendanceStatus =
   | "OUTSIDE_RADIUS_ATTEMPT";
 
 export type AttendanceCalculation = {
+  rawWorkedMinutes: number;
   totalWorkedMinutes: number;
   totalBreakMinutes: number;
+  penaltyMinutes: number;
+  penaltyReason: string | null;
   expectedMinutes: number;
   remainingMinutes: number;
   overtimeMinutes: number;
@@ -52,6 +55,10 @@ function localMinutes(dateUtc: Date, timeZone: string): number {
 
 function minutesBetweenLocal(a: number, b: number) {
   return Math.max(0, b - a);
+}
+
+function localDateKey(dateUtc: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(dateUtc);
 }
 
 export function calculateAttendanceDay(params: {
@@ -107,6 +114,35 @@ export function calculateAttendanceDay(params: {
   }
 
   const expectedMinutes = Number(settings.expectedDailyMinutes || 0);
+  const rawWorkedMinutes = totalWorkedMinutes;
+  let penaltyMinutes = 0;
+  let penaltyReason: string | null = null;
+
+  const lunchBreakEnabled = settings.lunchBreakEnabled !== false;
+  const hasCompleteLunch =
+    lunchOutMinute !== null &&
+    lunchInMinute !== null &&
+    checkInMinute !== null &&
+    lunchOutMinute >= checkInMinute &&
+    lunchInMinute >= lunchOutMinute;
+  const hasFinalCheckout = Boolean(checkOutAtUtc);
+  const defaultEndMinutes = parseHHmmToMinutes(settings.defaultEndTime || "17:00");
+  const dayLocalDate = localDateKey(dayStartUtc, tz);
+  const nowLocalDate = localDateKey(nowUtc, tz);
+  const workdayEnded = nowLocalDate > dayLocalDate || (nowLocalDate === dayLocalDate && localMinutes(nowUtc, tz) >= defaultEndMinutes);
+
+  if (checkInAtUtc && !hasFinalCheckout && workdayEnded) {
+    const halfDayMinutes = Math.floor(expectedMinutes / 2);
+    totalWorkedMinutes = halfDayMinutes;
+    penaltyMinutes = Math.max(0, expectedMinutes - halfDayMinutes);
+    penaltyReason = lunchBreakEnabled && !hasCompleteLunch ? "Missed lunch checkout and final checkout; half-day credit applied" : "Missed final checkout; half-day credit applied";
+  } else if (checkInAtUtc && hasFinalCheckout && lunchBreakEnabled && !hasCompleteLunch) {
+    const lunchPenaltyMinutes = 120;
+    penaltyMinutes = Math.min(lunchPenaltyMinutes, totalWorkedMinutes);
+    totalWorkedMinutes = Math.max(0, totalWorkedMinutes - penaltyMinutes);
+    penaltyReason = "Missed lunch checkout; 2h deduction applied";
+  }
+
   const remainingMinutes = Math.max(0, expectedMinutes - totalWorkedMinutes);
   const overtimeMinutes = Math.max(0, totalWorkedMinutes - expectedMinutes);
   const missingMinutes = Math.max(0, expectedMinutes - totalWorkedMinutes);
@@ -141,8 +177,11 @@ export function calculateAttendanceDay(params: {
 
   return {
     calculation: {
+      rawWorkedMinutes,
       totalWorkedMinutes,
       totalBreakMinutes,
+      penaltyMinutes,
+      penaltyReason,
       expectedMinutes,
       remainingMinutes,
       overtimeMinutes,

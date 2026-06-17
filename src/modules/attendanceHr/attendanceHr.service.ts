@@ -14,8 +14,11 @@ function isRemoteEmployee(employeeRecord: any) {
 function applyRemoteAttendanceOverride(calculation: any) {
   return {
     ...calculation,
+    rawWorkedMinutes: REMOTE_WORKED_MINUTES,
     totalWorkedMinutes: REMOTE_WORKED_MINUTES,
     totalBreakMinutes: 0,
+    penaltyMinutes: 0,
+    penaltyReason: null,
     expectedMinutes: REMOTE_WORKED_MINUTES,
     remainingMinutes: 0,
     overtimeMinutes: 0,
@@ -114,7 +117,10 @@ export class AttendanceHrService {
           checkOutAtUtc: normalized.checkOutAtUtc
         },
         workedMinutes: finalCalculation.totalWorkedMinutes,
+        rawWorkedMinutes: finalCalculation.rawWorkedMinutes,
         breakMinutes: finalCalculation.totalBreakMinutes,
+        penaltyMinutes: finalCalculation.penaltyMinutes,
+        penaltyReason: finalCalculation.penaltyReason,
         expectedMinutes: finalCalculation.expectedMinutes,
         overtimeMinutes: finalCalculation.overtimeMinutes,
         missingMinutes: finalCalculation.missingMinutes,
