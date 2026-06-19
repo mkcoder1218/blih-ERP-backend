@@ -8,13 +8,16 @@ class SettingsService {
         await models_1.db.BusinessBranding.upsert({ businessId, companyName });
         // Upsert Localization
         await models_1.db.BusinessLocalization.upsert({ businessId });
-        // Upsert default settings
+        // Set default settings safely (no duplicates)
         const defaultSettings = [
             { businessId, key: 'allow_public_registration', value: false, category: 'security', isPublic: true },
-            { businessId, key: 'enforce_2fa', value: false, category: 'security', isPublic: false }
+            { businessId, key: 'enforce_2fa', value: false, category: 'security', isPublic: false },
         ];
-        for (const setting of defaultSettings) {
-            await models_1.db.BusinessSetting.upsert(setting);
+        for (const s of defaultSettings) {
+            const existing = await models_1.db.BusinessSetting.findOne({ where: { businessId: s.businessId, key: s.key } });
+            if (!existing)
+                await models_1.db.BusinessSetting.create(s);
+            // Don't overwrite — only seed if absent
         }
     }
     async getPublicConfiguration(businessId) {
@@ -40,8 +43,18 @@ class SettingsService {
         if (restrictedKeys.includes(key.toLowerCase())) {
             throw new Error("Cannot modify protected system capabilities through generic settings.");
         }
-        const [setting] = await models_1.db.BusinessSetting.upsert({ businessId, key, value, category, isPublic });
-        return setting;
+        // Use findOne + update/create pattern to avoid duplicate rows.
+        // Sequelize upsert without a unique index just inserts every time.
+        const existing = await models_1.db.BusinessSetting.findOne({ where: { businessId, key } });
+        if (existing) {
+            await existing.update({
+                value,
+                ...(category !== undefined ? { category } : {}),
+                ...(isPublic !== undefined ? { isPublic } : {}),
+            });
+            return existing;
+        }
+        return models_1.db.BusinessSetting.create({ businessId, key, value, category, isPublic });
     }
     async listSettings(businessId) {
         return models_1.db.BusinessSetting.findAll({ where: { businessId } });

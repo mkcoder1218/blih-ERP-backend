@@ -80,12 +80,16 @@ const permission_routes_1 = require("./modules/permission/permission.routes");
 const attendanceMe_routes_1 = require("./modules/attendanceMe/attendanceMe.routes");
 const attendanceHr_routes_1 = require("./modules/attendanceHr/attendanceHr.routes");
 const lateReasons_routes_1 = require("./modules/attendanceHrLateReasons/lateReasons.routes");
+const attendanceRequests_routes_1 = require("./modules/attendanceRequests/attendanceRequests.routes");
 const overtime_routes_1 = require("./modules/overtime/overtime.routes");
 const leave_routes_1 = require("./modules/leave/leave.routes");
+const policy_routes_1 = require("./modules/policy/policy.routes");
+const devices_routes_1 = require("./modules/devices/devices.routes");
+const attendanceTelegram_routes_1 = require("./modules/attendanceTelegram/attendanceTelegram.routes");
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const swagger_1 = require("./config/swagger");
 const app = (0, express_1.default)();
-// CORS must be first — before helmet, rate limiter, and everything else.
+// CORS must be first — before helmet, rat limiter, and everhing else.
 // The browser sends a preflight OPTIONS request before any authenticated request;
 // if CORS headers aren't on that response the browser blocks the actual request.
 const corsOptions = {
@@ -109,7 +113,7 @@ const corsOptions = {
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "x-api-key"],
     exposedHeaders: ["Content-Disposition"],
 };
 app.use((0, cors_1.default)(corsOptions));
@@ -165,13 +169,17 @@ apiRouter.use("/notifications", notification_routes_1.notificationRoutes);
 apiRouter.use("/departments", department_routes_1.departmentRoutes);
 apiRouter.use("/positions", position_routes_1.positionRoutes);
 apiRouter.use("/profiles", profile_routes_1.businessUserProfileRoutes);
+apiRouter.use("/devices", devices_routes_1.devicesRoutes);
 apiRouter.use("/roles", role_routes_1.roleRoutes);
 apiRouter.use("/permissions", permission_routes_1.permissionRoutes);
 apiRouter.use("/attendance", attendanceMe_routes_1.attendanceMeRoutes);
-apiRouter.use("/attendance/hr", attendanceHr_routes_1.attendanceHrRoutes);
+apiRouter.use("/attendance/telegram", attendanceTelegram_routes_1.attendanceTelegramRoutes);
 apiRouter.use("/attendance/hr/late-reasons", lateReasons_routes_1.attendanceHrLateReasonsRoutes);
+apiRouter.use("/attendance/hr", attendanceHr_routes_1.attendanceHrRoutes);
+apiRouter.use("/attendance-requests", attendanceRequests_routes_1.attendanceRequestsRoutes);
 apiRouter.use("/overtime-requests", overtime_routes_1.overtimeRoutes);
 apiRouter.use("/leave-requests", leave_routes_1.leaveRoutes);
+apiRouter.use("/policies", policy_routes_1.policyRoutes);
 app.use(`/api/${env_1.env.apiVersion}`, apiRouter);
 // Health stays out of versioning
 app.get('/health', (req, res) => res.json({ status: 'UP' }));

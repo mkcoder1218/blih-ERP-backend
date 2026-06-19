@@ -118,9 +118,20 @@ const BusinessAttendanceSettings_1 = __importDefault(require("./BusinessAttendan
 const AttendanceEvent_1 = __importDefault(require("./AttendanceEvent"));
 const AttendanceLateReason_1 = __importDefault(require("./AttendanceLateReason"));
 const AttendanceLateExplanation_1 = __importDefault(require("./AttendanceLateExplanation"));
+const AttendanceRequest_1 = __importDefault(require("./AttendanceRequest"));
+const AttendanceDailyReason_1 = __importDefault(require("./AttendanceDailyReason"));
 const OvertimeRequest_1 = __importDefault(require("./OvertimeRequest"));
 const LeaveTemplate_1 = __importDefault(require("./LeaveTemplate"));
 const LeaveRequest_1 = __importDefault(require("./LeaveRequest"));
+const PromotionRequest_1 = __importDefault(require("./PromotionRequest"));
+const HREvent_1 = __importDefault(require("./HREvent"));
+const Policy_1 = __importDefault(require("./Policy"));
+const PolicyAcceptance_1 = __importDefault(require("./PolicyAcceptance"));
+const TrustedDevice_1 = __importDefault(require("./TrustedDevice"));
+const TelegramBotSetting_1 = __importDefault(require("./TelegramBotSetting"));
+const TelegramAccountLink_1 = __importDefault(require("./TelegramAccountLink"));
+const TelegramLinkCode_1 = __importDefault(require("./TelegramLinkCode"));
+const TelegramNotificationLog_1 = __importDefault(require("./TelegramNotificationLog"));
 exports.db = {
     sequelize: sequelize_2.sequelize,
     Business: (0, Business_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -128,6 +139,8 @@ exports.db = {
     AttendanceEvent: (0, AttendanceEvent_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     AttendanceLateReason: (0, AttendanceLateReason_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     AttendanceLateExplanation: (0, AttendanceLateExplanation_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    AttendanceRequest: (0, AttendanceRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    AttendanceDailyReason: (0, AttendanceDailyReason_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     OvertimeRequest: (0, OvertimeRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     LeaveTemplate: (0, LeaveTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     LeaveRequest: (0, LeaveRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -238,6 +251,15 @@ exports.db = {
     InterviewSkill: (0, InterviewSkill_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     InterviewerNote: (0, InterviewerNote_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     CandidateOnboarding: (0, CandidateOnboarding_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PromotionRequest: (0, PromotionRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    HREvent: (0, HREvent_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Policy: (0, Policy_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PolicyAcceptance: (0, PolicyAcceptance_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    TrustedDevice: (0, TrustedDevice_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    TelegramBotSetting: (0, TelegramBotSetting_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    TelegramAccountLink: (0, TelegramAccountLink_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    TelegramLinkCode: (0, TelegramLinkCode_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    TelegramNotificationLog: (0, TelegramNotificationLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
 };
 Object.values(exports.db).forEach((model) => {
     if (model && typeof model.associate === "function")

@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 import { db } from "../../models";
 import { businessDateEndUtc, businessDateStartUtc } from "../../utils/timezone";
 import { calculateAttendanceDay } from "../../services/attendanceCalculation.service";
+import { AttendanceRosterResolver } from "../../services/attendanceRosterResolver.service";
 
 type Status = string;
 
@@ -32,6 +33,8 @@ function applyRemoteAttendanceOverride(calculation: any) {
 }
 
 export class AttendanceHrService {
+  private rosterResolver = new AttendanceRosterResolver();
+
   async buildDaily(businessId: string, opts: { dateYmd: string; departmentId?: string | null; status?: Status | null; search?: string | null; sortBy: string; sortOrder: string }) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     if (!settings) throw Object.assign(new Error("Attendance settings not found"), { statusCode: 400 });
@@ -40,42 +43,20 @@ export class AttendanceHrService {
     const startUtc = businessDateStartUtc(opts.dateYmd, tz);
     const endUtc = businessDateEndUtc(opts.dateYmd, tz);
 
-    const employeeWhere: any = { businessId };
-    if (opts.departmentId) employeeWhere.departmentId = opts.departmentId;
-
-    const employees = await db.EmployeeRecord.findAll({
-      where: employeeWhere,
-      include: [
-        { model: db.User, as: "user", attributes: ["id", "fullName", "email"] },
-        { model: db.Department, as: "department", attributes: ["id", "name"] }
-      ]
+    const rosterRows = await this.rosterResolver.resolveExpectedEmployees(businessId, {
+      startDate: opts.dateYmd,
+      endDate: opts.dateYmd,
+      departmentId: opts.departmentId
     });
 
-    const employeeByUserId = new Map<string, any>();
-    for (const employee of employees) employeeByUserId.set((employee as any).userId, employee);
-
-    const userIds = employees.map((e: any) => e.userId);
+    const userIds = Array.from(new Set(rosterRows.map((row) => row.employeeId)));
     const eventWhere: any = { businessId, timestampUtc: { [Op.gte]: startUtc, [Op.lt]: endUtc } };
-    if (opts.departmentId) eventWhere.employeeId = { [Op.in]: userIds };
+    eventWhere.employeeId = { [Op.in]: userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"] };
 
     const events = await db.AttendanceEvent.findAll({
       where: eventWhere,
       order: [["timestampUtc", "ASC"]]
     });
-
-    const eventUserIds: string[] = Array.from(new Set(events.map((e: any) => String(e.employeeId))));
-    const missingUserIds = opts.departmentId ? [] : eventUserIds.filter((id) => !employeeByUserId.has(id));
-    const missingUsers = missingUserIds.length
-      ? await db.User.findAll({
-          where: { id: { [Op.in]: missingUserIds }, businessId },
-          attributes: ["id", "fullName", "email"]
-        })
-      : [];
-    const userById = new Map<string, any>();
-    for (const employee of employees) {
-      if ((employee as any).user) userById.set((employee as any).userId, (employee as any).user);
-    }
-    for (const user of missingUsers) userById.set((user as any).id, user);
 
     const byEmployee = new Map<string, any[]>();
     for (const ev of events) {
@@ -85,17 +66,15 @@ export class AttendanceHrService {
       byEmployee.set(id, arr);
     }
 
-    const rowUserIds = Array.from(new Set([...userIds, ...missingUserIds]));
-    const rows = rowUserIds.map((userId: string) => {
-      const er = employeeByUserId.get(userId) || null;
-      const user = userById.get(userId);
-      const dept = er?.department || null;
-      const evs = byEmployee.get(userId) || [];
-      if (!user) return null;
+    const settingsJson = typeof settings.toJSON === "function" ? settings.toJSON() : settings;
+    const rows = rosterRows.map((roster) => {
+      const er = roster.employeeRecord || null;
+      const evs = byEmployee.get(roster.employeeId) || [];
+      const calcSettings = { ...settingsJson, defaultStartTime: roster.assignedStartTime };
 
       const { calculation, normalized } = calculateAttendanceDay({
         events: evs.map((e: any) => ({ type: e.type, timestampUtc: new Date(e.timestampUtc) })),
-        settings,
+        settings: calcSettings,
         dayStartUtc: startUtc,
         dayEndUtc: endUtc,
         nowUtc: new Date()
@@ -106,10 +85,14 @@ export class AttendanceHrService {
         finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
 
       return {
-        employeeId: user.id,
-        employeeName: user.fullName,
-        employeeEmail: user.email,
-        department: dept ? { id: dept.id, name: dept.name } : null,
+        employeeId: roster.employeeId,
+        employeeName: roster.employeeName,
+        employeeEmail: roster.employeeEmail,
+        department: roster.department,
+        assignedStartTime: roster.assignedStartTime,
+        employmentCategory: roster.employmentCategory,
+        scheduledWorkDays: roster.scheduledWorkDays,
+        scheduledDate: roster.dateYmd,
         events: {
           checkInAtUtc: normalized.checkInAtUtc,
           lunchOutAtUtc: normalized.lunchOutAtUtc,
@@ -128,7 +111,7 @@ export class AttendanceHrService {
         isLate: finalCalculation.isLate,
         lateByMinutes: finalCalculation.lateByMinutes
       };
-    }).filter((row): row is NonNullable<typeof row> => Boolean(row));
+    });
 
     const filtered = rows.filter((r: any) => {
       if (opts.search) {
@@ -245,42 +228,21 @@ export class AttendanceHrService {
     const rangeStartUtc = businessDateStartUtc(opts.startDate, tz);
     const rangeEndUtc = businessDateEndUtc(opts.endDate, tz);
 
-    const employeeWhere: any = { businessId };
-    if (opts.departmentId) employeeWhere.departmentId = opts.departmentId;
-    if (opts.employeeId) employeeWhere.userId = opts.employeeId;
-
-    const employees = await db.EmployeeRecord.findAll({
-      where: employeeWhere,
-      include: [
-        { model: db.User, as: "user", attributes: ["id", "fullName", "email"] },
-        { model: db.Department, as: "department", attributes: ["id", "name"] }
-      ]
+    const rosterRows = await this.rosterResolver.resolveExpectedEmployees(businessId, {
+      startDate: opts.startDate,
+      endDate: opts.endDate,
+      departmentId: opts.departmentId,
+      employeeId: opts.employeeId
     });
-    const employeeByUserId = new Map<string, any>();
-    for (const employee of employees) employeeByUserId.set((employee as any).userId, employee);
 
-    const userIds = employees.map((e: any) => e.userId);
+    const userIds = Array.from(new Set(rosterRows.map((row) => row.employeeId)));
     const eventWhere: any = { businessId, timestampUtc: { [Op.gte]: rangeStartUtc, [Op.lt]: rangeEndUtc } };
-    if (opts.departmentId || opts.employeeId) eventWhere.employeeId = { [Op.in]: userIds };
+    eventWhere.employeeId = { [Op.in]: userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"] };
 
     const events = await db.AttendanceEvent.findAll({
       where: eventWhere,
       order: [["timestampUtc", "ASC"]]
     });
-
-    const eventUserIds: string[] = Array.from(new Set(events.map((e: any) => String(e.employeeId))));
-    const missingUserIds = opts.departmentId || opts.employeeId ? [] : eventUserIds.filter((id) => !employeeByUserId.has(id));
-    const missingUsers = missingUserIds.length
-      ? await db.User.findAll({
-          where: { id: { [Op.in]: missingUserIds }, businessId },
-          attributes: ["id", "fullName", "email"]
-        })
-      : [];
-    const userById = new Map<string, any>();
-    for (const employee of employees) {
-      if ((employee as any).user) userById.set((employee as any).userId, (employee as any).user);
-    }
-    for (const user of missingUsers) userById.set((user as any).id, user);
 
     const localDateKey = (d: Date) =>
       new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
@@ -295,49 +257,39 @@ export class AttendanceHrService {
       byEmpDate.set(k, arr);
     }
 
-    // Build list of dates in range (inclusive)
-    const dates: string[] = [];
-    {
-      const cur = new Date(opts.startDate + "T00:00:00Z");
-      const end = new Date(opts.endDate + "T00:00:00Z");
-      while (cur.getTime() <= end.getTime()) {
-        dates.push(cur.toISOString().slice(0, 10));
-        cur.setUTCDate(cur.getUTCDate() + 1);
-      }
-    }
-
     const rows: any[] = [];
-    const rowUserIds = Array.from(new Set([...userIds, ...missingUserIds]));
-    for (const userId of rowUserIds) {
-      const er = employeeByUserId.get(userId) || null;
-      const user = userById.get(userId);
-      const dept = er?.department || null;
-      if (!user) continue;
+    const settingsJson = typeof settings.toJSON === "function" ? settings.toJSON() : settings;
+    for (const roster of rosterRows) {
       if (opts.search) {
         const s = opts.search.toLowerCase();
-        if (!user.fullName.toLowerCase().includes(s) && !String(user.email || "").toLowerCase().includes(s)) continue;
+        if (!roster.employeeName.toLowerCase().includes(s) && !String(roster.employeeEmail || "").toLowerCase().includes(s)) continue;
       }
 
-      for (const dateYmd of dates) {
+      {
+        const dateYmd = roster.dateYmd;
         const dayStartUtc = businessDateStartUtc(dateYmd, tz);
         const dayEndUtc = businessDateEndUtc(dateYmd, tz);
-        const evs = byEmpDate.get(`${userId}__${dateYmd}`) || [];
+        const evs = byEmpDate.get(`${roster.employeeId}__${dateYmd}`) || [];
+        const calcSettings = { ...settingsJson, defaultStartTime: roster.assignedStartTime };
         const { calculation, normalized } = calculateAttendanceDay({
           events: evs.map((e: any) => ({ type: e.type, timestampUtc: new Date(e.timestampUtc) })),
-          settings,
+          settings: calcSettings,
           dayStartUtc,
           dayEndUtc,
           nowUtc: new Date()
         });
 
-        const finalCalculation = isRemoteEmployee(er) ? applyRemoteAttendanceOverride(calculation) : calculation;
+        const finalCalculation = isRemoteEmployee(roster.employeeRecord) ? applyRemoteAttendanceOverride(calculation) : calculation;
         const status = finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
         if (opts.status && status !== opts.status) continue;
 
         rows.push({
-          employeeId: user.id,
-          employeeName: user.fullName,
-          department: dept ? { id: dept.id, name: dept.name } : null,
+          employeeId: roster.employeeId,
+          employeeName: roster.employeeName,
+          department: roster.department,
+          assignedStartTime: roster.assignedStartTime,
+          employmentCategory: roster.employmentCategory,
+          scheduledWorkDays: roster.scheduledWorkDays,
           date: dateYmd,
           checkInAtUtc: normalized.checkInAtUtc,
           lunchOutAtUtc: normalized.lunchOutAtUtc,

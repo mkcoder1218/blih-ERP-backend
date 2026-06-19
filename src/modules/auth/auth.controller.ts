@@ -167,6 +167,11 @@ export class AuthController {
       attributes: ["moduleKey", "moduleName", "status", "enabledAt"]
     });
 
+    const employeeRecord = await db.EmployeeRecord.findOne({
+      where: { businessId: user.businessId, userId: user.id },
+      attributes: ["employmentType", "employmentStatus"],
+    });
+
     const roles = (fullUser.Roles || []).map((r: any) => r.key);
     const permissionsSet = new Set<string>();
     (fullUser.Roles || []).forEach((r: any) => (r.Permissions || []).forEach((p: any) => permissionsSet.add(p.key)));
@@ -182,6 +187,8 @@ export class AuthController {
         email: fullUser.email,
         phone: fullUser.phone,
         status: fullUser.status,
+        employmentType: employeeRecord?.employmentType || null,
+        employmentStatus: employeeRecord?.employmentStatus || null,
         isPlatformSuperAdmin: Boolean(fullUser.isPlatformSuperAdmin) || roles.includes("PLATFORM_SUPER_ADMIN"),
         lastLoginAt: fullUser.lastLoginAt
       },
@@ -227,7 +234,7 @@ export class AuthController {
       }),
       db.EmployeeRecord.findOne({
         where: { businessId: user.businessId, userId: user.id },
-        attributes: ["departmentId", "positionId"],
+        attributes: ["departmentId", "positionId", "employmentType", "employmentStatus"],
         include: [
           { model: db.Department, as: "department", attributes: ["id", "name"] },
           { model: db.Position, as: "position", attributes: ["id", "title"] },
@@ -250,6 +257,8 @@ export class AuthController {
         email: user.email,
         phone: user.phone,
         status: user.status,
+        employmentType: employeeRecord?.employmentType || null,
+        employmentStatus: employeeRecord?.employmentStatus || null,
         isPlatformSuperAdmin: Boolean(user.isPlatformSuperAdmin) || roles.includes("PLATFORM_SUPER_ADMIN"),
         lastLoginAt: user.lastLoginAt
       },
@@ -291,13 +300,19 @@ export class AuthController {
         dateOfBirth, nationalId, address, city, country,
         zipCode, gender, maritalStatus, nationality,
         // Work info
-        departmentId, positionId, hireDate, employmentType, requestedRoleKey,
+        departmentId, positionId, hireDate, employmentType, internPaymentType, requestedRoleKey,
         // Emergency contact
         emergencyName, emergencyPhone, emergencyRelationship,
         // Bank / optional
         bankName, bankAccount,
       } = req.body;
       const normalizedEmail = normalizeEmail(email);
+      const isIntern = employmentType === 'intern';
+      const askInternPaymentType = internPaymentType === 'paid' || internPaymentType === 'unpaid';
+      const normalizedInternPaymentType = isIntern && internPaymentType === 'paid' ? 'paid' : 'unpaid';
+      const bankDetails = (!isIntern || (askInternPaymentType && normalizedInternPaymentType === 'paid')) && (bankName || bankAccount)
+        ? [{ bankName: bankName || 'Awash Bank', accountNumber: bankAccount || null }]
+        : [];
 
       // 1. Resolve business by slug
       const business = await db.Business.findOne({ where: { slug: businessSlug } });
@@ -446,6 +461,7 @@ export class AuthController {
           dateOfBirth:      dateOfBirth      || null,
           selfRegistered:   true,
           requestedRoleKey: requestedRoleKey || null,
+          internPaymentType: isIntern ? normalizedInternPaymentType : null,
         },
       });
 
@@ -474,7 +490,8 @@ export class AuthController {
           gender:             gender         || null,
           maritalStatus:      maritalStatus  || null,
           nationality:        nationality    || null,
-          bankDetails:        (bankName || bankAccount) ? [{ bankName: bankName || null, accountNumber: bankAccount || null }] : [],
+          bankDetails,
+          internship:         isIntern ? { stipendType: normalizedInternPaymentType } : undefined,
           selfRegistered:     true,
           requestedRoleKey:   requestedRoleKey || null,
         },
@@ -610,13 +627,19 @@ export class AuthController {
       const {
         businessSlug, fullName, email, password, phone,
         dateOfBirth, gender, maritalStatus, nationality,
-        address, city, country, zipCode, requestedRoleKey, employmentType, hireDate,
+        address, city, country, zipCode, requestedRoleKey, employmentType, internPaymentType, hireDate,
         departmentId, positionId, emergencyName, emergencyPhone, emergencyRelationship,
         bankName, bankAccount,
       } = req.body;
 
       const business = await db.Business.findOne({ where: { slug: businessSlug }, attributes: ['id'] });
       if (!business) return next({ statusCode: 404, message: 'Business not found' });
+      const isIntern = employmentType === 'intern';
+      const askInternPaymentType = internPaymentType === 'paid' || internPaymentType === 'unpaid';
+      const normalizedInternPaymentType = isIntern && internPaymentType === 'paid' ? 'paid' : 'unpaid';
+      const bankDetails = (!isIntern || (askInternPaymentType && normalizedInternPaymentType === 'paid')) && (bankName || bankAccount)
+        ? [{ bankName: bankName || 'Awash Bank', accountNumber: bankAccount || null }]
+        : [];
 
       const user = await db.User.findOne({
         where: { businessId: business.id, registrationToken: token, status: 'rejected' },
@@ -715,6 +738,7 @@ export class AuthController {
           nationality:    nationality      || null,
           dateOfBirth:    dateOfBirth      || null,
           requestedRoleKey: requestedRoleKey || null,
+          internPaymentType: isIntern ? normalizedInternPaymentType : null,
           resubmitted: true,
         },
       });
@@ -754,7 +778,8 @@ export class AuthController {
             gender:             gender         || prevMeta.gender,
             maritalStatus:      maritalStatus  || prevMeta.maritalStatus,
             nationality:        nationality    || prevMeta.nationality,
-            bankDetails:        (bankName || bankAccount) ? [{ bankName: bankName || null, accountNumber: bankAccount || null }] : prevMeta.bankDetails || [],
+            bankDetails:        isIntern ? bankDetails : (bankDetails.length ? bankDetails : prevMeta.bankDetails || []),
+            internship:         isIntern ? { ...(prevMeta.internship || {}), stipendType: normalizedInternPaymentType } : prevMeta.internship,
             requestedRoleKey:   requestedRoleKey || prevMeta.requestedRoleKey,
             resubmitted: true,
           },
@@ -903,17 +928,19 @@ export class AuthController {
       if (!business) return next({ statusCode: 404, message: 'Not found' });
       const businessId = business.id;
 
-      const [enabledS, fromS, untilS, autoS] = await Promise.all([
+      const [enabledS, fromS, untilS, autoS, askInternPaymentS] = await Promise.all([
         db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_enabled' } }),
         db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_open_from' } }),
         db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_open_until' } }),
         db.BusinessSetting.findOne({ where: { businessId, key: 'auto_approve_registration' } }),
+        db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_ask_intern_payment_type' } }),
       ]);
 
       const enabled   = enabledS?.value === true || enabledS?.value?.enabled === true;
       const openFrom  = fromS?.value  as string | null ?? null;
       const openUntil = untilS?.value as string | null ?? null;
       const autoApprove = autoS?.value === true || autoS?.value?.enabled === true;
+      const askInternPaymentType = askInternPaymentS?.value !== false;
 
       const now = new Date();
       let isOpen = enabled;
@@ -928,6 +955,7 @@ export class AuthController {
         openFrom,
         openUntil,
         autoApprove,
+        askInternPaymentType,
       });
     } catch (e: any) { return next({ statusCode: 500, message: e.message }); }
   };

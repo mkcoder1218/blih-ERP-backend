@@ -2,8 +2,8 @@ import Joi from "joi";
 
 export const createAttendanceEventSchema = Joi.object({
   type: Joi.string().valid("CHECK_IN", "LUNCH_OUT", "LUNCH_IN", "CHECK_OUT").required(),
-  latitude: Joi.number().min(-90).max(90).required(),
-  longitude: Joi.number().min(-180).max(180).required(),
+  latitude: Joi.number().min(-90).max(90).optional().allow(null),
+  longitude: Joi.number().min(-180).max(180).optional().allow(null),
   lateReasonId: Joi.string().uuid().optional().allow(null, ""),
   customReason: Joi.string().max(800).optional().allow(null, "")
 });

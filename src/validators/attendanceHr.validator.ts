@@ -44,3 +44,39 @@ export const reportQuerySchema = Joi.object({
 export const exportQuerySchema = reportQuerySchema.keys({
   format: Joi.string().valid("csv").optional().default("csv")
 });
+
+export const dailyReportExportQuerySchema = Joi.object({
+  date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
+  departmentId: Joi.string().uuid().optional().allow("", null),
+  employeeId: Joi.string().uuid().optional().allow("", null),
+  employmentCategory: Joi.string().valid("Managerial", "Non-Managerial").optional().allow("", null),
+  status: Joi.string().optional().allow("", null),
+  search: Joi.string().max(120).optional().allow("", null),
+  format: Joi.string().valid("csv", "excel").optional().default("csv")
+});
+
+export const weeklyReportExportQuerySchema = Joi.object({
+  startDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
+  endDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
+  departmentId: Joi.string().uuid().optional().allow("", null),
+  employeeId: Joi.string().uuid().optional().allow("", null),
+  employmentCategory: Joi.string().valid("Managerial", "Non-Managerial").optional().allow("", null),
+  status: Joi.string().optional().allow("", null),
+  search: Joi.string().max(120).optional().allow("", null),
+  format: Joi.string().valid("csv", "excel").optional().default("csv")
+}).custom((value, helpers) => {
+  if (value.startDate && value.endDate && value.startDate > value.endDate) {
+    return helpers.error("any.custom", { message: "startDate must be <= endDate" });
+  }
+  return value;
+}).messages({ "any.custom": "{{#message}}" });
+
+export const monthlyReportExportQuerySchema = Joi.object({
+  month: Joi.string().pattern(/^\d{4}-\d{2}$/).required(),
+  departmentId: Joi.string().uuid().optional().allow("", null),
+  employeeId: Joi.string().uuid().optional().allow("", null),
+  employmentCategory: Joi.string().valid("Managerial", "Non-Managerial").optional().allow("", null),
+  status: Joi.string().optional().allow("", null),
+  search: Joi.string().max(120).optional().allow("", null),
+  format: Joi.string().valid("csv", "excel").optional().default("csv")
+});

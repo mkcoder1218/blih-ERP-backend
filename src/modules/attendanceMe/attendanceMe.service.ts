@@ -4,6 +4,7 @@ import { haversineDistanceMeters } from "../../utils/geo";
 import { businessDateEndUtc, businessDateStartUtc, endOfBusinessDayUtc, startOfBusinessDayUtc } from "../../utils/timezone";
 import { calculateAttendanceDay } from "../../services/attendanceCalculation.service";
 import { AttendanceTelegramService } from "../attendanceTelegram/attendanceTelegram.service";
+import { LatenessReasonRulesService } from "../../services/latenessReasonRules.service";
 
 type AttendanceEventType = "CHECK_IN" | "LUNCH_OUT" | "LUNCH_IN" | "CHECK_OUT";
 type AttendanceActionCooldown = {
@@ -59,8 +60,13 @@ function localDateKey(date: Date, timeZone: string) {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
+function isSaturday(date: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(date) === "Sat";
+}
+
 export class AttendanceMeService {
   private telegram = new AttendanceTelegramService();
+  private latenessReasonRules = new LatenessReasonRulesService();
   async getTodaySummary(userId: string, businessId: string) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     if (!settings) return { settings: null, disabledReason: "Attendance settings not found", timeline: [], nextAllowed: [] };
@@ -75,11 +81,16 @@ export class AttendanceMeService {
       order: [["timestampUtc", "ASC"]]
     });
     const dateYmd = localDateKey(now, tz);
-    const dailyReasons = await db.AttendanceDailyReason.findAll({
-      where: { businessId, employeeId: userId, dateYmd },
-      include: [{ model: db.AttendanceLateReason, as: "lateReason", attributes: ["id", "name", "requiresComment"] }],
-      order: [["createdAt", "ASC"]]
-    });
+    const dailyReasons = db.AttendanceDailyReason?.findAll
+      ? await db.AttendanceDailyReason.findAll({
+          where: { businessId, employeeId: userId, dateYmd },
+          include: [{ model: db.AttendanceLateReason, as: "lateReason", attributes: ["id", "name", "reasonCode", "label", "requiresComment"] }],
+          order: [["createdAt", "ASC"]]
+        })
+      : [];
+    const reasonBalances = db.AttendanceLateReason?.findAll && db.AttendanceRequest?.count
+      ? await this.latenessReasonRules.balancesForEmployee(businessId, userId, now)
+      : [];
 
     const latest: AttendanceEventType | null = events.length ? (events[events.length - 1].type as AttendanceEventType) : null;
     const lunchBreakEnabled = settings.lunchBreakEnabled !== false;
@@ -95,10 +106,10 @@ export class AttendanceMeService {
     }
 
     if (nextAllowed.includes("CHECK_IN")) {
-      const lastCheckout = await db.AttendanceEvent.findOne({
+      const lastCheckout = db.AttendanceEvent.findOne ? await db.AttendanceEvent.findOne({
         where: { businessId, employeeId: userId, type: "CHECK_OUT", timestampUtc: { [Op.lt]: now } },
         order: [["timestampUtc", "DESC"]]
-      });
+      }) : null;
       const checkInCooldown = buildCooldown(lastCheckout, now, "CHECK_IN");
       if (checkInCooldown) {
         cooldown = checkInCooldown;
@@ -158,15 +169,20 @@ export class AttendanceMeService {
           source: item.source,
           createdAt: item.createdAt
         }))
-      }
+      },
+      latenessReasonBalances: reasonBalances,
+      latenessReasonOptions: reasonBalances.filter((reason) => reason.enabled)
     };
   }
 
-  async createEvent(userId: string, businessId: string, input: { type: AttendanceEventType; latitude: number; longitude: number }) {
+  async createEvent(userId: string, businessId: string, input: { type: AttendanceEventType; latitude?: number | null; longitude?: number | null }) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     if (!settings) throw Object.assign(new Error("Attendance settings not found"), { statusCode: 400 });
     if (!settings.attendanceEnabled) throw Object.assign(new Error("Attendance is disabled"), { statusCode: 400 });
-    if (settings.latitude === null || settings.longitude === null) throw Object.assign(new Error("Attendance location is not configured"), { statusCode: 400 });
+    const tz = settings.timezone || "UTC";
+    const now = new Date();
+    const saturdayTrackingOnly = isSaturday(now, tz);
+    if (!saturdayTrackingOnly && (settings.latitude === null || settings.longitude === null)) throw Object.assign(new Error("Attendance location is not configured"), { statusCode: 400 });
 
     // Lunch rules: allow disabling lunch events entirely.
     const lunchBreakEnabled = settings.lunchBreakEnabled !== false;
@@ -174,14 +190,14 @@ export class AttendanceMeService {
       throw Object.assign(new Error("Lunch break is disabled for this business"), { statusCode: 400 });
     }
 
-    const officeLat = Number(settings.latitude);
-    const officeLon = Number(settings.longitude);
-    const radius = Number(settings.allowedRadiusMeters);
-    const dist = haversineDistanceMeters(input.latitude, input.longitude, officeLat, officeLon);
-    if (!(dist <= radius)) throw Object.assign(new Error("Outside allowed workplace radius"), { statusCode: 403 });
+    const hasInputLocation = input.latitude != null && input.longitude != null;
+    const officeLat = Number(settings.latitude || 0);
+    const officeLon = Number(settings.longitude || 0);
+    const radius = Number(settings.allowedRadiusMeters || 0);
+    const dist = saturdayTrackingOnly ? 0 : hasInputLocation ? haversineDistanceMeters(Number(input.latitude), Number(input.longitude), officeLat, officeLon) : Number.POSITIVE_INFINITY;
+    if (!saturdayTrackingOnly && !hasInputLocation) throw Object.assign(new Error("Location permission required"), { statusCode: 400 });
+    if (!saturdayTrackingOnly && !(dist <= radius)) throw Object.assign(new Error("Outside allowed workplace radius"), { statusCode: 403 });
 
-    const tz = settings.timezone || "UTC";
-    const now = new Date();
     const startUtc = startOfBusinessDayUtc(now, tz);
     const endUtc = endOfBusinessDayUtc(now, tz);
 
@@ -204,12 +220,12 @@ export class AttendanceMeService {
       const latest: AttendanceEventType | null = existing.length ? (existing[existing.length - 1].type as AttendanceEventType) : null;
 
       if (input.type === "CHECK_IN") {
-        const lastCheckout = await db.AttendanceEvent.findOne({
+        const lastCheckout = db.AttendanceEvent.findOne ? await db.AttendanceEvent.findOne({
           where: { businessId, employeeId: userId, type: "CHECK_OUT", timestampUtc: { [Op.lt]: now } },
           order: [["timestampUtc", "DESC"]],
           transaction: t,
           lock: t.LOCK.UPDATE
-        });
+        }) : null;
         const cooldown = buildCooldown(lastCheckout, now, "CHECK_IN");
         if (cooldown) {
           throw Object.assign(new Error(`Check-in is available after the mandatory 1 hour checkout break (${cooldown.remainingMinutes} min remaining)`), { statusCode: 400 });
@@ -269,15 +285,15 @@ export class AttendanceMeService {
           employeeId: userId,
           type: input.type,
           timestampUtc: now,
-          latitude: input.latitude,
-          longitude: input.longitude,
+          latitude: hasInputLocation ? input.latitude : 0,
+          longitude: hasInputLocation ? input.longitude : 0,
           distanceMeters: dist,
           withinAllowedRadius: true
         },
         { transaction: t }
       );
 
-      // Late check-in explanation (required when late)
+      // Late check-in can proceed without a reason; submitted reasons are linked when available.
       if (input.type === "CHECK_IN") {
         const expectedStart = String(settings.defaultStartTime || "09:00");
         const grace = Number(settings.lateGracePeriodMinutes || 0);
@@ -292,12 +308,12 @@ export class AttendanceMeService {
           const lateReasonId = (input as any).lateReasonId || null;
           const customReason = ((input as any).customReason || "").trim() || null;
           const dateYmd = localDateKey(now, tz);
-          const preSubmittedReasons = await db.AttendanceDailyReason.findAll({
+          const preSubmittedReasons = db.AttendanceDailyReason?.findAll ? await db.AttendanceDailyReason.findAll({
             where: { businessId, employeeId: userId, dateYmd, reasonType: "late" },
             order: [["createdAt", "ASC"]],
             transaction: t,
             lock: t.LOCK.UPDATE
-          });
+          }) : [];
           const preSubmittedReasonIds = preSubmittedReasons.map((item: any) => item.lateReasonId).filter(Boolean);
           const preSubmittedReasonRows = preSubmittedReasonIds.length
             ? await db.AttendanceLateReason.findAll({
@@ -307,13 +323,9 @@ export class AttendanceMeService {
               })
             : [];
           const preSubmittedReasonById = new Map<string, any>(preSubmittedReasonRows.map((item: any) => [item.id, item]));
-          if (!lateReasonId && !customReason && !preSubmittedReasons.length) {
-            throw Object.assign(new Error("Late check-in requires a reason"), { statusCode: 400 });
-          }
-
           let reasonRow: any = null;
           if (lateReasonId) {
-            reasonRow = await db.AttendanceLateReason.findOne({ where: { id: lateReasonId, businessId, isActive: true }, transaction: t, lock: t.LOCK.UPDATE });
+            reasonRow = await db.AttendanceLateReason.findOne({ where: { id: lateReasonId, businessId, isActive: true, enabled: true }, transaction: t, lock: t.LOCK.UPDATE });
             if (!reasonRow) throw Object.assign(new Error("Invalid late reason"), { statusCode: 400 });
             if (reasonRow.requiresComment && !customReason) {
               throw Object.assign(new Error("Selected late reason requires a comment"), { statusCode: 400 });
@@ -321,7 +333,7 @@ export class AttendanceMeService {
           }
 
           if (lateReasonId || customReason) {
-            await db.AttendanceDailyReason.create(
+            if (db.AttendanceDailyReason?.create) await db.AttendanceDailyReason.create(
               {
                 businessId,
                 employeeId: userId,
@@ -336,39 +348,41 @@ export class AttendanceMeService {
             );
           }
 
-          const combinedReason = preSubmittedReasons.length
-            ? preSubmittedReasons
-                .map((item: any, index: number) => {
-                  const name = preSubmittedReasonById.get(item.lateReasonId)?.name || "Custom reason";
-                  return `${index + 1}. ${name}${item.comment ? ` - ${item.comment}` : ""}`;
-                })
-                .join("\n")
-            : customReason;
+          if (lateReasonId || customReason || preSubmittedReasons.length) {
+            const combinedReason = preSubmittedReasons.length
+              ? preSubmittedReasons
+                  .map((item: any, index: number) => {
+                    const name = preSubmittedReasonById.get(item.lateReasonId)?.name || "Custom reason";
+                    return `${index + 1}. ${name}${item.comment ? ` - ${item.comment}` : ""}`;
+                  })
+                  .join("\n")
+              : customReason;
 
-          const explanation = await db.AttendanceLateExplanation.create(
-            {
-              businessId,
-              employeeId: userId,
-              attendanceEventId: event.id,
-              lateReasonId: reasonRow ? reasonRow.id : null,
-              customReason: combinedReason,
-              lateByMinutes
-            },
-            { transaction: t }
-          );
-
-          if (preSubmittedReasons.length) {
-            await db.AttendanceDailyReason.update(
-              { attendanceEventId: event.id },
-              { where: { id: preSubmittedReasons.map((item: any) => item.id) }, transaction: t }
+            const explanation = await db.AttendanceLateExplanation.create(
+              {
+                businessId,
+                employeeId: userId,
+                attendanceEventId: event.id,
+                lateReasonId: reasonRow ? reasonRow.id : null,
+                customReason: combinedReason,
+                lateByMinutes
+              },
+              { transaction: t }
             );
-          }
 
-          t.afterCommit(() => {
-            this.telegram.notifyLateReason(businessId, userId, event.id, explanation.id).catch((err) => {
-              console.error(`Telegram late reason notification failed: ${err.message}`);
+            if (preSubmittedReasons.length) {
+              if (db.AttendanceDailyReason?.update) await db.AttendanceDailyReason.update(
+                { attendanceEventId: event.id },
+                { where: { id: preSubmittedReasons.map((item: any) => item.id) }, transaction: t }
+              );
+            }
+
+            t.afterCommit(() => {
+              this.telegram.notifyLateReason(businessId, userId, event.id, explanation.id).catch((err) => {
+                console.error(`Telegram late reason notification failed: ${err.message}`);
+              });
             });
-          });
+          }
         }
       }
 

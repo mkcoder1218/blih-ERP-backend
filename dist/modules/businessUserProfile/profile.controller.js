@@ -137,10 +137,17 @@ class ProfileController {
         };
         this.listDocumentsForProfile = async (userId, businessId) => {
             const prof = await this.service.ensureForUser(userId, businessId);
+            // Query attachments by both prof.id and userId — self-registered ID docs
+            // were saved with entityId = userId before the profileId was resolved.
+            const { Op } = require('sequelize');
             const attachments = await models_1.db.EntityAttachment.findAll({
-                where: { businessId, entityType: "business_user_profile", entityId: prof.id },
+                where: {
+                    businessId,
+                    entityType: 'business_user_profile',
+                    entityId: { [Op.in]: [prof.id, userId] },
+                },
                 include: [models_1.db.FileAsset],
-                order: [["createdAt", "DESC"]]
+                order: [['createdAt', 'DESC']],
             });
             const user = await models_1.db.User.findByPk(userId);
             const offers = await models_1.db.OfferLetter.findAll({
@@ -149,15 +156,28 @@ class ProfileController {
             });
             const uploaded = attachments.map((att) => {
                 const file = att.FileAsset;
+                // Derive a human-readable name for identity documents
+                const typeMap = {
+                    identity_document_front: 'National ID — Front',
+                    identity_document_back: 'National ID — Back',
+                    identity_document: 'National ID',
+                };
+                const readableName = typeMap[att.attachmentType]
+                    || file?.originalName
+                    || 'Document';
+                const readableType = typeMap[att.attachmentType]
+                    || file?.mimeType
+                    || att.attachmentType
+                    || 'Document';
                 return {
                     id: att.id,
                     source: "upload",
-                    name: file?.originalName || "Document",
-                    type: file?.mimeType || att.attachmentType || "Document",
+                    name: readableName,
+                    type: readableType,
                     uploadedAt: att.createdAt,
                     previewUrl: file?.publicUrl || null,
                     downloadUrl: file?.id ? `/api/v1/files/${file.id}/download` : null,
-                    fileId: file?.id || null
+                    fileId: file?.id || null,
                 };
             });
             const attachedFileIds = new Set(uploaded.map((doc) => doc.fileId).filter(Boolean));

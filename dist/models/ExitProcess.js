@@ -10,6 +10,12 @@ exports.default = (sequelize, dataTypes) => {
         reason: { type: dataTypes.TEXT, allowNull: true },
         effectiveDate: { type: dataTypes.DATE, allowNull: false },
         status: { type: dataTypes.STRING(50), defaultValue: 'pending' }, // pending, in_progress, completed, cancelled
+        reviewedByUserId: { type: dataTypes.UUID, allowNull: true },
+        reviewedAt: { type: dataTypes.DATE, allowNull: true },
+        approvalNote: { type: dataTypes.TEXT, allowNull: true },
+        rejectionReason: { type: dataTypes.TEXT, allowNull: true },
+        accountDisabledAt: { type: dataTypes.DATE, allowNull: true },
+        accountDisabledByUserId: { type: dataTypes.UUID, allowNull: true },
         clearanceData: { type: dataTypes.JSONB, defaultValue: {} },
         finalPayData: { type: dataTypes.JSONB, defaultValue: {} }
     }, { tableName: "hr_exit_processes", timestamps: true, paranoid: true });
@@ -27,6 +33,8 @@ exports.default = (sequelize, dataTypes) => {
         if (models.User) {
             models.ExitProcess.belongsTo(models.User, { foreignKey: "employeeUserId", as: "employee" });
             models.ExitProcess.belongsTo(models.User, { foreignKey: "initiatedByUserId", as: "initiator" });
+            models.ExitProcess.belongsTo(models.User, { foreignKey: "reviewedByUserId", as: "reviewer" });
+            models.ExitProcess.belongsTo(models.User, { foreignKey: "accountDisabledByUserId", as: "accountDisabledBy" });
         }
     };
     return ExitProcess;

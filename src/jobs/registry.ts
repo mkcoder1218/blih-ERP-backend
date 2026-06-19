@@ -10,6 +10,7 @@ import { scheduledReportRunner } from './handlers/scheduledReportRunner';
 import { inactiveUserCleanupCheck } from './handlers/inactiveUserCleanupCheck';
 import { telegramAttendanceSummary } from './handlers/telegramAttendanceSummary';
 import { telegramPersonalBotPoller } from './handlers/telegramPersonalBotPoller';
+import { telegramDatabaseBackup } from './handlers/telegramDatabaseBackup';
 
 export function initJobs() {
    console.log(`Background job worker flag: ${env.jobWorkerEnabled ? 'ENABLED' : 'DISABLED'} (timezone: ${env.jobTimezone})`);
@@ -18,6 +19,7 @@ export function initJobs() {
    // Keep this scheduler alive even if the broader maintenance worker is disabled.
    JobRunner.register(telegramAttendanceSummary);
    JobRunner.register(telegramPersonalBotPoller);
+   JobRunner.register(telegramDatabaseBackup);
 
    if (!env.jobWorkerEnabled) {
       console.log('General background job worker is DISABLED. Telegram attendance scheduler remains active.');

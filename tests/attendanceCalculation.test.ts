@@ -96,5 +96,28 @@ describe("Attendance calculation (Phase 5 hardening)", () => {
     expect(calculation.totalWorkedMinutes).toBe(120);
     expect(calculation.currentStatus).toBe("IN_PROGRESS");
   });
-});
 
+  it("tracks Saturday work without penalties or required hours", () => {
+    const settings = mkSettings();
+    const dayStart = d("2026-06-19T21:00:00.000Z"); // 2026-06-20 00:00 in Africa/Nairobi
+    const dayEnd = d("2026-06-20T21:00:00.000Z");
+    const { calculation } = calculateAttendanceDay({
+      settings,
+      dayStartUtc: dayStart,
+      dayEndUtc: dayEnd,
+      nowUtc: d("2026-06-20T15:00:00.000Z"),
+      events: [
+        { type: "CHECK_IN", timestampUtc: d("2026-06-20T06:00:00.000Z") },
+        { type: "CHECK_OUT", timestampUtc: d("2026-06-20T14:00:00.000Z") },
+      ],
+    });
+
+    expect(calculation.totalWorkedMinutes).toBe(480);
+    expect(calculation.expectedMinutes).toBe(0);
+    expect(calculation.missingMinutes).toBe(0);
+    expect(calculation.overtimeMinutes).toBe(0);
+    expect(calculation.penaltyMinutes).toBe(0);
+    expect(calculation.isLate).toBe(false);
+    expect(calculation.currentStatus).toBe("COMPLETED");
+  });
+});

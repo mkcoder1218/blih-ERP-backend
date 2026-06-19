@@ -1,16 +1,27 @@
 import crypto from "crypto";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { Op } from "sequelize";
 import { db } from "../../models";
-import { AttendanceHrService } from "../attendanceHr/attendanceHr.service";
+import { AttendanceDailyReportService } from "../../services/attendanceDailyReport.service";
+import { AttendanceWeeklyReportService } from "../../services/attendanceWeeklyReport.service";
 import { toCsv } from "../../utils/csv";
+import { env } from "../../config/env";
 
-type BotType = "ATTENDANCE_SUMMARY" | "LATE_REASON" | "PERSONAL_SUMMARY";
+const execFileAsync = promisify(execFile);
+
+type BotType = "ATTENDANCE_SUMMARY" | "LATE_REASON" | "PERSONAL_SUMMARY" | "DATABASE_BACKUP";
 const MAIN_BOT_TYPE: BotType = "PERSONAL_SUMMARY";
+const DATABASE_BACKUP_BOT_TYPE: BotType = "DATABASE_BACKUP";
 
 const DEFAULT_SETTINGS: Record<BotType, any> = {
   ATTENDANCE_SUMMARY: { enabled: false, sendTime: "20:00", timezone: "UTC", chatId: null, botToken: null },
   LATE_REASON: { enabled: false, sendTime: null, timezone: "UTC", chatId: null, botToken: null },
-  PERSONAL_SUMMARY: { enabled: false, sendTime: null, timezone: "UTC", chatId: null, botToken: null }
+  PERSONAL_SUMMARY: { enabled: false, sendTime: null, timezone: "UTC", chatId: null, botToken: null },
+  DATABASE_BACKUP: { enabled: false, sendTime: "02:00", timezone: "UTC", chatId: null, botToken: null }
 };
 
 const LINK_HELP_TEXT = "To link Telegram with ERP: open ERP, go to Attendance, click Link Telegram Account, copy the short code, then send /link CODE here.";
@@ -129,10 +140,14 @@ async function telegramGetUpdates(botToken: string, offset?: number | null) {
   return Array.isArray(data.result) ? data.result : [];
 }
 
-async function telegramMultipart(botToken: string, method: string, fields: Record<string, string>, file: { name: string; content: string; type: string }) {
+async function telegramMultipart(botToken: string, method: string, fields: Record<string, string>, file: { name: string; content: string | Uint8Array; type: string }) {
   const form = new FormData();
   Object.entries(fields).forEach(([key, value]) => form.append(key, value));
-  form.append("document", new Blob([file.content], { type: file.type }), file.name);
+  const content =
+    typeof file.content === "string"
+      ? file.content
+      : file.content.buffer.slice(file.content.byteOffset, file.content.byteOffset + file.content.byteLength) as ArrayBuffer;
+  form.append("document", new Blob([content], { type: file.type }), file.name);
   const res = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, { method: "POST", body: form as any });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.ok === false) throw new Error(data.description || `Telegram ${method} failed`);
@@ -140,7 +155,8 @@ async function telegramMultipart(botToken: string, method: string, fields: Recor
 }
 
 export class AttendanceTelegramService {
-  private hr = new AttendanceHrService();
+  private dailyReport = new AttendanceDailyReportService();
+  private weeklyReport = new AttendanceWeeklyReportService();
 
   async getSettings(businessId: string) {
     const rows = await db.TelegramBotSetting.findAll({ where: { businessId } });
@@ -158,13 +174,25 @@ export class AttendanceTelegramService {
           timezone: legacySummary?.timezone || "UTC",
           enabled: Boolean(legacySummary?.enabled)
         };
-    return [{ ...mainRaw, botToken: undefined, botTokenMasked: maskToken(mainRaw.botToken || legacySummary?.botToken) }];
+    const backup = byType.get(DATABASE_BACKUP_BOT_TYPE);
+    const backupRaw = backup
+      ? backup.toJSON()
+      : {
+          businessId,
+          botType: DATABASE_BACKUP_BOT_TYPE,
+          ...DEFAULT_SETTINGS[DATABASE_BACKUP_BOT_TYPE]
+        };
+
+    return [
+      { ...mainRaw, botToken: undefined, botTokenMasked: maskToken(mainRaw.botToken || legacySummary?.botToken) },
+      { ...backupRaw, botToken: undefined, botTokenMasked: maskToken(backupRaw.botToken) }
+    ];
   }
 
   async upsertSetting(businessId: string, botType: BotType, payload: any) {
     assertBotType(botType);
-    const effectiveBotType = MAIN_BOT_TYPE;
-    const defaults = { ...DEFAULT_SETTINGS[effectiveBotType], sendTime: "20:00" };
+    const effectiveBotType = botType === DATABASE_BACKUP_BOT_TYPE ? DATABASE_BACKUP_BOT_TYPE : MAIN_BOT_TYPE;
+    const defaults = { ...DEFAULT_SETTINGS[effectiveBotType], sendTime: effectiveBotType === DATABASE_BACKUP_BOT_TYPE ? "02:00" : "20:00" };
     const [row] = await db.TelegramBotSetting.findOrCreate({ where: { businessId, botType: effectiveBotType }, defaults: { businessId, botType: effectiveBotType, ...defaults } });
     const legacySummary = await db.TelegramBotSetting.findOne({ where: { businessId, botType: "ATTENDANCE_SUMMARY" } });
     const update: any = {
@@ -174,7 +202,7 @@ export class AttendanceTelegramService {
       sendTime: normalizeHhmm(payload.sendTime, "20:00")
     };
     if (typeof payload.botToken === "string" && payload.botToken.trim()) update.botToken = payload.botToken.trim();
-    else if (!row.botToken && legacySummary?.botToken) update.botToken = legacySummary.botToken;
+    else if (effectiveBotType === MAIN_BOT_TYPE && !row.botToken && legacySummary?.botToken) update.botToken = legacySummary.botToken;
     await row.update(update);
     const raw = row.toJSON();
     return { ...raw, botToken: undefined, botTokenMasked: maskToken(raw.botToken) };
@@ -202,9 +230,17 @@ export class AttendanceTelegramService {
 
   async sendTest(businessId: string, botType: BotType) {
     assertBotType(botType);
-    const setting = await this.getMainSetting(businessId, true);
+    const setting = botType === DATABASE_BACKUP_BOT_TYPE
+      ? await db.TelegramBotSetting.findOne({ where: { businessId, botType: DATABASE_BACKUP_BOT_TYPE, enabled: true } })
+      : await this.getMainSetting(businessId, true);
     if (!setting?.botToken) throw Object.assign(new Error("Telegram bot token is not configured"), { statusCode: 400 });
     if (!setting.chatId) throw Object.assign(new Error("Telegram chat ID or group ID is not configured"), { statusCode: 400 });
+
+    if (botType === DATABASE_BACKUP_BOT_TYPE) {
+      const text = `Database backup bot test from Blih.\nDatabase: ${env.db.name}\nScheduled time: ${setting.sendTime || "02:00"} (${setting.timezone || "UTC"})`;
+      await this.sendAndLog(setting, "database_backup_test", { chat_id: setting.chatId, text });
+      return { sent: true };
+    }
 
     if (botType === "ATTENDANCE_SUMMARY" || botType === MAIN_BOT_TYPE) {
       const dateYmd = localDateYmd(new Date(), setting.timezone || "UTC");
@@ -429,7 +465,7 @@ export class AttendanceTelegramService {
       return { ok: true };
     }
     await this.sendPersonal(setting, chatId, "Loading attendance reasons...", false);
-    const reasons = await db.AttendanceLateReason.findAll({ where: { businessId, isActive: true }, order: [["name", "ASC"]] });
+    const reasons = await db.AttendanceLateReason.findAll({ where: { businessId, isActive: true, enabled: true }, order: [["sortOrder", "ASC"], ["name", "ASC"]] });
     if (!reasons.length) {
       await this.sendPersonal(setting, chatId, "No active attendance reasons are configured yet.", true, mainMenuKeyboard(true));
       return { ok: true };
@@ -452,7 +488,7 @@ export class AttendanceTelegramService {
       await this.sendPersonal(setting, chatId, "Link your ERP account before adding attendance reasons.", true, mainMenuKeyboard(false));
       return { ok: true };
     }
-    const reason = await db.AttendanceLateReason.findOne({ where: { id: reasonId, businessId, isActive: true } });
+    const reason = await db.AttendanceLateReason.findOne({ where: { id: reasonId, businessId, isActive: true, enabled: true } });
     if (!reason) {
       await this.sendPersonal(setting, chatId, "That reason is no longer available.", true, mainMenuKeyboard(true));
       return { ok: true };
@@ -470,7 +506,7 @@ export class AttendanceTelegramService {
 
   private async saveDailyReasonFromPending(businessId: string, setting: any, chatId: string, link: any, comment: string) {
     const pending = link.pendingAction;
-    const reason = await db.AttendanceLateReason.findOne({ where: { id: pending.reasonId, businessId, isActive: true } });
+    const reason = await db.AttendanceLateReason.findOne({ where: { id: pending.reasonId, businessId, isActive: true, enabled: true } });
     if (!reason) {
       await link.update({ pendingAction: null });
       await this.sendPersonal(setting, chatId, "That reason is no longer available.", true, mainMenuKeyboard(true));
@@ -679,23 +715,94 @@ export class AttendanceTelegramService {
         continue;
       }
       console.log(`[TelegramAttendanceSummary] sending ${setting.businessId}: ${ymd} at ${localTimeHhmm(now, setting.timezone || "UTC")} (${setting.timezone || "UTC"})`);
-      await this.sendDailySummaryCsv(setting.businessId, ymd, setting);
-      await setting.update({ lastSentForDate: ymd, lastSentAt: new Date() });
-      console.log(`[TelegramAttendanceSummary] sent ${setting.businessId}: ${ymd} to ${setting.chatId}`);
+      try {
+        await this.sendDailySummaryCsv(setting.businessId, ymd, setting);
+        await setting.update({ lastSentForDate: ymd, lastSentAt: new Date() });
+        console.log(`[TelegramAttendanceSummary] sent ${setting.businessId}: ${ymd} to ${setting.chatId}`);
+      } catch (err: any) {
+        console.error(`[TelegramAttendanceSummary] failed for ${setting.businessId}: ${err.message}`);
+      }
+    }
+  }
+
+  async runDatabaseBackupSweep(now = new Date()) {
+    const settings = await db.TelegramBotSetting.findAll({ where: { botType: DATABASE_BACKUP_BOT_TYPE, enabled: true } });
+    console.log(`[TelegramDatabaseBackup] enabled backup configs: ${settings.length}`);
+    for (const setting of settings) {
+      if (!setting.botToken || !setting.chatId || !setting.sendTime) {
+        console.log(`[TelegramDatabaseBackup] skipped ${setting.businessId}: missing token/chat/time`);
+        continue;
+      }
+      const timezone = setting.timezone || "UTC";
+      const ymd = localDateYmd(now, timezone);
+      if (setting.lastSentForDate === ymd) {
+        console.log(`[TelegramDatabaseBackup] skipped ${setting.businessId}: already sent for ${ymd}`);
+        continue;
+      }
+      const currentMinutes = hhmmToMinutes(localTimeHhmm(now, timezone));
+      const scheduledMinutes = hhmmToMinutes(setting.sendTime);
+      if (currentMinutes < scheduledMinutes) {
+        console.log(`[TelegramDatabaseBackup] waiting ${setting.businessId}: now ${localTimeHhmm(now, timezone)} < ${setting.sendTime} (${timezone})`);
+        continue;
+      }
+
+      try {
+        await this.sendDatabaseBackup(setting, ymd);
+        await setting.update({ lastSentForDate: ymd, lastSentAt: new Date() });
+        console.log(`[TelegramDatabaseBackup] sent ${setting.businessId}: ${ymd} to ${setting.chatId}`);
+      } catch (err: any) {
+        console.error(`[TelegramDatabaseBackup] failed for ${setting.businessId}: ${err.message}`);
+      }
+    }
+  }
+
+  private async sendDatabaseBackup(setting: any, dateYmd: string) {
+    const business = await db.Business.findByPk(setting.businessId, { attributes: ["name", "slug"] });
+    const safeBusiness = String(business?.slug || business?.name || setting.businessId).replace(/[^a-z0-9_-]+/gi, "_").slice(0, 60);
+    const fileName = `${safeBusiness}_${env.db.name}_${dateYmd}.dump`;
+    const filePath = path.join(os.tmpdir(), fileName);
+
+    try {
+      await execFileAsync(
+        "pg_dump",
+        [
+          "--host", env.db.host,
+          "--port", String(env.db.port),
+          "--username", env.db.user,
+          "--dbname", env.db.name,
+          "--format=custom",
+          "--no-owner",
+          "--file", filePath
+        ],
+        {
+          env: { ...process.env, PGPASSWORD: env.db.password },
+          timeout: 10 * 60 * 1000,
+          maxBuffer: 1024 * 1024
+        }
+      );
+
+      const content = await fs.readFile(filePath);
+      await this.sendAndLog(setting, "database_backup", {
+        chat_id: setting.chatId,
+        caption: `Database backup for ${business?.name || "Blih ERP"}\nDate: ${dateYmd}\nDatabase: ${env.db.name}`,
+        document: fileName,
+        documentContent: content
+      });
+    } finally {
+      await fs.unlink(filePath).catch(() => null);
     }
   }
 
   private async sendDailySummaryCsv(businessId: string, dateYmd: string, setting: any, isTest = false) {
-    const report = await this.hr.report(businessId, { startDate: dateYmd, endDate: dateYmd, sortBy: "name", sortOrder: "asc" });
-    const totalEmployees = report.rows.length;
-    const checkedIn = report.rows.filter((r: any) => Boolean(r.checkInAtUtc)).length;
-    const checkedOut = report.rows.filter((r: any) => Boolean(r.checkOutAtUtc)).length;
-    const late = report.rows.filter((r: any) => Boolean(r.isLate)).length;
-    const absent = report.rows.filter((r: any) => r.currentStatus === "MISSED").length;
-    const remote = report.rows.filter((r: any) => r.currentStatus === "REMOTE").length;
-    const office = Math.max(0, checkedIn - remote);
-    const workedRows = report.rows.filter((r: any) => Number(r.totalWorkedMinutes || 0) > 0);
-    const totalWorkedMinutes = workedRows.reduce((sum: number, r: any) => sum + Number(r.totalWorkedMinutes || 0), 0);
+    const rows = await this.dailyReport.generate(businessId, { startDate: dateYmd, endDate: dateYmd, audience: "hr" });
+    const totalEmployees = rows.length;
+    const checkedIn = rows.filter((r: any) => Boolean(r.MorningCheckIn)).length;
+    const checkedOut = rows.filter((r: any) => Boolean(r.EveningCheckOut)).length;
+    const late = rows.filter((r: any) => r.LatenessStatus === "Late-WithNotice" || r.LatenessStatus === "Late-NoNotice").length;
+    const absent = rows.filter((r: any) => r.LatenessStatus === "Absent").length;
+    const incomplete = rows.filter((r: any) => r.LatenessStatus === "IncompletePunch").length;
+    const workedRows = rows.filter((r: any) => Number(r.NetHoursWorked || 0) > 0);
+    const totalWorkedMinutes = workedRows.reduce((sum: number, r: any) => sum + Math.round(Number(r.NetHoursWorked || 0) * 60), 0);
     const averageWorkedMinutes = workedRows.length > 0 ? Math.round(totalWorkedMinutes / workedRows.length) : 0;
     const summary = [
       `${isTest ? "Test: " : ""}Overall attendance summary`,
@@ -705,7 +812,7 @@ export class AttendanceTelegramService {
       `Checked out: ${checkedOut}`,
       `Late: ${late}`,
       `Absent: ${absent}`,
-      `Office / Remote: ${office} / ${remote}`,
+      `Incomplete punches: ${incomplete}`,
       `Average worked: ${minutesLabel(averageWorkedMinutes)}`,
       "",
       "CSV report attached below."
@@ -713,26 +820,26 @@ export class AttendanceTelegramService {
     console.log(`[TelegramAttendanceSummary] sending overall summary message to ${setting.chatId} for ${businessId} ${dateYmd}`);
     await this.sendAndLog(setting, "daily_attendance_overall_summary", { chat_id: setting.chatId, text: summary });
 
-    const headers = ["date", "employeeName", "department", "checkIn", "checkOut", "rawWorkedHours", "workedHours", "penaltyMinutes", "penaltyReason", "status", "late", "lateMinutes", "mode", "remoteOrOffice", "lateReason", "lateExplanation"];
-    const rows = report.rows.map((r: any) => ({
-      date: r.date,
-      employeeName: r.employeeName,
-      department: r.department?.name || "",
-      checkIn: r.checkInAtUtc || "",
-      checkOut: r.checkOutAtUtc || "",
-      rawWorkedHours: (Number(r.rawWorkedMinutes || r.totalWorkedMinutes || 0) / 60).toFixed(2),
-      workedHours: (Number(r.totalWorkedMinutes || 0) / 60).toFixed(2),
-      penaltyMinutes: r.penaltyMinutes || 0,
-      penaltyReason: r.penaltyReason || "",
-      status: r.currentStatus,
-      late: r.isLate ? "Yes" : "No",
-      lateMinutes: r.lateByMinutes || 0,
-      mode: r.currentStatus === "REMOTE" ? "Remote" : "Office",
-      remoteOrOffice: r.currentStatus === "REMOTE" ? "Remote" : "Office",
-      lateReason: r.lateReasonName || "",
-      lateExplanation: r.lateExplanation || ""
+    const headers = ["date", "employeeName", "department", "assignedStartTime", "employmentCategory", "morningCheckIn", "lunchCheckOut", "lunchCheckIn", "eveningCheckOut", "lunchMinutesTaken", "netHoursWorked", "latenessStatus", "minutesLate", "noticeStatus", "deductionApplied", "latenessReasonHrOnly"];
+    const csvRows = rows.map((r: any) => ({
+      date: r.Date,
+      employeeName: r.EmployeeName,
+      department: r.Department || "",
+      assignedStartTime: r.AssignedStartTime,
+      employmentCategory: r.EmploymentCategory || "",
+      morningCheckIn: r.MorningCheckIn || "",
+      lunchCheckOut: r.LunchCheckOut || "",
+      lunchCheckIn: r.LunchCheckIn || "",
+      eveningCheckOut: r.EveningCheckOut || "",
+      lunchMinutesTaken: r.LunchMinutesTaken ?? "",
+      netHoursWorked: Number(r.NetHoursWorked || 0).toFixed(2),
+      latenessStatus: r.LatenessStatus,
+      minutesLate: r.MinutesLate || 0,
+      noticeStatus: r.NoticeStatus,
+      deductionApplied: r.DeductionApplied ? "Yes" : "No",
+      latenessReasonHrOnly: r.LatenessReason_HROnly || ""
     }));
-    const csv = toCsv(rows, headers);
+    const csv = toCsv(csvRows, headers);
     console.log(`[TelegramAttendanceSummary] sending CSV report to ${setting.chatId} for ${businessId} ${dateYmd}`);
     await this.sendAndLog(setting, "daily_attendance_summary_csv", {
       chat_id: setting.chatId,
@@ -756,21 +863,48 @@ export class AttendanceTelegramService {
     if (range === "week") start.setUTCDate(start.getUTCDate() - 6);
     if (range === "month") start.setUTCDate(1);
     const startYmd = range === "today" ? today : start.toISOString().slice(0, 10);
-    const report = await this.hr.report(businessId, { startDate: startYmd, endDate: today, employeeId: userId, sortBy: "date", sortOrder: "asc" });
+    if (range === "week") {
+      const weeklyRows = await this.weeklyReport.generate(businessId, { startDate: startYmd, endDate: today, employeeId: userId, audience: "public" });
+      const user = await db.User.findByPk(userId);
+      const row = weeklyRows[0];
+      if (!row) {
+        return [
+          `${user?.fullName || "Your"} attendance summary`,
+          `Range: ${startYmd} to ${today}`,
+          "",
+          "No scheduled workdays found."
+        ].join("\n");
+      }
+      return [
+        `${user?.fullName || "Your"} weekly attendance summary`,
+        `Range: ${row.WeekStartDate} to ${row.WeekEndDate}`,
+        `Scheduled days: ${row.ScheduledWorkDays}`,
+        `On time: ${row.DaysOnTime}`,
+        `Late with notice: ${row.DaysLateWithNotice}`,
+        `Late without notice: ${row.DaysLateNoNotice}`,
+        `Absent: ${row.DaysAbsent}`,
+        `Incomplete punches: ${row.DaysIncompletePunch}`,
+        `Lateness notices used: ${row.LatenessNoticesUsed}`,
+        `Punctuality: ${row.PunctualityRatePercent}%`,
+        `Net worked: ${Number(row.NetHoursWorked || 0).toFixed(2)}h`,
+        `Half-day deductions: ${row.HalfDayDeductions}`,
+        `Full-day deductions: ${row.FullDayDeductions}`
+      ].join("\n");
+    }
+    const rows = await this.dailyReport.generate(businessId, { startDate: startYmd, endDate: today, employeeId: userId, audience: "public" });
     const user = await db.User.findByPk(userId);
-    const total = report.rows.reduce((sum: number, r: any) => sum + Number(r.totalWorkedMinutes || 0), 0);
-    const late = report.rows.filter((r: any) => r.isLate).length;
-    const absence = report.rows.filter((r: any) => r.currentStatus === "MISSED").length;
-    const remote = report.rows.filter((r: any) => r.currentStatus === "REMOTE").length;
-    const office = report.rows.length - remote - absence;
-    const checkins = report.rows.map((r: any) => `${r.date}: ${r.checkInAtUtc ? localTimeHhmm(new Date(r.checkInAtUtc), tz) : "--"} - ${r.checkOutAtUtc ? localTimeHhmm(new Date(r.checkOutAtUtc), tz) : "--"}`).join("\n");
+    const total = rows.reduce((sum: number, r: any) => sum + Math.round(Number(r.NetHoursWorked || 0) * 60), 0);
+    const late = rows.filter((r: any) => r.LatenessStatus === "Late-WithNotice" || r.LatenessStatus === "Late-NoNotice").length;
+    const absence = rows.filter((r: any) => r.LatenessStatus === "Absent").length;
+    const incomplete = rows.filter((r: any) => r.LatenessStatus === "IncompletePunch").length;
+    const checkins = rows.map((r: any) => `${r.Date}: ${r.MorningCheckIn || "--"} - ${r.EveningCheckOut || "--"} (${r.LatenessStatus})`).join("\n");
     return [
       `${user?.fullName || "Your"} attendance summary`,
       `Range: ${startYmd} to ${today}`,
       `Total worked: ${minutesLabel(total)}`,
       `Late count: ${late}`,
       `Absence count: ${absence}`,
-      `Remote / office: ${remote} / ${office}`,
+      `Incomplete punches: ${incomplete}`,
       "",
       checkins || "No attendance records found."
     ].join("\n");
@@ -784,10 +918,16 @@ export class AttendanceTelegramService {
   }
 
   private async sendAndLog(setting: any, eventType: string, payload: any, csv?: string) {
-    const log = await db.TelegramNotificationLog.create({ businessId: setting.businessId, botType: setting.botType, recipientChatId: payload.chat_id, eventType, status: "pending", payload });
+    const { documentContent, ...logPayload } = payload || {};
+    const log = await db.TelegramNotificationLog.create({ businessId: setting.businessId, botType: setting.botType, recipientChatId: payload.chat_id, eventType, status: "pending", payload: logPayload });
     try {
-      if (csv) {
-        await telegramMultipart(setting.botToken, "sendDocument", { chat_id: String(payload.chat_id), caption: payload.caption || "" }, { name: payload.document, content: csv, type: "text/csv" });
+      if (csv || payload.documentContent) {
+        await telegramMultipart(
+          setting.botToken,
+          "sendDocument",
+          { chat_id: String(payload.chat_id), caption: payload.caption || "" },
+          { name: payload.document, content: payload.documentContent || csv, type: payload.documentContent ? "application/octet-stream" : "text/csv" }
+        );
       } else {
         await telegramRequest(setting.botToken, "sendMessage", payload);
       }

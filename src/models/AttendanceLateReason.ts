@@ -8,10 +8,20 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): AttendanceLa
     {
       id: { type: dataTypes.UUID, defaultValue: dataTypes.UUIDV4, primaryKey: true },
       businessId: { type: dataTypes.UUID, allowNull: false },
+      reasonCode: { type: dataTypes.STRING(80), allowNull: true },
+      label: { type: dataTypes.STRING(160), allowNull: true },
       name: { type: dataTypes.STRING(160), allowNull: false },
       description: { type: dataTypes.STRING(500), allowNull: true },
+      enabled: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       isActive: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       requiresComment: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      monthlyLimit: { type: dataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      coversMinutes: { type: dataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      requiresApproval: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      requiresAttachment: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      allowAfterDeadline: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      behaviorWhenExceeded: { type: dataTypes.STRING(40), allowNull: false, defaultValue: "HR_REVIEW" },
+      sortOrder: { type: dataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       createdBy: { type: dataTypes.UUID, allowNull: false }
     },
     {
@@ -27,4 +37,3 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): AttendanceLa
 
   return AttendanceLateReason;
 };
-

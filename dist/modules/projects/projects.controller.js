@@ -4,6 +4,7 @@ exports.ProjectsController = void 0;
 const projects_service_1 = require("./projects.service");
 const auditLog_service_1 = require("../../services/auditLog.service");
 const response_1 = require("../../utils/response");
+const models_1 = require("../../models");
 class ProjectsController {
     constructor() {
         this.service = new projects_service_1.ProjectsService();
@@ -48,6 +49,8 @@ class ProjectsController {
         };
         this.viewProject = async (req, res) => {
             try {
+                if (!(await this.canAccessProject(req, req.params.id)))
+                    return (0, response_1.errorResponse)(res, "Project not found", 404);
                 const project = await this.service.getProjectById(req.user.businessId, req.params.id);
                 (0, response_1.successResponse)(res, project);
             }
@@ -196,6 +199,8 @@ class ProjectsController {
         };
         this.createNestedTask = async (req, res) => {
             try {
+                if (!(await this.canAccessProject(req, req.params.projectId)))
+                    return (0, response_1.errorResponse)(res, "Project not found", 404);
                 const task = await this.service.createNestedTask(req.user.businessId, req.params.projectId, req.body);
                 await auditLog_service_1.AuditLogService.log('CREATE_PROJECT_TASK', 'project_task', String(task.id), null, task, req);
                 await this.service.logActivity(req.user.businessId, {
@@ -215,6 +220,8 @@ class ProjectsController {
         };
         this.listNestedTasks = async (req, res) => {
             try {
+                if (!(await this.canAccessProject(req, req.params.projectId)))
+                    return (0, response_1.errorResponse)(res, "Project not found", 404);
                 const page = Number(req.query.page) || 1;
                 const size = Number(req.query.size) || 50;
                 const data = await this.service.listNestedTasks(req.user.businessId, req.params.projectId, page, size, req.query);
@@ -293,6 +300,8 @@ class ProjectsController {
         };
         this.changeNestedTaskStatus = async (req, res) => {
             try {
+                if (!(await this.canAccessProject(req, req.params.projectId)))
+                    return (0, response_1.errorResponse)(res, "Project not found", 404);
                 const { before, task } = await this.service.changeNestedTaskStatus(req.user.businessId, req.params.projectId, req.params.taskId, req.body.status);
                 await auditLog_service_1.AuditLogService.log('CHANGE_PROJECT_TASK_STATUS', 'project_task', String(task.id), before, task, req);
                 await this.service.logActivity(req.user.businessId, {
@@ -522,6 +531,33 @@ class ProjectsController {
                 (0, response_1.errorResponse)(res, e.message, e.message.includes("not found") ? 404 : 400);
             }
         };
+    }
+    hasFullProjectAccess(req) {
+        const permissions = new Set(req.user.permissions || []);
+        return Boolean(req.user.isPlatformSuperAdmin ||
+            (req.user.roles || []).includes("BUSINESS_ADMIN") ||
+            permissions.has("project.read") ||
+            permissions.has("project.manage"));
+    }
+    async canAccessProject(req, projectId) {
+        if (this.hasFullProjectAccess(req))
+            return true;
+        const employee = await models_1.db.EmployeeRecord.findOne({ where: { businessId: req.user.businessId, userId: req.user.id }, attributes: ["id"] });
+        if (!employee)
+            return false;
+        const project = await models_1.db.Project.findOne({
+            where: { id: projectId, businessId: req.user.businessId },
+            attributes: ["id", "ownerEmployeeId", "managerEmployeeId", "projectManagerUserId"]
+        });
+        if (!project)
+            return false;
+        if (project.projectManagerUserId === req.user.id || project.ownerEmployeeId === employee.id || project.managerEmployeeId === employee.id)
+            return true;
+        const [member, task] = await Promise.all([
+            models_1.db.ProjectMember.findOne({ where: { businessId: req.user.businessId, projectId, employeeId: employee.id }, attributes: ["id"] }),
+            models_1.db.ProjectTask.findOne({ where: { businessId: req.user.businessId, projectId, assigneeEmployeeId: employee.id }, attributes: ["id"] })
+        ]);
+        return Boolean(member || task);
     }
 }
 exports.ProjectsController = ProjectsController;

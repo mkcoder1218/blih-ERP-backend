@@ -35,10 +35,16 @@ router.patch("/records/:userId", auth_1.authRequired, (0, permission_1.requireAn
 router.delete("/records/:userId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(controller.deleteRecord));
 router.get("/organogram", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(controller.getOrganogram));
 router.patch("/records/me", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(controller.updateSelfRecord));
+// -- Pending Self-Registrations -- HR Approval Workflow
+router.get("/pending-registrations", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write"), (0, asyncHandler_1.asyncHandler)(controller.listPendingRegistrations));
+router.get("/pending-registrations/:userId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write"), (0, asyncHandler_1.asyncHandler)(controller.getPendingRegistration));
+router.post("/pending-registrations/:userId/approve", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(controller.approveRegistration));
+router.post("/pending-registrations/:userId/reject", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(controller.rejectRegistration));
 exports.hrRoutes = router;
 // Recruitment Private Routes
 router.post("/recruitment/templates", auth_1.authRequired, (0, permission_1.requireAnyPermission)("job_template.manage"), (0, asyncHandler_1.asyncHandler)(recruitmentController.createTemplate));
 router.get("/recruitment/templates", auth_1.authRequired, (0, permission_1.requireAnyPermission)("job_template.read", "job_template.manage"), (0, asyncHandler_1.asyncHandler)(recruitmentController.listTemplates));
+router.delete("/recruitment/templates/:id", auth_1.authRequired, (0, permission_1.requireAnyPermission)("job_template.manage"), (0, asyncHandler_1.asyncHandler)(recruitmentController.deleteTemplate));
 router.post("/recruitment/templates/seed", auth_1.authRequired, (0, permission_1.requireAnyPermission)("job_template.manage"), (0, asyncHandler_1.asyncHandler)(recruitmentController.seedForms));
 router.get("/recruitment/job-openings", auth_1.authRequired, (0, permission_1.requireAnyPermission)("job.read", "job.manage"), (0, asyncHandler_1.asyncHandler)(recruitmentController.listOpenings));
 router.post("/recruitment/job-openings", auth_1.authRequired, (0, permission_1.requireAnyPermission)("job.manage"), (0, asyncHandler_1.asyncHandler)(recruitmentController.createOpening));
@@ -71,7 +77,7 @@ exports.publicRecruitmentRoutes.get("/jobs/:businessSlug/:id", (0, asyncHandler_
 exports.publicRecruitmentRoutes.post("/jobs/:businessSlug/:id/view", (0, asyncHandler_1.asyncHandler)(recruitmentController.incrementJobView));
 exports.publicRecruitmentRoutes.post("/job-openings/:jobOpeningId/apply", (0, asyncHandler_1.asyncHandler)(recruitmentController.publicApply));
 exports.publicRecruitmentRoutes.post("/job-openings/:jobOpeningId/upload-resume", upload_1.upload.single("file"), (0, asyncHandler_1.asyncHandler)(recruitmentController.publicUploadResume));
-// Public interview acceptance/decline (no auth — candidate clicks link from email)
+// Public interview acceptance/decline (no auth â€” candidate clicks link from email)
 exports.publicRecruitmentRoutes.get("/interviews/respond", (0, asyncHandler_1.asyncHandler)(recruitmentController.respondToInterview));
 // Performance / Exit
 router.post("/performance/templates", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.seedForms));
@@ -81,7 +87,19 @@ router.get("/performance/project-dashboard", auth_1.authRequired, (0, permission
 router.get("/performance/evaluations/:employeeUserId/project-evidence", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.read", "performance.manage", "performance.self"), (0, asyncHandler_1.asyncHandler)(perfController.employeeEvaluationEvidence));
 router.post("/performance/reviews/:reviewId/project-evidence", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.attachProjectEvidenceToReview));
 router.post("/training", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.createTrainingRequest));
-router.get("/disciplinary", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.read", "performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.listDisciplinary));
+router.get("/training", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.listTrainingRequests));
+router.post("/training/:id/approve", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage", "performance.read"), (0, asyncHandler_1.asyncHandler)(perfController.approveTrainingRequest));
+router.post("/training/:id/reject", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage", "performance.read"), (0, asyncHandler_1.asyncHandler)(perfController.rejectTrainingRequest));
+router.post("/promotions", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.createPromotionRequest));
+router.get("/promotions", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.listPromotionRequests));
+router.post("/promotions/:id/approve", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.approvePromotionRequest));
+router.post("/promotions/:id/reject", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.rejectPromotionRequest));
+router.get("/disciplinary", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.self", "performance.read", "performance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.listDisciplinaryCases));
+router.post("/disciplinary/analyze-attendance", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage", "attendance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.analyzeAttendanceDiscipline));
+router.post("/disciplinary/analyze-attendance/send", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage", "attendance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.sendAttendanceDisciplineAnalysis));
+router.delete("/disciplinary/analyze-attendance", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage", "attendance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.resetAttendanceDisciplineAnalysis));
+router.post("/disciplinary", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage", "hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.createDisciplinaryCase));
+router.patch("/disciplinary/:id", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage", "hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateDisciplinaryCase));
 router.post("/exit/resign", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.submitResignation));
 router.post("/exit", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.createExitProcess));
 router.get("/exit", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.listExitProcesses));
@@ -106,3 +124,6 @@ router.post("/exit/:id/clearance/:stepId/complete", auth_1.authRequired, (0, per
 router.post("/exit/:id/clearance/:stepId/waive", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.waiveExitClearanceStep));
 router.patch("/exit/:id/clearance/:stepId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitClearanceStep));
 router.patch("/exit/:id/status", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitStatus));
+router.post("/exit/:id/approve", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.approveExitRequest));
+router.post("/exit/:id/reject", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.rejectExitRequest));
+router.post("/exit/:id/disable-account", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.disableExitAccount));

@@ -75,6 +75,50 @@ export class AttendanceRequestsController {
     }
   };
 
+  listPendingLatenessNotices = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const size = parseInt(req.query.size as string) || 20;
+      const result = await this.svc.listPendingLatenessNotices(req.user!.businessId, { ...req.query, page, size });
+      res.json({ rows: result.rows, total: result.count, page, size, totalPages: Math.ceil(result.count / size) });
+    } catch (err: any) {
+      next({ statusCode: err.statusCode || 400, message: err.message });
+    }
+  };
+
+  approveLatenessNotice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await this.assertCanAction(req, req.params.id);
+      const record = await this.svc.action(req.user!.businessId, req.params.id, req.user!.id, "approved", req.body?.note || req.body?.comment);
+      await AuditLogService.log("UPDATE", "lateness_notice", req.params.id, null, { status: "approved" }, req);
+      res.json({ attendanceRequest: record });
+    } catch (err: any) {
+      next({ statusCode: err.statusCode || 400, message: err.message });
+    }
+  };
+
+  rejectLatenessNotice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await this.assertCanAction(req, req.params.id);
+      const record = await this.svc.action(req.user!.businessId, req.params.id, req.user!.id, "rejected", req.body?.reason || req.body?.comment);
+      await AuditLogService.log("UPDATE", "lateness_notice", req.params.id, null, { status: "rejected" }, req, "warning");
+      res.json({ attendanceRequest: record });
+    } catch (err: any) {
+      next({ statusCode: err.statusCode || 400, message: err.message });
+    }
+  };
+
+  markInvalidLatenessNotice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await this.assertCanAction(req, req.params.id);
+      const record = await this.svc.action(req.user!.businessId, req.params.id, req.user!.id, "invalid", req.body?.reason || req.body?.comment);
+      await AuditLogService.log("UPDATE", "lateness_notice", req.params.id, null, { status: "invalid" }, req, "warning");
+      res.json({ attendanceRequest: record });
+    } catch (err: any) {
+      next({ statusCode: err.statusCode || 400, message: err.message });
+    }
+  };
+
   private assertCanAction = async (req: Request, requestId: string) => {
     await this.svc.findBasic(req.user!.businessId, requestId);
     const roles = new Set(req.user!.roles || []);

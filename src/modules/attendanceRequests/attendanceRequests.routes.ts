@@ -19,6 +19,10 @@ router.post(
   requireAnyPermission("attendance.read", "attendance.manage", "attendance.checkin_correction.request", "attendance.checkin_correction.approve"),
   asyncHandler(ctrl.fixManualTimes)
 );
+router.get("/lateness-notices/pending", requireRole("HR_MANAGER", "BUSINESS_ADMIN"), requireAnyPermission("attendance.read", "attendance.manage", "attendance.checkin_correction.approve"), asyncHandler(ctrl.listPendingLatenessNotices));
+router.post("/lateness-notices/:id/approve", requireRole("HR_MANAGER", "BUSINESS_ADMIN"), asyncHandler(ctrl.approveLatenessNotice));
+router.post("/lateness-notices/:id/reject", requireRole("HR_MANAGER", "BUSINESS_ADMIN"), asyncHandler(ctrl.rejectLatenessNotice));
+router.post("/lateness-notices/:id/invalid", requireRole("HR_MANAGER", "BUSINESS_ADMIN"), asyncHandler(ctrl.markInvalidLatenessNotice));
 router.post("/:id/approve", requireRole("HR_MANAGER", "BUSINESS_ADMIN"), asyncHandler(ctrl.approve));
 router.post("/:id/reject", requireRole("HR_MANAGER", "BUSINESS_ADMIN"), asyncHandler(ctrl.reject));
 

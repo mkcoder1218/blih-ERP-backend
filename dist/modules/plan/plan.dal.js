@@ -12,5 +12,12 @@ class PlanDAL {
             return null;
         return plan.update(data);
     }
+    async softDelete(id) {
+        const plan = await models_1.db.Plan.findByPk(id);
+        if (!plan)
+            return null;
+        await plan.destroy();
+        return true;
+    }
 }
 exports.PlanDAL = PlanDAL;

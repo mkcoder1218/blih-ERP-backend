@@ -1,10 +1,14 @@
 import { Op } from "sequelize";
 import { db } from "../../models";
 import { businessDateEndUtc, businessDateStartUtc, localWallTimeToUtc } from "../../utils/timezone";
+import { LatenessReasonRulesService } from "../../services/latenessReasonRules.service";
 
-const VALID_TYPES = new Set(["work_from_home", "memo_log", "check_in_correction", "not_available"]);
-const VALID_STATUSES = new Set(["pending", "approved", "rejected"]);
+const VALID_TYPES = new Set(["work_from_home", "memo_log", "check_in_correction", "not_available", "lateness_notice"]);
+const VALID_STATUSES = new Set(["pending", "approved", "rejected", "invalid", "expired", "cancelled"]);
 const CORRECTION_EVENT_TYPES = new Set(["CHECK_IN", "LUNCH_OUT", "LUNCH_IN", "CHECK_OUT"]);
+const LATE_NOTICE_DEADLINE_HOUR = 8;
+const LATE_NOTICE_DEADLINE_MINUTES = 30;
+const VAGUE_REASON_PATTERN = /^(late|traffic|personal|emergency|issue|n\/a|na|none|other|misc|because)$/i;
 
 function assertType(type: string) {
   if (!VALID_TYPES.has(type)) throw new Error("Invalid attendance request type.");
@@ -29,6 +33,22 @@ function businessDateYmd(dateUtc: Date, timeZone: string) {
   }).format(dateUtc);
 }
 
+function localDayStartUtc(dateUtc: Date, timeZone: string) {
+  return businessDateStartUtc(businessDateYmd(dateUtc, timeZone), timeZone);
+}
+
+function buildNoticeDeadline(dateUtc: Date, timeZone: string) {
+  const dayStart = localDayStartUtc(dateUtc, timeZone);
+  return new Date(dayStart.getTime() + (LATE_NOTICE_DEADLINE_HOUR * 60 + LATE_NOTICE_DEADLINE_MINUTES) * 60_000);
+}
+
+function validateNoticeText(reasonText: string) {
+  const normalized = reasonText.trim().replace(/\s+/g, " ");
+  if (normalized.length < 12) return "invalid";
+  if (VAGUE_REASON_PATTERN.test(normalized)) return "invalid";
+  return "valid";
+}
+
 function employeeInclude() {
   return [
     {
@@ -45,10 +65,14 @@ function employeeInclude() {
       }],
     },
     { model: db.User, as: "actionedBy", attributes: ["id", "fullName", "email"] },
+    { model: db.User, as: "approvedBy", attributes: ["id", "fullName", "email"] },
+    { model: db.User, as: "rejectedBy", attributes: ["id", "fullName", "email"] },
   ];
 }
 
 export class AttendanceRequestsService {
+  private latenessRules = new LatenessReasonRulesService();
+
   async findBasic(businessId: string, requestId: string) {
     return db.AttendanceRequest.findOne({ where: { id: requestId, businessId }, attributes: ["id", "requestType"] });
   }
@@ -85,8 +109,13 @@ export class AttendanceRequestsService {
     assertType(String(data.requestType));
     if (!data.title || !data.reason) throw new Error("title and reason are required.");
     const isCorrection = data.requestType === "check_in_correction";
+    const isLatenessNotice = data.requestType === "lateness_notice";
     const targetEmployeeUserId = isCorrection ? String(data.employeeUserId || "") : employeeUserId;
     let correctionFromAt: Date | null = null;
+    let noticeFromAt: Date | null = null;
+    let deadlineAt: Date | null = null;
+    let validityStatus: string | null = null;
+    let reasonText: string | null = null;
     if (isCorrection) {
       if (!targetEmployeeUserId) throw new Error("Employee is required for check-in correction requests.");
       if (!CORRECTION_EVENT_TYPES.has(String(data.category || ""))) {
@@ -100,28 +129,73 @@ export class AttendanceRequestsService {
       const employee = await db.User.findOne({ where: { id: targetEmployeeUserId, businessId } });
       if (!employee) throw new Error("Employee not found.");
     }
+    if (isLatenessNotice) {
+      const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
+      noticeFromAt = data.fromAt ? parseCorrectionWallTime(data.fromAt, settings?.timezone || "Africa/Addis_Ababa") : new Date();
+      if (!noticeFromAt) throw new Error("Valid lateness notice date and time is required.");
+      deadlineAt = buildNoticeDeadline(noticeFromAt, settings?.timezone || "Africa/Addis_Ababa");
+      reasonText = String(data.reasonText || data.reason || "").trim();
+      validityStatus = validateNoticeText(reasonText);
+      const reasonCode = this.latenessRules.normalizeReasonCode(data.reasonCategory || data.category);
+      const rule = await this.latenessRules.findRule(businessId, reasonCode);
+      if (!rule || rule.enabled === false || rule.isActive === false) throw Object.assign(new Error("Selected lateness reason is not enabled."), { statusCode: 400 });
+      if (rule.requiresAttachment && !data.attachmentUrl && !data.attachmentId) throw Object.assign(new Error("Selected lateness reason requires an attachment."), { statusCode: 400 });
+      if (new Date() > deadlineAt && !rule.allowAfterDeadline) validityStatus = "expired";
+      const used = await this.latenessRules.countApprovedUsableByReason(businessId, employeeUserId, reasonCode, noticeFromAt);
+      const limit = Number(rule.monthlyLimit || 0);
+      if (limit <= 0 || used >= limit) {
+        const behavior = String(rule.behaviorWhenExceeded || "HR_REVIEW").toUpperCase();
+        if (behavior === "BLOCK") throw Object.assign(new Error("Monthly limit reached for this lateness reason."), { statusCode: 400 });
+        if (behavior === "MARK_INVALID") validityStatus = "invalid";
+      }
+      if (Number(data.lateByMinutes || data.durationMinutes || 0) > Number(rule.coversMinutes || 0)) {
+        const behavior = String(rule.behaviorWhenExceeded || "HR_REVIEW").toUpperCase();
+        if (behavior === "BLOCK") throw Object.assign(new Error(`This lateness reason covers only ${rule.coversMinutes || 0} minutes.`), { statusCode: 400 });
+        if (behavior === "MARK_INVALID") validityStatus = "invalid";
+      }
+    }
     return db.AttendanceRequest.create({
       businessId,
       employeeUserId: targetEmployeeUserId,
       requestType: data.requestType,
-      category: data.category || null,
+      category: isLatenessNotice ? this.latenessRules.normalizeReasonCode(data.reasonCategory || data.category) : data.category || data.reasonCategory || null,
       title: data.title,
       reason: data.reason,
-      fromAt: isCorrection ? correctionFromAt : data.fromAt || null,
+      fromAt: isCorrection ? correctionFromAt : isLatenessNotice ? noticeFromAt : data.fromAt || null,
       toAt: data.toAt || null,
       durationMinutes: data.durationMinutes ?? null,
       status: "pending",
+      submittedAt: new Date(),
+      reasonCategory: isLatenessNotice ? this.latenessRules.normalizeReasonCode(data.reasonCategory || data.category) : data.reasonCategory || data.category || null,
+      reasonText,
+      validityStatus,
+      deadlineAt,
     });
   }
 
-  async action(businessId: string, requestId: string, userId: string, status: "approved" | "rejected", note?: string) {
+  async action(businessId: string, requestId: string, userId: string, status: "approved" | "rejected" | "invalid" | "expired" | "cancelled", note?: string) {
     if (!VALID_STATUSES.has(status)) throw new Error("Invalid status.");
     const record = await db.AttendanceRequest.findOne({ where: { id: requestId, businessId } });
     if (!record) throw new Error("Attendance request not found.");
     if (record.status !== "pending") throw new Error("Only pending attendance requests can be updated.");
+    if (record.requestType === "lateness_notice" && status === "approved") {
+      const validity = await this.evaluateLatenessNotice(record, Number(record.durationMinutes || 0));
+      if (validity.validityStatus !== "valid" || !validity.usable) {
+        if (validity.validityStatus === "invalid" || validity.validityStatus === "expired") {
+          await record.update({ validityStatus: validity.validityStatus, actionNote: validity.message || note || null });
+        }
+        throw Object.assign(new Error(validity.message || "Lateness notice is invalid"), { statusCode: 400 });
+      }
+    }
+    const now = new Date();
     await record.update({
       status,
-      actionedAt: new Date(),
+      validityStatus: record.requestType === "lateness_notice" ? (status === "invalid" || status === "expired" ? status : status === "approved" ? "valid" : record.validityStatus) : record.validityStatus,
+      approvedAt: status === "approved" ? now : record.approvedAt,
+      approvedByUserId: status === "approved" ? userId : record.approvedByUserId,
+      rejectedAt: status === "rejected" || status === "invalid" || status === "expired" ? now : record.rejectedAt,
+      rejectedByUserId: status === "rejected" || status === "invalid" || status === "expired" ? userId : record.rejectedByUserId,
+      actionedAt: now,
       actionedByUserId: userId,
       actionNote: note || null,
     });
@@ -155,6 +229,44 @@ export class AttendanceRequestsService {
       else await db.AttendanceEvent.create(payload);
     }
     return db.AttendanceRequest.findOne({ where: { id: requestId, businessId }, include: employeeInclude() });
+  }
+
+  async listPendingLatenessNotices(businessId: string, query: any = {}) {
+    return this.list(businessId, {
+      ...query,
+      requestType: "lateness_notice",
+      status: "pending",
+    });
+  }
+
+  async evaluateLatenessNotice(record: any, lateByMinutes = 0) {
+    const reasonText = String(record.reasonText || record.reason || "").trim();
+    const validityStatus = validateNoticeText(reasonText);
+    if (validityStatus === "invalid") return { validityStatus, noticeStatus: "Invalid", usable: false, reasonCode: null, message: "Reason is too vague or too short." };
+    return this.latenessRules.evaluateNotice(record, lateByMinutes);
+  }
+
+  async countApprovedLatenessNotices(businessId: string, employeeUserId: string, anchorDate: Date, period: "week" | "month" = "month") {
+    const start = new Date(anchorDate);
+    start.setUTCHours(0, 0, 0, 0);
+    if (period === "month") start.setUTCDate(1);
+    else {
+      const day = start.getUTCDay() || 7;
+      start.setUTCDate(start.getUTCDate() - day + 1);
+    }
+    const end = new Date(start);
+    if (period === "month") end.setUTCMonth(end.getUTCMonth() + 1);
+    else end.setUTCDate(end.getUTCDate() + 7);
+    return db.AttendanceRequest.count({
+      where: {
+        businessId,
+        employeeUserId,
+        requestType: "lateness_notice",
+        status: "approved",
+        validityStatus: "valid",
+        approvedAt: { [Op.gte]: start, [Op.lt]: end },
+      },
+    });
   }
 
   async syncApprovedCorrections(businessId: string, query: any = {}) {

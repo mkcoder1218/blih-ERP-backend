@@ -4,6 +4,7 @@ exports.projectsRoutes = void 0;
 const express_1 = require("express");
 const auth_1 = require("../../middlewares/auth");
 const role_1 = require("../../middlewares/role");
+const permission_1 = require("../../middlewares/permission");
 const requireActiveModule_1 = require("../../middlewares/requireActiveModule");
 const validate_1 = require("../../middlewares/validate");
 const asyncHandler_1 = require("../../utils/asyncHandler");
@@ -60,7 +61,7 @@ router.post('/templates', (0, role_1.requireRole)('BUSINESS_ADMIN'), (0, asyncHa
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post('/', (0, validate_1.validate)(project_validator_1.createProjectSchema), (0, asyncHandler_1.asyncHandler)(controller.createProject));
+router.post('/', (0, permission_1.requireAnyPermission)('project.create', 'project.manage'), (0, validate_1.validate)(project_validator_1.createProjectSchema), (0, asyncHandler_1.asyncHandler)(controller.createProject));
 /**
  * @openapi
  * /api/v1/projects:
@@ -96,29 +97,29 @@ router.get('/', (0, validate_1.validate)(project_validator_1.listProjectsQuerySc
 router.get('/my-tasks', (0, validate_1.validate)(project_validator_1.listProjectTasksQuerySchema, "query"), (0, asyncHandler_1.asyncHandler)(controller.myTasks));
 router.get('/workflow/catalog', (0, asyncHandler_1.asyncHandler)(controller.workflowCatalog));
 router.get('/:projectId([0-9a-fA-F-]{36})/members', (0, validate_1.validate)(project_validator_1.projectMembersParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.listMembers));
-router.post('/:projectId([0-9a-fA-F-]{36})/members', (0, validate_1.validate)(project_validator_1.projectMembersParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.addProjectMemberSchema), (0, asyncHandler_1.asyncHandler)(controller.addMember));
-router.post('/:projectId([0-9a-fA-F-]{36})/members/bulk', (0, validate_1.validate)(project_validator_1.projectMembersParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.bulkAddProjectMembersSchema), (0, asyncHandler_1.asyncHandler)(controller.bulkAddMembers));
-router.patch('/:projectId([0-9a-fA-F-]{36})/members/:memberId([0-9a-fA-F-]{36})', (0, validate_1.validate)(project_validator_1.projectMemberParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.updateProjectMemberSchema), (0, asyncHandler_1.asyncHandler)(controller.updateMember));
-router.delete('/:projectId([0-9a-fA-F-]{36})/members/:memberId([0-9a-fA-F-]{36})', (0, validate_1.validate)(project_validator_1.projectMemberParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.removeMember));
+router.post('/:projectId([0-9a-fA-F-]{36})/members', (0, permission_1.requireAnyPermission)('project.manage'), (0, validate_1.validate)(project_validator_1.projectMembersParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.addProjectMemberSchema), (0, asyncHandler_1.asyncHandler)(controller.addMember));
+router.post('/:projectId([0-9a-fA-F-]{36})/members/bulk', (0, permission_1.requireAnyPermission)('project.manage'), (0, validate_1.validate)(project_validator_1.projectMembersParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.bulkAddProjectMembersSchema), (0, asyncHandler_1.asyncHandler)(controller.bulkAddMembers));
+router.patch('/:projectId([0-9a-fA-F-]{36})/members/:memberId([0-9a-fA-F-]{36})', (0, permission_1.requireAnyPermission)('project.manage'), (0, validate_1.validate)(project_validator_1.projectMemberParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.updateProjectMemberSchema), (0, asyncHandler_1.asyncHandler)(controller.updateMember));
+router.delete('/:projectId([0-9a-fA-F-]{36})/members/:memberId([0-9a-fA-F-]{36})', (0, permission_1.requireAnyPermission)('project.manage'), (0, validate_1.validate)(project_validator_1.projectMemberParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.removeMember));
 router.get('/:projectId([0-9a-fA-F-]{36})/tasks', (0, validate_1.validate)(project_validator_1.projectTasksParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.listProjectTasksQuerySchema, "query"), (0, asyncHandler_1.asyncHandler)(controller.listNestedTasks));
-router.post('/:projectId([0-9a-fA-F-]{36})/tasks', (0, validate_1.validate)(project_validator_1.projectTasksParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.createNestedProjectTaskSchema), (0, asyncHandler_1.asyncHandler)(controller.createNestedTask));
+router.post('/:projectId([0-9a-fA-F-]{36})/tasks', (0, permission_1.requireAnyPermission)('project.task', 'project.manage'), (0, validate_1.validate)(project_validator_1.projectTasksParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.createNestedProjectTaskSchema), (0, asyncHandler_1.asyncHandler)(controller.createNestedTask));
 router.get('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments', (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.listTaskComments));
 router.post('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments', (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.createTaskCommentSchema), (0, asyncHandler_1.asyncHandler)(controller.createTaskComment));
 router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments/:commentId([0-9a-fA-F-]{36})', (0, validate_1.validate)(project_validator_1.taskCommentParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.updateTaskCommentSchema), (0, asyncHandler_1.asyncHandler)(controller.updateTaskComment));
 router.delete('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments/:commentId([0-9a-fA-F-]{36})', (0, validate_1.validate)(project_validator_1.taskCommentParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.deleteTaskComment));
 router.get('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.viewNestedTask));
-router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.updateNestedProjectTaskSchema), (0, asyncHandler_1.asyncHandler)(controller.updateNestedTask));
-router.delete('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.deleteNestedTask));
-router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/assign', (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.assignProjectTaskSchema), (0, asyncHandler_1.asyncHandler)(controller.assignNestedTask));
-router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/status', (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.changeProjectTaskStatusSchema), (0, asyncHandler_1.asyncHandler)(controller.changeNestedTaskStatus));
+router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', (0, permission_1.requireAnyPermission)('project.task', 'project.manage'), (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.updateNestedProjectTaskSchema), (0, asyncHandler_1.asyncHandler)(controller.updateNestedTask));
+router.delete('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', (0, permission_1.requireAnyPermission)('project.manage'), (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.deleteNestedTask));
+router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/assign', (0, permission_1.requireAnyPermission)('project.task', 'project.manage'), (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.assignProjectTaskSchema), (0, asyncHandler_1.asyncHandler)(controller.assignNestedTask));
+router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/status', (0, permission_1.requireAnyPermission)('project.task', 'project.manage'), (0, validate_1.validate)(project_validator_1.projectTaskParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.changeProjectTaskStatusSchema), (0, asyncHandler_1.asyncHandler)(controller.changeNestedTaskStatus));
 router.get('/:projectId([0-9a-fA-F-]{36})/workflow-forms', (0, validate_1.validate)(project_validator_1.projectMembersParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.listProjectWorkflowFormsQuerySchema, "query"), (0, asyncHandler_1.asyncHandler)(controller.listWorkflowForms));
 router.post('/:projectId([0-9a-fA-F-]{36})/workflow-forms', (0, validate_1.validate)(project_validator_1.projectMembersParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.createProjectWorkflowFormSchema), (0, asyncHandler_1.asyncHandler)(controller.createWorkflowForm));
 router.patch('/:projectId([0-9a-fA-F-]{36})/workflow-forms/:formId([0-9a-fA-F-]{36})', (0, validate_1.validate)(project_validator_1.projectWorkflowFormParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.updateProjectWorkflowFormSchema), (0, asyncHandler_1.asyncHandler)(controller.updateWorkflowForm));
 router.patch('/:projectId([0-9a-fA-F-]{36})/workflow-forms/:formId([0-9a-fA-F-]{36})/status', (0, validate_1.validate)(project_validator_1.projectWorkflowFormParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.changeProjectWorkflowFormStatusSchema), (0, asyncHandler_1.asyncHandler)(controller.changeWorkflowFormStatus));
 router.get('/:id([0-9a-fA-F-]{36})', (0, validate_1.validate)(project_validator_1.projectIdParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.viewProject));
-router.patch('/:id([0-9a-fA-F-]{36})', (0, validate_1.validate)(project_validator_1.projectIdParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.updateProjectSchema), (0, asyncHandler_1.asyncHandler)(controller.updateProject));
-router.patch('/:id([0-9a-fA-F-]{36})/status', (0, validate_1.validate)(project_validator_1.projectIdParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.changeProjectStatusSchema), (0, asyncHandler_1.asyncHandler)(controller.changeProjectStatus));
-router.patch('/:id([0-9a-fA-F-]{36})/archive', (0, validate_1.validate)(project_validator_1.projectIdParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.archiveProject));
+router.patch('/:id([0-9a-fA-F-]{36})', (0, permission_1.requireAnyPermission)('project.manage'), (0, validate_1.validate)(project_validator_1.projectIdParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.updateProjectSchema), (0, asyncHandler_1.asyncHandler)(controller.updateProject));
+router.patch('/:id([0-9a-fA-F-]{36})/status', (0, permission_1.requireAnyPermission)('project.manage'), (0, validate_1.validate)(project_validator_1.projectIdParamsSchema, "params"), (0, validate_1.validate)(project_validator_1.changeProjectStatusSchema), (0, asyncHandler_1.asyncHandler)(controller.changeProjectStatus));
+router.patch('/:id([0-9a-fA-F-]{36})/archive', (0, permission_1.requireAnyPermission)('project.manage'), (0, validate_1.validate)(project_validator_1.projectIdParamsSchema, "params"), (0, asyncHandler_1.asyncHandler)(controller.archiveProject));
 /**
  * @openapi
  * /api/v1/projects/{id}/progress:
@@ -171,7 +172,7 @@ router.get('/:id/progress', (0, asyncHandler_1.asyncHandler)(controller.getProje
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post('/milestones', (0, asyncHandler_1.asyncHandler)(controller.createMilestone));
+router.post('/milestones', (0, permission_1.requireAnyPermission)('project.manage'), (0, asyncHandler_1.asyncHandler)(controller.createMilestone));
 /**
  * @openapi
  * /api/v1/projects/milestones:
@@ -227,7 +228,7 @@ router.get('/milestones', (0, asyncHandler_1.asyncHandler)(controller.listMilest
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post('/tasks', (0, asyncHandler_1.asyncHandler)(controller.createTask));
+router.post('/tasks', (0, permission_1.requireAnyPermission)('project.task', 'project.manage'), (0, asyncHandler_1.asyncHandler)(controller.createTask));
 /**
  * @openapi
  * /api/v1/projects/tasks:
@@ -288,7 +289,7 @@ router.get('/tasks', (0, asyncHandler_1.asyncHandler)(controller.listTasks));
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.patch('/tasks/:id/assign', (0, asyncHandler_1.asyncHandler)(controller.assignTask));
+router.patch('/tasks/:id/assign', (0, permission_1.requireAnyPermission)('project.task', 'project.manage'), (0, asyncHandler_1.asyncHandler)(controller.assignTask));
 /**
  * @openapi
  * /api/v1/projects/tasks/{id}/status:
@@ -317,7 +318,7 @@ router.patch('/tasks/:id/assign', (0, asyncHandler_1.asyncHandler)(controller.as
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.patch('/tasks/:id/status', (0, asyncHandler_1.asyncHandler)(controller.updateTaskStatus));
+router.patch('/tasks/:id/status', (0, permission_1.requireAnyPermission)('project.task', 'project.manage'), (0, asyncHandler_1.asyncHandler)(controller.updateTaskStatus));
 // Issues
 /**
  * @openapi
@@ -341,7 +342,7 @@ router.patch('/tasks/:id/status', (0, asyncHandler_1.asyncHandler)(controller.up
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post('/issues', (0, asyncHandler_1.asyncHandler)(controller.createIssue));
+router.post('/issues', (0, permission_1.requireAnyPermission)('project.task', 'project.manage'), (0, asyncHandler_1.asyncHandler)(controller.createIssue));
 /**
  * @openapi
  * /api/v1/projects/issues:
@@ -397,7 +398,7 @@ router.get('/issues', (0, asyncHandler_1.asyncHandler)(controller.listIssues));
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post('/change-requests', (0, asyncHandler_1.asyncHandler)(controller.createChangeRequest));
+router.post('/change-requests', (0, permission_1.requireAnyPermission)('project.manage'), (0, asyncHandler_1.asyncHandler)(controller.createChangeRequest));
 /**
  * @openapi
  * /api/v1/projects/change-requests:

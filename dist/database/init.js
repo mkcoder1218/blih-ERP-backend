@@ -181,11 +181,12 @@ async function initDatabase() {
         // In non-production environments, allow DB_SYNC to bootstrap local/dev databases
         // even if NODE_ENV isn't exactly "development" (e.g. "staging", "local").
         if (env_1.env.nodeEnv !== "production" && env_1.env.dbSync) {
-            // NOTE: sequelize.sync({ alter: true }) can crash on some Postgres setups when
-            // existing index DDL can't be parsed by Sequelize. Keep dev sync non-altering.
-            await sequelize_1.sequelize.sync({ alter: true });
+            // Use { alter: false } — only create tables that don't exist yet.
+            // alter: true is DANGEROUS: it drops columns/recreates tables and wipes data.
+            // New columns/tables are handled by the ensureXxx() functions below.
+            await sequelize_1.sequelize.sync({ alter: false });
             // eslint-disable-next-line no-console
-            console.log("DB synced");
+            console.log("DB synced (create-only, no alter)");
         }
         if (env_1.env.nodeEnv === "development") {
             await ensureSectorFocusSchema();
@@ -197,6 +198,8 @@ async function initDatabase() {
             await ensureRolesDomainSchema();
             await ensureOfferLettersSchema();
             await ensureCandidateOnboardingSchema();
+            await ensurePolicySchema();
+            await ensureNewModelsSchema();
         }
         const canSeed = await tableExists("permissions");
         if (canSeed) {
@@ -213,6 +216,69 @@ async function initDatabase() {
         // eslint-disable-next-line no-console
         console.error("DB init failed", err);
         throw err;
+    }
+}
+async function ensurePolicySchema() {
+    const qi = sequelize_1.sequelize.getQueryInterface();
+    const { DataTypes } = require("sequelize");
+    const hasPolicies = await tableExists("policies");
+    if (!hasPolicies) {
+        await qi.createTable("policies", {
+            id: {
+                type: DataTypes.UUID,
+                allowNull: false,
+                primaryKey: true,
+                defaultValue: DataTypes.UUIDV4,
+            },
+            businessId: { type: DataTypes.UUID, allowNull: true },
+            policyType: { type: DataTypes.STRING(120), allowNull: false },
+            title: { type: DataTypes.STRING(255), allowNull: false },
+            slug: { type: DataTypes.STRING(160), allowNull: false },
+            version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+            status: { type: DataTypes.STRING(40), allowNull: false, defaultValue: "draft" },
+            isRequired: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+            publishedAt: { type: DataTypes.DATE, allowNull: true },
+            contentHtml: { type: DataTypes.TEXT, allowNull: true },
+            contentJson: { type: DataTypes.JSONB, allowNull: true },
+            contentText: { type: DataTypes.TEXT, allowNull: true },
+            createdById: { type: DataTypes.UUID, allowNull: true },
+            updatedById: { type: DataTypes.UUID, allowNull: true },
+            acceptanceCount: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+            metadata: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+            createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            deletedAt: { type: DataTypes.DATE, allowNull: true },
+        });
+        await qi.addIndex("policies", ["businessId"], { name: "policies_businessId_idx" });
+        await qi.addIndex("policies", ["policyType", "status"], { name: "policies_policyType_status_idx" });
+        await qi.addIndex("policies", ["slug"], { name: "policies_slug_idx" });
+    }
+    const hasAcceptances = await tableExists("policy_acceptances");
+    if (!hasAcceptances) {
+        await qi.createTable("policy_acceptances", {
+            id: {
+                type: DataTypes.UUID,
+                allowNull: false,
+                primaryKey: true,
+                defaultValue: DataTypes.UUIDV4,
+            },
+            policyId: { type: DataTypes.UUID, allowNull: false },
+            userId: { type: DataTypes.UUID, allowNull: false },
+            businessId: { type: DataTypes.UUID, allowNull: true },
+            policyVersion: { type: DataTypes.INTEGER, allowNull: false },
+            acceptedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            metadata: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+            createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            deletedAt: { type: DataTypes.DATE, allowNull: true },
+        });
+        await qi.addIndex("policy_acceptances", ["policyId"], { name: "policy_acceptances_policyId_idx" });
+        await qi.addIndex("policy_acceptances", ["userId"], { name: "policy_acceptances_userId_idx" });
+        await qi.addIndex("policy_acceptances", ["businessId"], { name: "policy_acceptances_businessId_idx" });
+        await qi.addIndex("policy_acceptances", ["policyId", "userId"], {
+            name: "policy_acceptances_policyId_userId_unique",
+            unique: true,
+        });
     }
 }
 async function ensureRecruitmentSchema() {
@@ -718,5 +784,105 @@ async function ensureCandidateOnboardingSchema() {
     }
     catch (err) {
         console.error("ensureCandidateOnboardingSchema failed:", err);
+    }
+}
+/**
+ * ensureNewModelsSchema — safe additive migrations for models added after initial schema.
+ * Only creates tables/columns that don't exist — never drops or alters existing ones.
+ */
+async function ensureNewModelsSchema() {
+    const qi = sequelize_1.sequelize.getQueryInterface();
+    const { DataTypes } = require("sequelize");
+    // ── PromotionRequest ──────────────────────────────────────────────────────────
+    if (!await tableExists("hr_promotion_requests")) {
+        await qi.createTable("hr_promotion_requests", {
+            id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+            businessId: { type: DataTypes.UUID, allowNull: false },
+            employeeUserId: { type: DataTypes.UUID, allowNull: false },
+            requestedByUserId: { type: DataTypes.UUID, allowNull: true },
+            currentTitle: { type: DataTypes.STRING(255), allowNull: false },
+            targetTitle: { type: DataTypes.STRING(255), allowNull: false },
+            department: { type: DataTypes.STRING(255), allowNull: true },
+            justification: { type: DataTypes.TEXT, allowNull: false },
+            kpiScore: { type: DataTypes.FLOAT, allowNull: true },
+            yearsInRole: { type: DataTypes.FLOAT, allowNull: true },
+            effectiveDate: { type: DataTypes.DATEONLY, allowNull: true },
+            approvalStage: { type: DataTypes.STRING(50), defaultValue: "department_head" },
+            status: { type: DataTypes.STRING(50), defaultValue: "pending" },
+            deptHeadComment: { type: DataTypes.TEXT, allowNull: true },
+            adminComment: { type: DataTypes.TEXT, allowNull: true },
+            rejectionReason: { type: DataTypes.TEXT, allowNull: true },
+            metadata: { type: DataTypes.JSONB, defaultValue: {} },
+            createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            deletedAt: { type: DataTypes.DATE, allowNull: true },
+        });
+        console.log("hr_promotion_requests table created.");
+    }
+    // ── HREvent ──────────────────────────────────────────────────────────────────
+    if (!await tableExists("hr_events")) {
+        await qi.createTable("hr_events", {
+            id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+            businessId: { type: DataTypes.UUID, allowNull: false },
+            createdByUserId: { type: DataTypes.UUID, allowNull: false },
+            employeeUserId: { type: DataTypes.UUID, allowNull: true },
+            departmentId: { type: DataTypes.UUID, allowNull: true },
+            eventType: { type: DataTypes.STRING(50), allowNull: false, defaultValue: "company_event" },
+            title: { type: DataTypes.STRING(255), allowNull: false },
+            description: { type: DataTypes.TEXT, allowNull: true },
+            eventDate: { type: DataTypes.DATEONLY, allowNull: false },
+            endDate: { type: DataTypes.DATEONLY, allowNull: true },
+            isRecurring: { type: DataTypes.BOOLEAN, defaultValue: false },
+            visibility: { type: DataTypes.STRING(20), defaultValue: "all" },
+            emoji: { type: DataTypes.STRING(10), allowNull: true },
+            color: { type: DataTypes.STRING(100), allowNull: true },
+            metadata: { type: DataTypes.JSONB, defaultValue: {} },
+            createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            deletedAt: { type: DataTypes.DATE, allowNull: true },
+        });
+        await qi.addIndex("hr_events", ["businessId"], { name: "hr_events_businessId_idx" });
+        await qi.addIndex("hr_events", ["eventDate"], { name: "hr_events_eventDate_idx" });
+        await qi.addIndex("hr_events", ["eventType"], { name: "hr_events_eventType_idx" });
+        console.log("hr_events table created.");
+    }
+    // ── DisciplinaryCase ─────────────────────────────────────────────────────────
+    if (!await tableExists("hr_disciplinary_cases")) {
+        await qi.createTable("hr_disciplinary_cases", {
+            id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+            businessId: { type: DataTypes.UUID, allowNull: false },
+            employeeUserId: { type: DataTypes.UUID, allowNull: false },
+            reportedByUserId: { type: DataTypes.UUID, allowNull: false },
+            caseType: { type: DataTypes.STRING(100), allowNull: false },
+            severity: { type: DataTypes.STRING(50), defaultValue: "minor" },
+            title: { type: DataTypes.STRING(255), allowNull: false },
+            description: { type: DataTypes.TEXT, allowNull: false },
+            actionTaken: { type: DataTypes.TEXT, allowNull: true },
+            status: { type: DataTypes.STRING(50), defaultValue: "open" },
+            metadata: { type: DataTypes.JSONB, defaultValue: {} },
+            createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+            deletedAt: { type: DataTypes.DATE, allowNull: true },
+        });
+        await qi.addIndex("hr_disciplinary_cases", ["businessId"], { name: "hr_disciplinary_cases_businessId_idx" });
+        await qi.addIndex("hr_disciplinary_cases", ["employeeUserId"], { name: "hr_disciplinary_cases_employeeUserId_idx" });
+        console.log("hr_disciplinary_cases table created.");
+    }
+    // ── TrainingRecord (if missing columns) ──────────────────────────────────────
+    if (await tableExists("hr_training_records")) {
+        const desc = await qi.describeTable("hr_training_records").catch(() => ({}));
+        if (!desc["trainingType"]) {
+            await qi.addColumn("hr_training_records", "trainingType", { type: DataTypes.STRING(100), allowNull: true });
+        }
+        if (!desc["resultData"]) {
+            await qi.addColumn("hr_training_records", "resultData", { type: DataTypes.JSONB, defaultValue: {} });
+        }
+    }
+    // ── HREvent color column widened to STRING(100) if created narrow ──────────
+    if (await tableExists("hr_events")) {
+        try {
+            await qi.changeColumn("hr_events", "color", { type: DataTypes.STRING(100), allowNull: true });
+        }
+        catch { /* already correct width or table just created */ }
     }
 }

@@ -29,6 +29,7 @@ export const publicRegisterSchema = Joi.object({
   nationality:           Joi.string().max(100).allow(null, '').optional(),
   requestedRoleKey:      Joi.string().max(50).allow(null, '').optional(),
   employmentType:        Joi.string().max(50).allow(null, '').optional(),
+  internPaymentType:     Joi.string().valid('paid', 'unpaid').allow(null, '').optional(),
   hireDate:              Joi.string().allow(null, '').optional(),
   departmentId:          Joi.string().uuid().allow(null, '').optional(),
   positionId:            Joi.string().uuid().allow(null, '').optional(),

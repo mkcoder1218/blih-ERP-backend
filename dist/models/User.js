@@ -10,7 +10,13 @@ exports.default = (sequelize, dataTypes) => {
         phone: { type: dataTypes.STRING(50), allowNull: true },
         status: { type: dataTypes.STRING(50), allowNull: false, defaultValue: "active" },
         isPlatformSuperAdmin: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-        lastLoginAt: { type: dataTypes.DATE, allowNull: true }
+        lastLoginAt: { type: dataTypes.DATE, allowNull: true },
+        // Self-registration approval workflow
+        registrationToken: { type: dataTypes.STRING(128), allowNull: true },
+        rejectionReason: { type: dataTypes.TEXT, allowNull: true },
+        rejectedAt: { type: dataTypes.DATE, allowNull: true },
+        approvedAt: { type: dataTypes.DATE, allowNull: true },
+        approvedByUserId: { type: dataTypes.UUID, allowNull: true }
     }, {
         tableName: "users",
         timestamps: true,

@@ -157,6 +157,7 @@ class AuthController {
             const roles = (fullUser.Roles || []).map((r) => r.key);
             const permissionsSet = new Set();
             (fullUser.Roles || []).forEach((r) => (r.Permissions || []).forEach((p) => permissionsSet.add(p.key)));
+            ["attendance.self", "profiles.self", "performance.self", "project.self", "project.task"].forEach((key) => permissionsSet.add(key));
             return (0, apiResponse_1.ok)(res, {
                 accessToken: token,
                 refreshToken,
@@ -200,9 +201,30 @@ class AuthController {
                 where: { businessId: user.businessId, status: "active" },
                 attributes: ["moduleKey", "moduleName", "status", "enabledAt"]
             });
+            const [profile, employeeRecord] = await Promise.all([
+                models_1.db.BusinessUserProfile.findOne({
+                    where: { businessId: user.businessId, userId: user.id },
+                    attributes: ["departmentId", "positionId"],
+                    include: [
+                        { model: models_1.db.Department, as: "department", attributes: ["id", "name"] },
+                        { model: models_1.db.Position, as: "position", attributes: ["id", "title"] },
+                    ],
+                }),
+                models_1.db.EmployeeRecord.findOne({
+                    where: { businessId: user.businessId, userId: user.id },
+                    attributes: ["departmentId", "positionId"],
+                    include: [
+                        { model: models_1.db.Department, as: "department", attributes: ["id", "name"] },
+                        { model: models_1.db.Position, as: "position", attributes: ["id", "title"] },
+                    ],
+                }),
+            ]);
             const roles = (user.Roles || []).map((r) => r.key);
             const permissionsSet = new Set();
             (user.Roles || []).forEach((r) => (r.Permissions || []).forEach((p) => permissionsSet.add(p.key)));
+            ["attendance.self", "profiles.self", "performance.self", "project.self", "project.task"].forEach((key) => permissionsSet.add(key));
+            const department = profile?.department || employeeRecord?.department || null;
+            const position = profile?.position || employeeRecord?.position || null;
             return (0, apiResponse_1.ok)(res, {
                 user: {
                     id: user.id,
@@ -214,6 +236,10 @@ class AuthController {
                     isPlatformSuperAdmin: Boolean(user.isPlatformSuperAdmin) || roles.includes("PLATFORM_SUPER_ADMIN"),
                     lastLoginAt: user.lastLoginAt
                 },
+                profile: {
+                    department: department ? { id: department.id, name: department.name } : null,
+                    position: position ? { id: position.id, title: position.title } : null,
+                },
                 business: user.Business || null,
                 roles,
                 permissions: Array.from(permissionsSet),
@@ -223,6 +249,651 @@ class AuthController {
         this.logout = async (_req, res) => {
             // Stateless JWT: frontend should drop token.
             return (0, apiResponse_1.ok)(res, { ok: true }, "Logged out");
+        };
+        /**
+         * PUBLIC SELF-REGISTRATION
+         * POST /api/v1/auth/public-register
+         *
+         * Gate conditions (all enforced server-side):
+         *   1. Business found by slug
+         *   2. BusinessSetting `public_registration_enabled` is true
+         *   3. Current time is within the window defined by
+         *      `public_registration_open_from` and `public_registration_open_until`
+         *   4. Email not already taken for that business
+         *
+         * New user is created with status "pending" (unless `auto_approve_registration`
+         * is true). HR can approve pending users in the admin panel.
+         */
+        this.publicRegister = async (req, res, next) => {
+            try {
+                const { businessSlug, fullName, email, password, phone, 
+                // Personal info
+                dateOfBirth, nationalId, address, city, country, zipCode, gender, maritalStatus, nationality, 
+                // Work info
+                departmentId, positionId, hireDate, employmentType, requestedRoleKey, 
+                // Emergency contact
+                emergencyName, emergencyPhone, emergencyRelationship, 
+                // Bank / optional
+                bankName, bankAccount, } = req.body;
+                const normalizedEmail = (0, normalizeEmail_1.normalizeEmail)(email);
+                // 1. Resolve business by slug
+                const business = await models_1.db.Business.findOne({ where: { slug: businessSlug } });
+                if (!business)
+                    return next({ statusCode: 404, message: "Registration link not found" });
+                const businessId = business.id;
+                // 2. Load public-registration settings — order by updatedAt DESC so the most
+                //    recently saved value wins (guards against any surviving duplicate rows)
+                const latestSetting = async (key) => models_1.db.BusinessSetting.findOne({
+                    where: { businessId, key },
+                    order: [['updatedAt', 'DESC']],
+                });
+                const [enabledSetting, fromSetting, untilSetting, autoSetting] = await Promise.all([
+                    latestSetting('public_registration_enabled'),
+                    latestSetting('public_registration_open_from'),
+                    latestSetting('public_registration_open_until'),
+                    latestSetting('auto_approve_registration'),
+                ]);
+                const enabled = enabledSetting?.value === true || enabledSetting?.value?.enabled === true;
+                if (!enabled)
+                    return next({ statusCode: 403, message: "Self-registration is not currently enabled for this company" });
+                // 3. Check time window
+                const now = new Date();
+                if (fromSetting?.value) {
+                    const from = new Date(fromSetting.value);
+                    if (now < from)
+                        return next({ statusCode: 403, message: "Registration window has not opened yet" });
+                }
+                if (untilSetting?.value) {
+                    const until = new Date(untilSetting.value);
+                    if (now > until)
+                        return next({ statusCode: 403, message: "Registration window has closed" });
+                }
+                // 4. Validate requested role — block admin-level roles
+                const BLOCKED_ROLES = ['BUSINESS_ADMIN', 'PLATFORM_SUPER_ADMIN'];
+                if (requestedRoleKey && BLOCKED_ROLES.includes(String(requestedRoleKey).toUpperCase())) {
+                    return next({ statusCode: 403, message: "Cannot self-register with this role" });
+                }
+                // 5. Check duplicate
+                const existing = await models_1.db.User.findOne({ where: { businessId, email: normalizedEmail } });
+                if (existing)
+                    return next({ statusCode: 409, message: "An account with this email already exists" });
+                // 6. Create user
+                const autoApprove = autoSetting?.value === true || autoSetting?.value?.enabled === true;
+                const hashed = await bcrypt_1.default.hash(password, env_1.env.bcryptSaltRounds);
+                // Generate a unique registration token for the resubmit link
+                const crypto = require('crypto');
+                const registrationToken = crypto.randomBytes(48).toString('hex');
+                const user = await models_1.db.User.create({
+                    businessId,
+                    fullName,
+                    email: normalizedEmail,
+                    password: hashed,
+                    phone: phone || null,
+                    status: autoApprove ? 'active' : 'pending',
+                    isPlatformSuperAdmin: false,
+                    registrationToken: autoApprove ? null : registrationToken,
+                });
+                // 7. Save ID document files if uploaded (front + back)
+                const saveIdFile = async (file, side) => {
+                    try {
+                        const fs = require('fs');
+                        const path = require('path');
+                        const crypto = require('crypto');
+                        const ext = path.extname(file.originalname) || '.bin';
+                        const safeName = crypto.randomBytes(16).toString('hex') + `_${side}` + ext;
+                        const uploadDir = path.join(process.cwd(), 'uploads', businessId, 'identity_docs');
+                        if (!fs.existsSync(uploadDir))
+                            fs.mkdirSync(uploadDir, { recursive: true });
+                        const storagePath = path.join(uploadDir, safeName);
+                        fs.writeFileSync(storagePath, file.buffer);
+                        const asset = await models_1.db.FileAsset.create({
+                            businessId,
+                            uploadedByUserId: user.id,
+                            originalName: file.originalname,
+                            storedName: safeName,
+                            mimeType: file.mimetype,
+                            sizeBytes: file.size,
+                            storageProvider: 'local',
+                            storagePath,
+                            status: 'active',
+                            metadata: { documentType: 'identity_document', side, selfRegistered: true },
+                        });
+                        await models_1.db.EntityAttachment.create({
+                            businessId,
+                            fileAssetId: asset.id,
+                            entityType: 'business_user_profile',
+                            entityId: user.id,
+                            moduleKey: 'profiles',
+                            attachmentType: `identity_document_${side}`,
+                        }).catch(() => null);
+                        return `/uploads/${businessId}/identity_docs/${safeName}`;
+                    }
+                    catch (fileErr) {
+                        console.error(`[PublicRegister] Failed to save ID document (${side}):`, fileErr);
+                        return null;
+                    }
+                };
+                const uploadedFiles = req.files;
+                const frontFile = uploadedFiles?.['idDocumentFront']?.[0];
+                const backFile = uploadedFiles?.['idDocumentBack']?.[0];
+                const idDocumentFrontUrl = frontFile ? await saveIdFile(frontFile, 'front') : null;
+                const idDocumentBackUrl = backFile ? await saveIdFile(backFile, 'back') : null;
+                // Keep a single idDocumentUrl pointing to the front for backwards compatibility
+                const idDocumentUrl = idDocumentFrontUrl;
+                // 7b. Create BusinessUserProfile with full employee metadata
+                const emergencyContact = (emergencyName || emergencyPhone) ? {
+                    firstName: emergencyName?.split(' ')[0] ?? null,
+                    lastName: emergencyName?.split(' ').slice(1).join(' ') ?? null,
+                    phone: emergencyPhone ?? null,
+                    email: null,
+                    relationship: emergencyRelationship ?? null,
+                    city: null,
+                    country: null,
+                } : null;
+                await models_1.db.BusinessUserProfile.upsert({
+                    businessId,
+                    userId: user.id,
+                    departmentId: departmentId || null,
+                    positionId: positionId || null,
+                    workEmail: normalizedEmail,
+                    workPhone: phone || null,
+                    employmentType: employmentType || null,
+                    joinedAt: hireDate ? new Date(hireDate) : null,
+                    status: autoApprove ? 'active' : 'pending',
+                    settings: {
+                        fullName,
+                        email: normalizedEmail,
+                        phone: phone || null,
+                        address: address || null,
+                        city: city || null,
+                        country: country || null,
+                        zipCode: zipCode || null,
+                        gender: gender || null,
+                        maritalStatus: maritalStatus || null,
+                        nationality: nationality || null,
+                        dateOfBirth: dateOfBirth || null,
+                        selfRegistered: true,
+                        requestedRoleKey: requestedRoleKey || null,
+                    },
+                });
+                // 8. Create EmployeeRecord with full info
+                await models_1.db.EmployeeRecord.create({
+                    businessId,
+                    userId: user.id,
+                    employeeCode: `SR-${String(user.id).slice(0, 8).toUpperCase()}`,
+                    departmentId: departmentId || null,
+                    positionId: positionId || null,
+                    employmentType: employmentType || 'full_time',
+                    employmentStatus: 'active',
+                    hireDate: hireDate || new Date().toISOString().slice(0, 10),
+                    salaryInfo: {},
+                    emergencyContact: emergencyContact ?? {},
+                    metadata: {
+                        dateOfBirth: dateOfBirth || null,
+                        nationalId: nationalId || null,
+                        idDocumentUrl: idDocumentUrl || null,
+                        idDocumentFrontUrl: idDocumentFrontUrl || null,
+                        idDocumentBackUrl: idDocumentBackUrl || null,
+                        address: address || null,
+                        city: city || null,
+                        country: country || null,
+                        zipCode: zipCode || null,
+                        gender: gender || null,
+                        maritalStatus: maritalStatus || null,
+                        nationality: nationality || null,
+                        bankDetails: (bankName || bankAccount) ? [{ bankName: bankName || null, accountNumber: bankAccount || null }] : [],
+                        selfRegistered: true,
+                        requestedRoleKey: requestedRoleKey || null,
+                    },
+                }).catch(() => null); // Non-fatal if EmployeeRecord creation fails (e.g. missing required fields)
+                // 9. Assign requested role if specified and auto-approve is on
+                if (requestedRoleKey && autoApprove) {
+                    const role = await models_1.db.Role.findOne({
+                        where: { key: String(requestedRoleKey).toUpperCase(), businessId: null }, // global roles
+                    });
+                    if (role)
+                        await user.setRoles([role]).catch(() => null);
+                }
+                if (autoApprove) {
+                    const token = (0, jwt_1.signAccessToken)(user);
+                    const refreshToken = (0, jwt_1.signRefreshToken)(user);
+                    return (0, apiResponse_1.ok)(res, {
+                        autoApproved: true,
+                        user: { id: user.id, businessId, fullName: user.fullName, email: user.email },
+                        accessToken: token,
+                        refreshToken,
+                    }, 'Account created and activated.', 201);
+                }
+                return (0, apiResponse_1.ok)(res, {
+                    autoApproved: false,
+                    userId: user.id,
+                    message: 'Your account has been created and is pending approval by HR. You will be notified once activated.',
+                }, 'Registration submitted.', 201);
+            }
+            catch (e) {
+                return next({ statusCode: 500, message: e.message });
+            }
+        };
+        /**
+         * GET /api/v1/auth/public-register/:businessSlug/resubmit/:token
+         * Returns pre-filled form data for a previously rejected registration.
+         * Used when HR rejects and the user clicks the resubmit link from email.
+         */
+        this.publicGetResubmitData = async (req, res, next) => {
+            try {
+                const { businessSlug, token } = req.params;
+                const business = await models_1.db.Business.findOne({ where: { slug: businessSlug }, attributes: ['id', 'name'] });
+                if (!business)
+                    return next({ statusCode: 404, message: 'Business not found' });
+                const user = await models_1.db.User.findOne({
+                    where: { businessId: business.id, registrationToken: token, status: 'rejected' },
+                    attributes: ['id', 'fullName', 'email', 'phone', 'rejectionReason'],
+                    include: [
+                        {
+                            model: models_1.db.BusinessUserProfile,
+                            as: 'BusinessUserProfile',
+                            attributes: ['settings', 'departmentId', 'positionId', 'employmentType', 'joinedAt'],
+                            include: [
+                                { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },
+                                { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] },
+                            ],
+                        },
+                        {
+                            model: models_1.db.EmployeeRecord,
+                            attributes: ['metadata', 'emergencyContact', 'departmentId', 'positionId', 'employmentType', 'hireDate'],
+                            required: false,
+                            limit: 1,
+                            order: [['createdAt', 'DESC']],
+                        },
+                    ],
+                });
+                if (!user)
+                    return next({ statusCode: 404, message: 'Invalid or expired resubmit link' });
+                const profile = user.BusinessUserProfile;
+                const settings = profile?.settings ?? {};
+                const empRecord = user.EmployeeRecords?.[0] ?? user.EmployeeRecord ?? null;
+                const empMeta = empRecord?.metadata ?? {};
+                const emergency = empRecord?.emergencyContact ?? {};
+                const bankDetails = empMeta.bankDetails?.[0] ?? {};
+                // Reconstruct emergency name from first/last stored in EmployeeRecord.emergencyContact
+                const emergencyName = [emergency.firstName, emergency.lastName].filter(Boolean).join(' ') || '';
+                return (0, apiResponse_1.ok)(res, {
+                    userId: user.id,
+                    prefill: {
+                        // Step 1 — Account (email editable, no password)
+                        fullName: user.fullName,
+                        email: user.email,
+                        phone: settings.phone || user.phone || '',
+                        // Step 2 — Personal
+                        dateOfBirth: settings.dateOfBirth || empMeta.dateOfBirth || '',
+                        gender: settings.gender || empMeta.gender || '',
+                        maritalStatus: settings.maritalStatus || empMeta.maritalStatus || '',
+                        nationality: settings.nationality || empMeta.nationality || '',
+                        address: settings.address || empMeta.address || '',
+                        city: settings.city || empMeta.city || '',
+                        country: settings.country || empMeta.country || '',
+                        zipCode: settings.zipCode || empMeta.zipCode || '',
+                        // ID docs
+                        idDocumentFrontUrl: empMeta.idDocumentFrontUrl || empMeta.idDocumentUrl || null,
+                        idDocumentBackUrl: empMeta.idDocumentBackUrl || null,
+                        // Step 3 — Work
+                        requestedRoleKey: settings.requestedRoleKey || empMeta.requestedRoleKey || 'EMPLOYEE',
+                        employmentType: profile?.employmentType || empRecord?.employmentType || 'full_time',
+                        hireDate: profile?.joinedAt
+                            ? new Date(profile.joinedAt).toISOString().slice(0, 10)
+                            : empRecord?.hireDate
+                                ? new Date(empRecord.hireDate).toISOString().slice(0, 10)
+                                : '',
+                        departmentId: profile?.departmentId || empRecord?.departmentId || '',
+                        departmentName: profile?.department?.name || '',
+                        positionId: profile?.positionId || empRecord?.positionId || '',
+                        positionTitle: profile?.position?.title || '',
+                        // Step 4 — Emergency contact
+                        emergencyName: emergencyName,
+                        emergencyPhone: emergency.phone || '',
+                        emergencyRelationship: emergency.relationship || '',
+                        // Step 4 — Bank
+                        bankName: bankDetails.bankName || '',
+                        bankAccount: bankDetails.accountNumber || '',
+                    },
+                    rejectionReason: user.rejectionReason || '',
+                });
+            }
+            catch (e) {
+                return next({ statusCode: 500, message: e.message });
+            }
+        };
+        /**
+         * POST /api/v1/auth/public-register/resubmit/:token
+         * Re-submission after rejection. Updates the pending user record and sets status back to pending.
+         */
+        this.publicResubmit = async (req, res, next) => {
+            try {
+                const { token } = req.params;
+                const { businessSlug, fullName, email, password, phone, dateOfBirth, gender, maritalStatus, nationality, address, city, country, zipCode, requestedRoleKey, employmentType, hireDate, departmentId, positionId, emergencyName, emergencyPhone, emergencyRelationship, bankName, bankAccount, } = req.body;
+                const business = await models_1.db.Business.findOne({ where: { slug: businessSlug }, attributes: ['id'] });
+                if (!business)
+                    return next({ statusCode: 404, message: 'Business not found' });
+                const user = await models_1.db.User.findOne({
+                    where: { businessId: business.id, registrationToken: token, status: 'rejected' },
+                });
+                if (!user)
+                    return next({ statusCode: 404, message: 'Invalid or expired resubmit token' });
+                const BLOCKED_ROLES = ['BUSINESS_ADMIN', 'PLATFORM_SUPER_ADMIN'];
+                if (requestedRoleKey && BLOCKED_ROLES.includes(String(requestedRoleKey).toUpperCase())) {
+                    return next({ statusCode: 403, message: 'Cannot self-register with this role' });
+                }
+                // Build user update — password only changed if provided and meets min length
+                const userUpdate = {
+                    fullName: fullName || user.fullName,
+                    phone: phone || user.phone,
+                    status: 'pending',
+                    rejectionReason: null,
+                    rejectedAt: null,
+                };
+                if (email && email.trim()) {
+                    userUpdate.email = (0, normalizeEmail_1.normalizeEmail)(email.trim());
+                }
+                if (password && password.length >= 8) {
+                    userUpdate.password = await bcrypt_1.default.hash(password, env_1.env.bcryptSaltRounds);
+                }
+                await user.update(userUpdate);
+                // Save ID docs if new ones uploaded
+                const saveIdFile = async (file, side) => {
+                    try {
+                        const fs = require('fs');
+                        const path = require('path');
+                        const crypto = require('crypto');
+                        const businessId = business.id;
+                        const ext = path.extname(file.originalname) || '.bin';
+                        const safeName = crypto.randomBytes(16).toString('hex') + `_${side}` + ext;
+                        const uploadDir = path.join(process.cwd(), 'uploads', businessId, 'identity_docs');
+                        if (!fs.existsSync(uploadDir))
+                            fs.mkdirSync(uploadDir, { recursive: true });
+                        const storagePath = path.join(uploadDir, safeName);
+                        fs.writeFileSync(storagePath, file.buffer);
+                        await models_1.db.FileAsset.create({
+                            businessId,
+                            uploadedByUserId: user.id,
+                            originalName: file.originalname,
+                            storedName: safeName,
+                            mimeType: file.mimetype,
+                            sizeBytes: file.size,
+                            storageProvider: 'local',
+                            storagePath,
+                            status: 'active',
+                            metadata: { documentType: 'identity_document', side, resubmitted: true },
+                        });
+                        return `/uploads/${businessId}/identity_docs/${safeName}`;
+                    }
+                    catch {
+                        return null;
+                    }
+                };
+                const uploadedFiles = req.files;
+                const frontFile = uploadedFiles?.['idDocumentFront']?.[0];
+                const backFile = uploadedFiles?.['idDocumentBack']?.[0];
+                const idDocumentFrontUrl = frontFile ? await saveIdFile(frontFile, 'front') : null;
+                const idDocumentBackUrl = backFile ? await saveIdFile(backFile, 'back') : null;
+                // Update profile settings
+                const emergencyContact = (emergencyName || emergencyPhone) ? {
+                    firstName: emergencyName?.split(' ')[0] ?? null,
+                    lastName: emergencyName?.split(' ').slice(1).join(' ') ?? null,
+                    phone: emergencyPhone ?? null,
+                    relationship: emergencyRelationship ?? null,
+                } : null;
+                const existingProfile = await models_1.db.BusinessUserProfile.findOne({ where: { userId: user.id } });
+                const prevSettings = existingProfile?.settings ?? {};
+                await models_1.db.BusinessUserProfile.upsert({
+                    businessId: business.id,
+                    userId: user.id,
+                    departmentId: departmentId || null,
+                    positionId: positionId || null,
+                    workPhone: phone || null,
+                    employmentType: employmentType || null,
+                    joinedAt: hireDate ? new Date(hireDate) : null,
+                    status: 'pending',
+                    settings: {
+                        ...prevSettings,
+                        fullName: fullName || prevSettings.fullName,
+                        phone: phone || null,
+                        address: address || null,
+                        city: city || null,
+                        country: country || null,
+                        zipCode: zipCode || null,
+                        gender: gender || null,
+                        maritalStatus: maritalStatus || null,
+                        nationality: nationality || null,
+                        dateOfBirth: dateOfBirth || null,
+                        requestedRoleKey: requestedRoleKey || null,
+                        resubmitted: true,
+                    },
+                });
+                // Update employee record metadata
+                await models_1.db.EmployeeRecord.update({
+                    departmentId: departmentId || null,
+                    positionId: positionId || null,
+                    employmentType: employmentType || undefined,
+                    hireDate: hireDate ? new Date(hireDate) : undefined,
+                    emergencyContact: emergencyContact ?? {},
+                    metadata: models_1.db.sequelize.fn('jsonb_set_deep', {}), // updated below
+                }, { where: { userId: user.id } }).catch(() => null);
+                // Simpler direct find+update for metadata
+                const empRecord = await models_1.db.EmployeeRecord.findOne({ where: { userId: user.id } });
+                if (empRecord) {
+                    const prevMeta = empRecord.metadata ?? {};
+                    await empRecord.update({
+                        departmentId: departmentId || empRecord.departmentId,
+                        positionId: positionId || empRecord.positionId,
+                        employmentType: employmentType || empRecord.employmentType,
+                        hireDate: hireDate ? new Date(hireDate) : empRecord.hireDate,
+                        emergencyContact: emergencyContact ?? empRecord.emergencyContact,
+                        metadata: {
+                            ...prevMeta,
+                            dateOfBirth: dateOfBirth || prevMeta.dateOfBirth,
+                            idDocumentFrontUrl: idDocumentFrontUrl || prevMeta.idDocumentFrontUrl,
+                            idDocumentBackUrl: idDocumentBackUrl || prevMeta.idDocumentBackUrl,
+                            address: address || prevMeta.address,
+                            city: city || prevMeta.city,
+                            country: country || prevMeta.country,
+                            zipCode: zipCode || prevMeta.zipCode,
+                            gender: gender || prevMeta.gender,
+                            maritalStatus: maritalStatus || prevMeta.maritalStatus,
+                            nationality: nationality || prevMeta.nationality,
+                            bankDetails: (bankName || bankAccount) ? [{ bankName: bankName || null, accountNumber: bankAccount || null }] : prevMeta.bankDetails || [],
+                            requestedRoleKey: requestedRoleKey || prevMeta.requestedRoleKey,
+                            resubmitted: true,
+                        },
+                    });
+                }
+                return (0, apiResponse_1.ok)(res, { resubmitted: true }, 'Application resubmitted for review.', 200);
+            }
+            catch (e) {
+                return next({ statusCode: 500, message: e.message });
+            }
+        };
+        /**
+         * GET /api/v1/auth/public-register/:businessSlug/config
+         * Returns public-safe registration window info for the frontend to display.
+         */
+        /**
+         * GET /api/v1/auth/public-register/:businessSlug/roles
+         * Lists roles available for self-registration (excludes BUSINESS_ADMIN and PLATFORM_SUPER_ADMIN).
+         * Returns global system roles plus any custom business roles.
+         */
+        this.publicListRoles = async (req, res, next) => {
+            try {
+                const business = await models_1.db.Business.findOne({ where: { slug: req.params.businessSlug }, attributes: ['id'] });
+                if (!business)
+                    return next({ statusCode: 404, message: 'Business not found' });
+                const BLOCKED_ROLE_KEYS = ['BUSINESS_ADMIN', 'PLATFORM_SUPER_ADMIN'];
+                const { Op } = require('sequelize');
+                // Fetch global system roles + business-specific roles, excluding admin roles
+                const roles = await models_1.db.Role.findAll({
+                    where: {
+                        [Op.or]: [
+                            { businessId: null }, // global/system roles
+                            { businessId: business.id }, // business-specific roles
+                        ],
+                        key: { [Op.notIn]: BLOCKED_ROLE_KEYS },
+                        deletedAt: null,
+                    },
+                    attributes: ['key', 'name', 'description'],
+                    order: [['name', 'ASC']],
+                });
+                return (0, apiResponse_1.ok)(res, { roles: roles.map((r) => ({ key: r.key, label: r.name, description: r.description })) });
+            }
+            catch (e) {
+                return next({ statusCode: 500, message: e.message });
+            }
+        };
+        /**
+         * GET /api/v1/auth/public-register/:businessSlug/departments
+         * List departments for a business (public, no auth required).
+         */
+        this.publicListDepartments = async (req, res, next) => {
+            try {
+                const business = await models_1.db.Business.findOne({ where: { slug: req.params.businessSlug }, attributes: ['id'] });
+                if (!business)
+                    return next({ statusCode: 404, message: 'Business not found' });
+                const q = req.query.q;
+                const where = { businessId: business.id, status: 'active' };
+                if (q) {
+                    const { Op } = require('sequelize');
+                    where.name = { [Op.iLike]: `%${q}%` };
+                }
+                const rows = await models_1.db.Department.findAll({ where, attributes: ['id', 'name'], order: [['name', 'ASC']], limit: 1000 });
+                return (0, apiResponse_1.ok)(res, { departments: rows });
+            }
+            catch (e) {
+                return next({ statusCode: 500, message: e.message });
+            }
+        };
+        /**
+         * POST /api/v1/auth/public-register/:businessSlug/departments
+         * Create a new department suggestion (public). Creates with status 'pending' for HR review.
+         */
+        this.publicCreateDepartment = async (req, res, next) => {
+            try {
+                const business = await models_1.db.Business.findOne({ where: { slug: req.params.businessSlug }, attributes: ['id'] });
+                if (!business)
+                    return next({ statusCode: 404, message: 'Business not found' });
+                const { name } = req.body;
+                if (!name?.trim())
+                    return next({ statusCode: 400, message: 'Department name is required' });
+                const { Op } = require('sequelize');
+                const existing = await models_1.db.Department.findOne({
+                    where: { businessId: business.id, name: { [Op.iLike]: name.trim() } },
+                    attributes: ['id', 'name'],
+                });
+                if (existing)
+                    return (0, apiResponse_1.ok)(res, { department: existing, existed: true });
+                // Auto-generate key from name (slug-style)
+                const key = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || `dept_${Date.now()}`;
+                const dept = await models_1.db.Department.create({ businessId: business.id, name: name.trim(), key, status: 'active' });
+                return (0, apiResponse_1.ok)(res, { department: { id: dept.id, name: dept.name }, existed: false }, 'Department created', 201);
+            }
+            catch (e) {
+                return next({ statusCode: 500, message: e.message });
+            }
+        };
+        /**
+         * GET /api/v1/auth/public-register/:businessSlug/positions
+         * List positions for a business (public, no auth required).
+         */
+        this.publicListPositions = async (req, res, next) => {
+            try {
+                const business = await models_1.db.Business.findOne({ where: { slug: req.params.businessSlug }, attributes: ['id'] });
+                if (!business)
+                    return next({ statusCode: 404, message: 'Business not found' });
+                const q = req.query.q;
+                const where = { businessId: business.id, status: 'active' };
+                if (q) {
+                    const { Op } = require('sequelize');
+                    where.title = { [Op.iLike]: `%${q}%` };
+                }
+                const rows = await models_1.db.Position.findAll({ where, attributes: ['id', 'title', 'departmentId'], order: [['title', 'ASC']], limit: 1000 });
+                return (0, apiResponse_1.ok)(res, { positions: rows });
+            }
+            catch (e) {
+                return next({ statusCode: 500, message: e.message });
+            }
+        };
+        /**
+         * POST /api/v1/auth/public-register/:businessSlug/positions
+         * Create a new position suggestion (public).
+         */
+        this.publicCreatePosition = async (req, res, next) => {
+            try {
+                const business = await models_1.db.Business.findOne({ where: { slug: req.params.businessSlug }, attributes: ['id'] });
+                if (!business)
+                    return next({ statusCode: 404, message: 'Business not found' });
+                const { title, departmentId } = req.body;
+                if (!title?.trim())
+                    return next({ statusCode: 400, message: 'Position title is required' });
+                const { Op } = require('sequelize');
+                const existing = await models_1.db.Position.findOne({
+                    where: { businessId: business.id, title: { [Op.iLike]: title.trim() } },
+                    attributes: ['id', 'title'],
+                });
+                if (existing)
+                    return (0, apiResponse_1.ok)(res, { position: existing, existed: true });
+                // Auto-generate key; departmentId required by schema — use provided or find/create a "General" dept
+                const key = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || `pos_${Date.now()}`;
+                let resolvedDeptId = departmentId || null;
+                if (!resolvedDeptId) {
+                    // Find or create a catch-all "General" department
+                    let genDept = await models_1.db.Department.findOne({ where: { businessId: business.id, key: 'general' } });
+                    if (!genDept) {
+                        genDept = await models_1.db.Department.create({ businessId: business.id, name: 'General', key: 'general', status: 'active' });
+                    }
+                    resolvedDeptId = genDept.id;
+                }
+                const pos = await models_1.db.Position.create({ businessId: business.id, departmentId: resolvedDeptId, title: title.trim(), key, status: 'active' });
+                return (0, apiResponse_1.ok)(res, { position: { id: pos.id, title: pos.title }, existed: false }, 'Position created', 201);
+            }
+            catch (e) {
+                return next({ statusCode: 500, message: e.message });
+            }
+        };
+        this.getPublicRegistrationConfig = async (req, res, next) => {
+            try {
+                const business = await models_1.db.Business.findOne({
+                    where: { slug: req.params.businessSlug },
+                    attributes: ['id', 'name', 'slug'],
+                });
+                if (!business)
+                    return next({ statusCode: 404, message: 'Not found' });
+                const businessId = business.id;
+                const [enabledS, fromS, untilS, autoS] = await Promise.all([
+                    models_1.db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_enabled' } }),
+                    models_1.db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_open_from' } }),
+                    models_1.db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_open_until' } }),
+                    models_1.db.BusinessSetting.findOne({ where: { businessId, key: 'auto_approve_registration' } }),
+                ]);
+                const enabled = enabledS?.value === true || enabledS?.value?.enabled === true;
+                const openFrom = fromS?.value ?? null;
+                const openUntil = untilS?.value ?? null;
+                const autoApprove = autoS?.value === true || autoS?.value?.enabled === true;
+                const now = new Date();
+                let isOpen = enabled;
+                if (enabled && openFrom && now < new Date(openFrom))
+                    isOpen = false;
+                if (enabled && openUntil && now > new Date(openUntil))
+                    isOpen = false;
+                return (0, apiResponse_1.ok)(res, {
+                    businessName: business.name,
+                    businessSlug: business.slug,
+                    enabled,
+                    isOpen,
+                    openFrom,
+                    openUntil,
+                    autoApprove,
+                });
+            }
+            catch (e) {
+                return next({ statusCode: 500, message: e.message });
+            }
         };
         this.refresh = async (req, res, next) => {
             const { refreshToken } = req.body || {};

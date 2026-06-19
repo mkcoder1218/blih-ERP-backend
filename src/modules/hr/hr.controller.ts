@@ -38,6 +38,22 @@ export class HRController {
      return EMPLOYMENT_TYPES.includes(value as EmploymentType) ? value as EmploymentType : fallback;
    }
 
+   private normalizeEmploymentCategory(input: unknown): "Managerial" | "Non-Managerial" | null {
+     const value = (input ?? "").toString().trim();
+     return value === "Managerial" || value === "Non-Managerial" ? value : null;
+   }
+
+   private normalizeAssignedStartTime(input: unknown, fallback: "08:00" | "08:30" | "09:00" = "09:00"): "08:00" | "08:30" | "09:00" {
+     const value = (input ?? "").toString().trim();
+     return value === "08:00" || value === "08:30" || value === "09:00" ? value : fallback;
+   }
+
+   private normalizeScheduledWorkDays(input: unknown, fallback: number[] = [1, 2, 3, 4, 5]): number[] {
+     const raw = Array.isArray(input) ? input : fallback;
+     const days = Array.from(new Set(raw.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 7))).sort((a, b) => a - b);
+     return days.length ? days : fallback;
+   }
+
    private buildSalaryInfo(current: any, profile: any) {
      return {
        ...(current || {}),
@@ -66,6 +82,15 @@ export class HRController {
        countryOfBirth: profile?.countryOfBirth ?? current?.countryOfBirth ?? null,
        additionalPhone: profile?.additionalPhone ?? current?.additionalPhone ?? null,
        branch: profile?.branch ?? current?.branch ?? null,
+       internship: {
+         ...((current || {}).internship || {}),
+         program: profile?.internshipProgram ?? current?.internship?.program ?? null,
+         institution: profile?.internshipInstitution ?? current?.internship?.institution ?? null,
+         mentorUserId: profile?.internshipMentorUserId ?? current?.internship?.mentorUserId ?? null,
+         expectedEndDate: profile?.internshipExpectedEndDate ?? current?.internship?.expectedEndDate ?? null,
+         status: profile?.internshipStatus ?? current?.internship?.status ?? null,
+         stipendType: profile?.internshipStipendType ?? current?.internship?.stipendType ?? null,
+       },
        bankDetails: profile?.bankDetails ?? current?.bankDetails ?? [],
        assetsAndCredentials: profile?.assetsAndCredentials ?? current?.assetsAndCredentials ?? [],
        additionalNotes: profile?.additionalNotes ?? current?.additionalNotes ?? null,
@@ -137,9 +162,13 @@ export class HRController {
          const limit = Number(req.query.limit || 20);
          const offset = Number(req.query.offset || 0);
          const departmentId = req.query.departmentId as string;
+         const employmentType = req.query.employmentType as string;
+         const employmentStatus = req.query.employmentStatus as string;
          const q: any = { businessId: req.user!.businessId };
          
          if (departmentId) q.departmentId = departmentId;
+         if (employmentType) q.employmentType = employmentType;
+         if (employmentStatus) q.employmentStatus = employmentStatus;
 
          const result = await this.service.listRecords(q, limit, offset);
          const rowsWithFilteredSalaries = result.rows.map((r: any) => {
@@ -251,6 +280,9 @@ export class HRController {
            if (profile.positionId !== undefined) recordUpdates.positionId = profile.positionId || null;
            if (profile.reportingTo !== undefined) recordUpdates.managerUserId = profile.reportingTo || null;
            if (profile.employmentType !== undefined) recordUpdates.employmentType = profile.employmentType ? this.normalizeEmploymentType(profile.employmentType, rec.employmentType || DEFAULT_EMPLOYMENT_TYPE) : null;
+           if (profile.employmentCategory !== undefined) recordUpdates.employmentCategory = this.normalizeEmploymentCategory(profile.employmentCategory);
+           if (profile.assignedStartTime !== undefined) recordUpdates.assignedStartTime = this.normalizeAssignedStartTime(profile.assignedStartTime, rec.assignedStartTime || "09:00");
+           if (profile.scheduledWorkDays !== undefined) recordUpdates.scheduledWorkDays = this.normalizeScheduledWorkDays(profile.scheduledWorkDays, rec.scheduledWorkDays || [1, 2, 3, 4, 5]);
            if (profile.employmentStatus !== undefined) recordUpdates.employmentStatus = this.normalizeEmploymentStatus(profile.employmentStatus, rec.employmentStatus || DEFAULT_EMPLOYMENT_STATUS);
 
            if (profile.startDate !== undefined) recordUpdates.hireDate = profile.startDate || rec.hireDate;
@@ -294,6 +326,12 @@ export class HRController {
              countryOfBirth: profile.countryOfBirth !== undefined ? profile.countryOfBirth : rec.metadata?.countryOfBirth,
              additionalPhone: profile.additionalPhone !== undefined ? profile.additionalPhone : rec.metadata?.additionalPhone,
              branch: profile.branch !== undefined ? profile.branch : rec.metadata?.branch,
+             internshipProgram: profile.internshipProgram !== undefined ? profile.internshipProgram : rec.metadata?.internship?.program,
+             internshipInstitution: profile.internshipInstitution !== undefined ? profile.internshipInstitution : rec.metadata?.internship?.institution,
+             internshipMentorUserId: profile.internshipMentorUserId !== undefined ? profile.internshipMentorUserId : rec.metadata?.internship?.mentorUserId,
+             internshipExpectedEndDate: profile.internshipExpectedEndDate !== undefined ? profile.internshipExpectedEndDate : rec.metadata?.internship?.expectedEndDate,
+             internshipStatus: profile.internshipStatus !== undefined ? profile.internshipStatus : rec.metadata?.internship?.status,
+             internshipStipendType: profile.internshipStipendType !== undefined ? profile.internshipStipendType : rec.metadata?.internship?.stipendType,
              bankDetails: profile.bankDetails !== undefined ? profile.bankDetails : rec.metadata?.bankDetails,
              assetsAndCredentials: profile.assetsAndCredentials !== undefined ? profile.assetsAndCredentials : rec.metadata?.assetsAndCredentials,
              additionalNotes: profile.additionalNotes !== undefined ? profile.additionalNotes : rec.metadata?.additionalNotes,
@@ -445,6 +483,9 @@ export class HRController {
                positionId: profile.positionId || null,
                managerUserId: profile.reportingTo || null,
                employmentType: this.normalizeEmploymentType(profile?.employmentType, DEFAULT_EMPLOYMENT_TYPE),
+               employmentCategory: this.normalizeEmploymentCategory(profile?.employmentCategory),
+               assignedStartTime: this.normalizeAssignedStartTime(profile?.assignedStartTime),
+               scheduledWorkDays: this.normalizeScheduledWorkDays(profile?.scheduledWorkDays),
                employmentStatus: this.normalizeEmploymentStatus(profile?.employmentStatus, DEFAULT_EMPLOYMENT_STATUS),
                hireDate: profile.startDate || new Date(),
                contractStartDate: profile.contractStartDate || profile.startDate || null,

@@ -17,6 +17,15 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): AttendanceRe
       toAt: { type: dataTypes.DATE, allowNull: true },
       durationMinutes: { type: dataTypes.INTEGER, allowNull: true },
       status: { type: dataTypes.STRING(40), allowNull: false, defaultValue: "pending" },
+      submittedAt: { type: dataTypes.DATE, allowNull: true },
+      approvedAt: { type: dataTypes.DATE, allowNull: true },
+      approvedByUserId: { type: dataTypes.UUID, allowNull: true },
+      rejectedAt: { type: dataTypes.DATE, allowNull: true },
+      rejectedByUserId: { type: dataTypes.UUID, allowNull: true },
+      reasonCategory: { type: dataTypes.STRING(80), allowNull: true },
+      reasonText: { type: dataTypes.TEXT, allowNull: true },
+      validityStatus: { type: dataTypes.STRING(40), allowNull: true },
+      deadlineAt: { type: dataTypes.DATE, allowNull: true },
       actionedAt: { type: dataTypes.DATE, allowNull: true },
       actionedByUserId: { type: dataTypes.UUID, allowNull: true },
       actionNote: { type: dataTypes.TEXT, allowNull: true },
@@ -32,6 +41,8 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): AttendanceRe
     models.AttendanceRequest.belongsTo(models.Business, { foreignKey: "businessId" });
     models.AttendanceRequest.belongsTo(models.User, { foreignKey: "employeeUserId", as: "employee" });
     models.AttendanceRequest.belongsTo(models.User, { foreignKey: "actionedByUserId", as: "actionedBy" });
+    models.AttendanceRequest.belongsTo(models.User, { foreignKey: "approvedByUserId", as: "approvedBy" });
+    models.AttendanceRequest.belongsTo(models.User, { foreignKey: "rejectedByUserId", as: "rejectedBy" });
   };
 
   return AttendanceRequest;

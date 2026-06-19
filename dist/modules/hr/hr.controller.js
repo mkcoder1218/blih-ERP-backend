@@ -529,6 +529,193 @@ class HRController {
                 (0, response_1.errorResponse)(res, e.message);
             }
         };
+        // ── Pending Registrations — HR Approval Workflow ──────────────────────────
+        /**
+         * GET /api/v1/hr/pending-registrations
+         * List users with status 'pending' or 'rejected' for HR review.
+         */
+        this.listPendingRegistrations = async (req, res) => {
+            try {
+                const businessId = req.user.businessId;
+                const status = req.query.status || 'pending';
+                const page = Math.max(1, parseInt(req.query.page) || 1);
+                const size = Math.min(100, parseInt(req.query.size) || 20);
+                const offset = (page - 1) * size;
+                const { Op } = require('sequelize');
+                const allowedStatuses = ['pending', 'rejected'];
+                const whereStatus = allowedStatuses.includes(status) ? status : 'pending';
+                const { count, rows } = await models_1.db.User.findAndCountAll({
+                    where: { businessId, status: whereStatus },
+                    attributes: ['id', 'fullName', 'email', 'phone', 'status', 'createdAt', 'rejectionReason', 'rejectedAt'],
+                    include: [{
+                            model: models_1.db.BusinessUserProfile,
+                            as: 'BusinessUserProfile',
+                            attributes: ['settings', 'departmentId', 'positionId', 'employmentType', 'joinedAt'],
+                            include: [
+                                { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },
+                                { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] },
+                            ],
+                        }],
+                    order: [['createdAt', 'DESC']],
+                    limit: size,
+                    offset,
+                });
+                const items = rows.map((u) => {
+                    const profile = u.BusinessUserProfile;
+                    const settings = profile?.settings ?? {};
+                    return {
+                        id: u.id,
+                        fullName: u.fullName,
+                        email: u.email,
+                        phone: u.phone,
+                        status: u.status,
+                        createdAt: u.createdAt,
+                        rejectionReason: u.rejectionReason,
+                        rejectedAt: u.rejectedAt,
+                        requestedRoleKey: settings.requestedRoleKey || null,
+                        employmentType: profile?.employmentType || settings.employmentType || null,
+                        hireDate: profile?.joinedAt || null,
+                        department: profile?.department || null,
+                        position: profile?.position || null,
+                        personal: {
+                            dateOfBirth: settings.dateOfBirth || null,
+                            gender: settings.gender || null,
+                            maritalStatus: settings.maritalStatus || null,
+                            nationality: settings.nationality || null,
+                            address: settings.address || null,
+                            city: settings.city || null,
+                            country: settings.country || null,
+                            zipCode: settings.zipCode || null,
+                        },
+                    };
+                });
+                (0, response_1.successResponse)(res, { items, total: count, page, size, pages: Math.ceil(count / size) });
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        /**
+         * GET /api/v1/hr/pending-registrations/:userId
+         * Full detail of one pending/rejected user for the HR review modal.
+         */
+        this.getPendingRegistration = async (req, res) => {
+            try {
+                const businessId = req.user.businessId;
+                const { Op } = require('sequelize');
+                const user = await models_1.db.User.findOne({
+                    where: { id: req.params.userId, businessId, status: { [Op.in]: ['pending', 'rejected'] } },
+                    attributes: { exclude: ['password'] },
+                    include: [{
+                            model: models_1.db.BusinessUserProfile,
+                            as: 'BusinessUserProfile',
+                            include: [
+                                { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },
+                                { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] },
+                            ],
+                        }, {
+                            model: models_1.db.EmployeeRecord,
+                            // User hasMany EmployeeRecord — Sequelize uses the plural alias
+                            attributes: ['id', 'metadata', 'emergencyContact', 'departmentId', 'positionId', 'employmentType', 'hireDate'],
+                            required: false,
+                            limit: 1,
+                            order: [['createdAt', 'DESC']],
+                        }],
+                });
+                if (!user)
+                    return (0, response_1.errorResponse)(res, 'Not found', 404);
+                // Flatten so the frontend can access EmployeeRecord directly
+                const plain = user.toJSON ? user.toJSON() : user;
+                const empRecord = (plain.EmployeeRecords ?? [])[0] ?? null;
+                (0, response_1.successResponse)(res, {
+                    user: { ...plain, EmployeeRecord: empRecord, EmployeeRecords: undefined },
+                });
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        /**
+         * POST /api/v1/hr/pending-registrations/:userId/approve
+         * Approve a pending registration. Activates account and assigns role.
+         */
+        this.approveRegistration = async (req, res) => {
+            try {
+                const businessId = req.user.businessId;
+                const { Op } = require('sequelize');
+                const { sendApprovalEmail } = require('../../services/registrationEmails');
+                const user = await models_1.db.User.findOne({
+                    where: { id: req.params.userId, businessId, status: { [Op.in]: ['pending', 'rejected'] } },
+                });
+                if (!user)
+                    return (0, response_1.errorResponse)(res, 'Not found', 404);
+                await user.update({
+                    status: 'active',
+                    rejectionReason: null,
+                    rejectedAt: null,
+                    approvedAt: new Date(),
+                    approvedByUserId: req.user.id,
+                });
+                await models_1.db.BusinessUserProfile.update({ status: 'active' }, { where: { userId: user.id } });
+                // Assign requested role
+                const profile = await models_1.db.BusinessUserProfile.findOne({ where: { userId: user.id } });
+                const settings = profile?.settings ?? {};
+                const roleKey = settings.requestedRoleKey || 'EMPLOYEE';
+                const role = await models_1.db.Role.findOne({ where: { key: roleKey.toUpperCase(), businessId: null } });
+                if (role)
+                    await user.setRoles([role]).catch(() => null);
+                // Send approval email (non-fatal)
+                const business = await models_1.db.Business.findByPk(businessId, { attributes: ['name'] });
+                sendApprovalEmail({ toEmail: user.email, toName: user.fullName, businessName: business?.name || '' }).catch(() => null);
+                (0, response_1.successResponse)(res, { approved: true, userId: user.id });
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        /**
+         * POST /api/v1/hr/pending-registrations/:userId/reject
+         * Reject a pending registration with reason and optional template message.
+         * Sends a resubmit email to the applicant.
+         */
+        this.rejectRegistration = async (req, res) => {
+            try {
+                const businessId = req.user.businessId;
+                const { Op } = require('sequelize');
+                const { sendRejectionEmail } = require('../../services/registrationEmails');
+                const { reason, templateMessage } = req.body;
+                if (!reason?.trim())
+                    return (0, response_1.errorResponse)(res, 'Rejection reason is required', 400);
+                const user = await models_1.db.User.findOne({
+                    where: { id: req.params.userId, businessId, status: { [Op.in]: ['pending', 'rejected'] } },
+                });
+                if (!user)
+                    return (0, response_1.errorResponse)(res, 'Not found', 404);
+                await user.update({
+                    status: 'rejected',
+                    rejectionReason: reason.trim(),
+                    rejectedAt: new Date(),
+                });
+                await models_1.db.BusinessUserProfile.update({ status: 'rejected' }, { where: { userId: user.id } });
+                // Send rejection email with resubmit link
+                const business = await models_1.db.Business.findByPk(businessId, { attributes: ['name', 'slug'] });
+                if (user.registrationToken && business) {
+                    sendRejectionEmail({
+                        toEmail: user.email,
+                        toName: user.fullName,
+                        businessName: business.name,
+                        businessSlug: business.slug,
+                        registrationToken: user.registrationToken,
+                        reason: reason.trim(),
+                        templateMessage: templateMessage?.trim() || undefined,
+                    }).catch(() => null);
+                }
+                (0, response_1.successResponse)(res, { rejected: true, userId: user.id });
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
     }
     normalizeSystemRoleKey(input) {
         const raw = (input ?? "EMPLOYEE").toString().trim().toUpperCase();

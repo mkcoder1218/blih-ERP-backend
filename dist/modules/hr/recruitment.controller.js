@@ -1178,6 +1178,25 @@ class RecruitmentController {
                 (0, response_1.errorResponse)(res, e.message);
             }
         };
+        this.deleteTemplate = async (req, res) => {
+            try {
+                const template = await models_1.db.RecruitmentTemplate.findOne({
+                    where: {
+                        id: req.params.id,
+                        businessId: req.user.businessId,
+                    },
+                });
+                if (!template) {
+                    return (0, response_1.errorResponse)(res, "Recruitment template not found.", 404);
+                }
+                await template.destroy();
+                await auditLog_service_1.AuditLogService.log("DELETED_RECRUITMENT_TEMPLATE", "hr_recruitment_templates", String(template.id), template.toJSON(), {}, req);
+                (0, response_1.successResponse)(res, null, "Recruitment template deleted.");
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
     }
     mapJobRequest(o) {
         const m = o.metadata || {};

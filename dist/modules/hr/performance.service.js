@@ -9,9 +9,14 @@ const APPROVED_TASK_STATUSES = new Set(['APPROVED']);
 const BLOCKED_TASK_STATUSES = new Set(['BLOCKED']);
 const EXCLUDED_BLOCKER_TYPES = new Set(['dependency', 'client', 'resource', 'management']);
 const EXIT_STATUS_TRANSITIONS = {
-    pending: new Set(['in_progress', 'cancelled']),
+    pending: new Set(['in_progress', 'cancelled', 'rejected', 'interview_scheduled']),
+    interview_scheduled: new Set(['interview_completed', 'in_progress', 'cancelled', 'rejected']),
+    interview_completed: new Set(['in_progress', 'cancelled', 'rejected']),
+    rejected: new Set(['pending']),
     cancelled: new Set(['pending']),
-    in_progress: new Set(['completed', 'cancelled'])
+    in_progress: new Set(['completed', 'cancelled', 'clearance_pending']),
+    clearance_pending: new Set(['completed', 'cancelled']),
+    completed: new Set(['account_disabled'])
 };
 exports.EXIT_CLEARANCE_STEP_DEFINITIONS = [
     {
@@ -87,7 +92,7 @@ class HRPerformanceService {
             }
         }
     }
-    async processExit(businessId, exitId, status) {
+    async processExit(businessId, exitId, status, options = {}) {
         const p = await models_1.db.ExitProcess.findOne({ where: { id: exitId, businessId } });
         if (!p)
             throw new Error("Exit process not found.");
@@ -96,11 +101,24 @@ class HRPerformanceService {
             throw new Error(`Invalid exit status transition from ${currentStatus} to ${status}.`);
         }
         const employeeUserId = p.employeeUserId;
+        const payload = { status };
+        if (['in_progress', 'rejected', 'cancelled'].includes(status)) {
+            payload.reviewedByUserId = options.reviewedByUserId;
+            payload.reviewedAt = new Date();
+        }
+        if (status === 'in_progress') {
+            payload.effectiveDate = options.effectiveDate || p.effectiveDate;
+            payload.approvalNote = options.approvalNote ?? p.approvalNote;
+            payload.rejectionReason = null;
+        }
+        if (['rejected', 'cancelled'].includes(status)) {
+            payload.rejectionReason = options.rejectionReason ?? p.rejectionReason;
+        }
         if (status === 'completed') {
+            await this.assertOffboardingCanComplete(businessId, p);
             const emp = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
             if (emp)
                 await emp.update({ employmentStatus: employee_constants_1.TERMINATED_EMPLOYMENT_STATUS });
-            // Normally disable db.User connection access implicitly here
         }
         else if (status === 'in_progress') {
             const emp = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
@@ -112,7 +130,36 @@ class HRPerformanceService {
             if (emp)
                 await emp.update({ employmentStatus: employee_constants_1.ACTIVE_EMPLOYMENT_STATUS });
         }
-        return p.update({ status });
+        return p.update(payload);
+    }
+    async assertOffboardingCanComplete(businessId, exitProcess) {
+        const interviews = await models_1.db.ExitInterview.findAll({ where: { businessId, exitProcessId: exitProcess.id } });
+        const hasOpenInterview = interviews.some((item) => item.status === 'scheduled');
+        if (hasOpenInterview)
+            throw new Error('Exit interview must be completed, cancelled, or waived before completion.');
+        const mandatorySteps = await models_1.db.ExitClearanceStep.findAll({ where: { businessId, exitProcessId: exitProcess.id, required: true } });
+        const incompleteSteps = mandatorySteps.filter((step) => !['completed', 'waived'].includes(step.status));
+        if (incompleteSteps.length)
+            throw new Error('All mandatory clearance and checklist items must be completed before completion.');
+        const mandatoryDocs = await models_1.db.ExitDocument.findAll({ where: { businessId, exitProcessId: exitProcess.id, required: true } });
+        const incompleteDocs = mandatoryDocs.filter((doc) => !['uploaded', 'verified', 'waived'].includes(doc.status));
+        if (incompleteDocs.length)
+            throw new Error('All required documents must be generated, uploaded, verified, or waived before completion.');
+    }
+    async disableOffboardingAccount(businessId, exitId, actingUserId) {
+        const exitProcess = await models_1.db.ExitProcess.findOne({ where: { id: exitId, businessId } });
+        if (!exitProcess)
+            throw new Error('Exit process not found.');
+        if (exitProcess.status !== 'completed')
+            throw new Error('Offboarding must be completed before account deactivation.');
+        if (exitProcess.accountDisabledAt)
+            return exitProcess;
+        await models_1.db.User.update({ status: 'inactive' }, { where: { id: exitProcess.employeeUserId, businessId } });
+        return exitProcess.update({
+            status: 'account_disabled',
+            accountDisabledAt: new Date(),
+            accountDisabledByUserId: actingUserId
+        });
     }
     async seedExitClearanceSteps(businessId, exitProcessId, transaction) {
         const existing = await models_1.db.ExitClearanceStep.count({ where: { businessId, exitProcessId }, transaction });
@@ -185,12 +232,17 @@ class HRPerformanceService {
         if (updates.notes !== undefined)
             payload.notes = updates.notes;
         if (updates.status !== undefined) {
-            if (!['pending', 'completed', 'waived'].includes(updates.status))
+            if (!['pending', 'completed', 'waived', 'blocked'].includes(updates.status))
                 throw new Error('Invalid clearance step status.');
             payload.status = updates.status;
-            payload.completedAt = updates.status === 'pending' ? null : new Date();
-            payload.completedByUserId = updates.status === 'pending' ? null : actingUserId;
+            payload.completedAt = ['pending', 'blocked'].includes(updates.status) ? null : new Date();
+            payload.completedByUserId = ['pending', 'blocked'].includes(updates.status) ? null : actingUserId;
+            payload.blockedReason = updates.status === 'blocked' ? (updates.blockedReason || updates.notes || 'Blocked') : null;
         }
+        if (updates.blockedReason !== undefined)
+            payload.blockedReason = updates.blockedReason;
+        if (updates.attachments !== undefined)
+            payload.attachments = Array.isArray(updates.attachments) ? updates.attachments : [];
         return step.update(payload);
     }
     async completeClearanceStepByKey(businessId, exitProcessId, stepKey, actingUserId, transaction) {

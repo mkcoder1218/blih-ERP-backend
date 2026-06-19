@@ -42,6 +42,7 @@ async function authRequired(req, res, next) {
         (user.Roles || []).forEach((r) => {
             (r.Permissions || []).forEach((p) => permissions.add(p.key));
         });
+        ["attendance.self", "profiles.self", "performance.self", "project.self", "project.task"].forEach((key) => permissions.add(key));
         req.user = {
             id: user.id,
             businessId: user.businessId,

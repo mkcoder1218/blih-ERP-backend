@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sanitizePayload = exports.preventParameterPollution = exports.compressResponses = exports.securityHeaders = exports.authRateLimiter = exports.globalRateLimiter = void 0;
+exports.sanitizePayload = exports.preventParameterPollution = exports.compressResponses = exports.securityHeaders = exports.publicRegisterLimiter = exports.authRateLimiter = exports.globalRateLimiter = void 0;
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const env_1 = require("../config/env");
 const helmet_1 = __importDefault(require("helmet"));
@@ -20,6 +20,15 @@ exports.authRateLimiter = (0, express_rate_limit_1.default)({
     windowMs: env_1.env.rateLimitWindowMins * 60 * 1000,
     max: env_1.env.authRateLimitMaxReqs,
     message: 'Too many authentication attempts, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+// More lenient limiter for public read-only registration endpoints
+// (config lookup, department/position lists) — these fire on every step render
+exports.publicRegisterLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000, // 15 min
+    max: 300, // 300 reads per IP per window
+    message: 'Too many requests, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
 });

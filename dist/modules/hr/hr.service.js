@@ -37,10 +37,16 @@ class HRService {
             offset,
             order: [['createdAt', 'DESC']],
             include: [
-                { model: models_1.db.User, as: 'user', attributes: ['id', 'fullName', 'email', 'phone'] },
+                {
+                    model: models_1.db.User, as: 'user',
+                    attributes: ['id', 'fullName', 'email', 'phone', 'status'],
+                    // Exclude self-registered users awaiting HR approval
+                    where: { status: 'active' },
+                    required: true,
+                },
                 { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },
-                { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] }
-            ]
+                { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] },
+            ],
         });
     }
     async createRecord(data) {
@@ -106,6 +112,10 @@ class HRService {
         const records = await models_1.db.EmployeeRecord.findAll({
             where: { businessId },
             attributes: ['userId', 'managerUserId', 'employmentStatus'],
+            include: [
+                { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },
+                { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] },
+            ],
             paranoid: true,
         });
         const recordMap = new Map();
@@ -163,11 +173,30 @@ class HRService {
             return best;
         };
         // ── 5. Build node map ─────────────────────────────────────────────────────
-        const nodeMap = new Map();
+        const departments = await models_1.db.Department.findAll({
+            where: { businessId },
+            attributes: ['id', 'name'],
+            order: [['name', 'ASC']],
+        });
+        const departmentMap = new Map();
+        departments.forEach((department) => {
+            departmentMap.set(department.id, {
+                id: `department:${department.id}`,
+                departmentId: department.id,
+                type: 'department',
+                name: department.name,
+                title: 'Department',
+                department: '',
+                children: [],
+            });
+        });
+        const people = [];
         users.forEach((u) => {
             const profile = u.BusinessUserProfile;
             const record = recordMap.get(u.id);
             const role = getUserRole(u);
+            const department = profile?.department || record?.department || null;
+            const position = profile?.position || record?.position || null;
             const email = (u.email || '').toLowerCase();
             const hiredViaOnboarding = onboardingManagerByEmail.has(email);
             // Exclude users who:
@@ -182,11 +211,14 @@ class HRService {
             // Manager resolution: explicit record → onboarding-derived
             const managerId = record?.managerUserId ||
                 (hiredViaOnboarding ? (onboardingManagerByEmail.get(email) ?? null) : null);
-            nodeMap.set(u.id, {
+            people.push({
                 id: u.id,
+                userId: u.id,
+                type: role.priority <= 0 ? 'admin' : 'employee',
                 name: u.fullName,
-                title: profile?.position?.title || role.label,
-                department: profile?.department?.name || role.label,
+                title: position?.title || role.label,
+                department: department?.name || role.label,
+                departmentId: department?.id || null,
                 roleKey: role.key,
                 rolePriority: role.priority,
                 managerId,
@@ -194,47 +226,40 @@ class HRService {
             });
         });
         // ── 6. Pass 1 — wire explicit manager links ───────────────────────────────
-        const unlinked = [];
-        const tree = [];
-        nodeMap.forEach(node => {
-            if (node.managerId && node.managerId !== node.id && nodeMap.has(node.managerId)) {
-                nodeMap.get(node.managerId).children.push(node);
-            }
-            else {
-                unlinked.push(node);
-            }
-        });
-        // ── 7. Pass 2 — priority-based fallback for unlinked nodes ───────────────
-        unlinked.sort((a, b) => a.rolePriority - b.rolePriority);
-        const findBestParent = (node) => {
-            const candidates = [];
-            nodeMap.forEach(c => {
-                if (c.id !== node.id && c.rolePriority < node.rolePriority)
-                    candidates.push(c);
-            });
-            if (!candidates.length)
-                return null;
-            const closestPriority = Math.max(...candidates.map(c => c.rolePriority));
-            const closest = candidates.filter(c => c.rolePriority === closestPriority);
-            closest.sort((a, b) => a.children.length - b.children.length);
-            return closest[0];
+        const byRoleThenName = (a, b) => a.rolePriority - b.rolePriority || a.name.localeCompare(b.name);
+        const admins = people.filter((person) => person.rolePriority <= 0).sort(byRoleThenName);
+        const departmentPeople = people.filter((person) => person.rolePriority > 0);
+        const unassignedDepartment = {
+            id: 'department:unassigned',
+            departmentId: null,
+            type: 'department',
+            name: 'Unassigned',
+            title: 'Department not set',
+            department: '',
+            children: [],
         };
-        unlinked.forEach(node => {
-            const parent = findBestParent(node);
-            if (parent)
-                parent.children.push(node);
-            else
-                tree.push(node);
+        departmentPeople.forEach((person) => {
+            const departmentNode = person.departmentId
+                ? departmentMap.get(person.departmentId) || unassignedDepartment
+                : unassignedDepartment;
+            departmentNode.children.push(person);
         });
-        // ── 8. Sort every level by priority then name ─────────────────────────────
-        const sortLevel = (nodes) => {
-            nodes.sort((a, b) => a.rolePriority !== b.rolePriority
-                ? a.rolePriority - b.rolePriority
-                : a.name.localeCompare(b.name));
-            nodes.forEach(n => sortLevel(n.children));
-        };
-        sortLevel(tree);
-        return tree;
+        const departmentNodes = Array.from(departmentMap.values());
+        if (unassignedDepartment.children.length)
+            departmentNodes.push(unassignedDepartment);
+        departmentNodes.forEach((departmentNode) => {
+            departmentNode.children.sort(byRoleThenName);
+            departmentNode.title = `${departmentNode.children.length} ${departmentNode.children.length === 1 ? 'person' : 'people'}`;
+        });
+        const populatedDepartments = departmentNodes
+            .filter((departmentNode) => departmentNode.children.length > 0)
+            .sort((a, b) => a.name.localeCompare(b.name));
+        if (admins.length) {
+            const root = admins[0];
+            root.children = [...admins.slice(1), ...populatedDepartments];
+            return [root];
+        }
+        return populatedDepartments;
     }
 }
 exports.HRService = HRService;
