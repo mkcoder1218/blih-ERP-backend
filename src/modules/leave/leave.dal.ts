@@ -6,6 +6,7 @@ const userAttrs = ["id", "fullName", "email"];
 const includeUsers = [
   { model: db.User, as: "employee",       attributes: userAttrs, required: false },
   { model: db.User, as: "deptHeadApprover", attributes: userAttrs, required: false },
+  { model: db.User, as: "businessAdminApprover", attributes: userAttrs, required: false },
   { model: db.User, as: "adminApprover",  attributes: userAttrs, required: false },
   { model: db.User, as: "rejector",       attributes: userAttrs, required: false },
 ];

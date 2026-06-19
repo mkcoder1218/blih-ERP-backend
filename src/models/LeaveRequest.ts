@@ -36,6 +36,10 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): LeaveRequest
       deptHeadApprovedBy: { type: dataTypes.UUID, allowNull: true },
       deptHeadActionAt:   { type: dataTypes.DATE, allowNull: true },
       deptHeadComment:    { type: dataTypes.TEXT, allowNull: true },
+      // Business admin first-stage approval
+      businessAdminApprovedBy: { type: dataTypes.UUID, allowNull: true },
+      businessAdminActionAt:   { type: dataTypes.DATE, allowNull: true },
+      businessAdminComment:    { type: dataTypes.TEXT, allowNull: true },
       // Admin stage
       adminApprovedBy:    { type: dataTypes.UUID, allowNull: true },
       adminActionAt:      { type: dataTypes.DATE, allowNull: true },
@@ -53,6 +57,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): LeaveRequest
     models.LeaveRequest.belongsTo(models.User,          { foreignKey: "employeeUserId", as: "employee" });
     models.LeaveRequest.belongsTo(models.LeaveTemplate, { foreignKey: "leaveTemplateId", as: "template" });
     models.LeaveRequest.belongsTo(models.User, { foreignKey: "deptHeadApprovedBy", as: "deptHeadApprover" });
+    models.LeaveRequest.belongsTo(models.User, { foreignKey: "businessAdminApprovedBy", as: "businessAdminApprover" });
     models.LeaveRequest.belongsTo(models.User, { foreignKey: "adminApprovedBy",    as: "adminApprover"    });
     models.LeaveRequest.belongsTo(models.User, { foreignKey: "rejectedBy",         as: "rejector"         });
   };

@@ -82,6 +82,8 @@ export const SYSTEM_PERMISSIONS = [
   { module: "leave",      action: "read",   key: "leave.read",       description: "View leave balances and requests" },
   { module: "leave",      action: "approve",key: "leave.approve",    description: "Approve or deny leave, overtime, and WFH requests" },
   { module: "leave",      action: "manage", key: "leave.manage",     description: "Create and manage leave templates and types" },
+  { module: "leave",      action: "self_department_read",   key: "self_department_leave_read",   description: "View leave requests for employees in own department" },
+  { module: "leave",      action: "self_department_manage", key: "self_department_leave_manage", description: "Approve or reject leave requests for employees in own department" },
 
   // ── Performance & Growth ─────────────────────────────────────────────────────
   { module: "performance", action: "read",   key: "performance.read",  description: "View performance metrics, KPIs, and review cycles" },

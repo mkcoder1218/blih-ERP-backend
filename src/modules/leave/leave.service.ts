@@ -3,15 +3,15 @@ import { InternalNotifier } from "../notification/notification.service";
 import { db } from "../../models";
 
 // Maps role key → approval stage
-export const LEAVE_ROLE_STAGE_MAP: Record<string, string> = {
-  DEPT_HEAD:        "dept_head",
-  DEPARTMENT_HEAD:  "dept_head",
-  HR_MANAGER:       "admin",
-  BUSINESS_ADMIN:   "admin",
-  CEO:              "admin",
-};
+export type LeaveApprovalActor = "department_head" | "business_admin" | "hr";
 
-const STAGE_ORDER = ["dept_head", "admin"];
+export const LEAVE_ROLE_STAGE_MAP: Record<string, LeaveApprovalActor> = {
+  DEPT_HEAD:        "department_head",
+  DEPARTMENT_HEAD:  "department_head",
+  HR_MANAGER:       "hr",
+  BUSINESS_ADMIN:   "business_admin",
+  CEO:              "business_admin",
+};
 
 export class LeaveService {
   private templateDAL = new LeaveTemplateDAL();
@@ -123,12 +123,19 @@ export class LeaveService {
       status: "pending",
     });
 
-    // 5. Notify dept heads
-    await this._notifyRoleUsers(businessId, ["DEPT_HEAD", "DEPARTMENT_HEAD"], {
+    // 5. Notify own department heads and business admins for first-stage approval.
+    await this._notifyDepartmentHeadUsers(businessId, employeeUserId, {
       senderUserId: employeeUserId,
       type: "leave_dept_head_review",
       title: "New Leave Request",
       message: "A new leave request is awaiting your review.",
+      entityId: record.id,
+    });
+    await this._notifyRoleUsers(businessId, ["BUSINESS_ADMIN"], {
+      senderUserId: employeeUserId,
+      type: "leave_business_admin_review",
+      title: "New Leave Request",
+      message: "A new leave request can be first-stage approved by Business Admin.",
       entityId: record.id,
     });
 
@@ -143,24 +150,48 @@ export class LeaveService {
     return this.requestDAL.findPaginated({ ...filters, businessId });
   }
 
-  listPendingForStage(businessId: string, stage: string, filters: Partial<LeaveListFilters>) {
-    return this.requestDAL.findPaginated({ ...filters, businessId, approvalStage: stage, status: "pending" });
+  async listAllForDepartmentActor(businessId: string, actorUserId: string, filters: Partial<LeaveListFilters>) {
+    const result = await this.requestDAL.findPaginated({ ...filters, businessId });
+    const actorDepartmentId = await this._employeeDepartmentId(businessId, actorUserId);
+    if (!actorDepartmentId) return { ...result, rows: [], count: 0 };
+    const rows: any[] = [];
+    for (const row of result.rows as any[]) {
+      const employeeDepartmentId = await this._employeeDepartmentId(businessId, row.employeeUserId);
+      if (employeeDepartmentId === actorDepartmentId) rows.push(row);
+    }
+    return { ...result, rows, count: rows.length };
+  }
+
+  async listPendingForActor(businessId: string, actorUserId: string, actor: LeaveApprovalActor, filters: Partial<LeaveListFilters>) {
+    const approvalStage = actor === "hr" ? "admin" : "dept_head";
+    const result = await this.requestDAL.findPaginated({ ...filters, businessId, approvalStage, status: "pending" });
+    if (actor !== "department_head") return result;
+
+    const actorDepartmentId = await this._employeeDepartmentId(businessId, actorUserId);
+    if (!actorDepartmentId) return { ...result, rows: [], count: 0 };
+
+    const rows: any[] = [];
+    for (const row of result.rows as any[]) {
+      const employeeDepartmentId = await this._employeeDepartmentId(businessId, row.employeeUserId);
+      if (employeeDepartmentId === actorDepartmentId) rows.push(row);
+    }
+    return { ...result, rows, count: rows.length };
   }
 
   getById(id: string, businessId: string) {
     return this.requestDAL.findById(id, businessId);
   }
 
-  async approve(id: string, businessId: string, actorUserId: string, stage: string, comment?: string) {
-    const record = await this._assertPending(id, businessId, stage);
-    const currentIndex = STAGE_ORDER.indexOf(stage);
-    const nextStage = STAGE_ORDER[currentIndex + 1];
-    const isFinal = !nextStage;
+  async approve(id: string, businessId: string, actorUserId: string, actor: LeaveApprovalActor, comment?: string) {
+    const expectedStage = actor === "hr" ? "admin" : "dept_head";
+    const record = await this._assertPending(id, businessId, expectedStage);
+    await this._assertActorCanActOnRecord(businessId, actorUserId, actor, record);
+    const isFinal = actor === "hr";
 
-    const stageFields = this._stageFields(stage, actorUserId, comment);
+    const stageFields = this._stageFields(actor, actorUserId, comment);
     await this.requestDAL.update(id, businessId, {
       ...stageFields,
-      approvalStage: isFinal ? "approved" : nextStage,
+      approvalStage: isFinal ? "approved" : "admin",
       status: isFinal ? "approved" : "pending",
     });
 
@@ -194,14 +225,11 @@ export class LeaveService {
       });
     } else {
       // Notify next-stage approvers
-      const nextRoles = Object.entries(LEAVE_ROLE_STAGE_MAP)
-        .filter(([, s]) => s === nextStage)
-        .map(([r]) => r);
-      await this._notifyRoleUsers(businessId, nextRoles, {
+      await this._notifyRoleUsers(businessId, ["HR_MANAGER"], {
         senderUserId: actorUserId,
         type: "leave_admin_review",
-        title: "Leave Request Needs Your Approval",
-        message: "A leave request is awaiting admin approval.",
+        title: "Leave Request Needs HR Approval",
+        message: "A leave request has first-stage approval and is awaiting HR approval.",
         entityId: id,
       });
     }
@@ -209,8 +237,10 @@ export class LeaveService {
     return this.requestDAL.findById(id, businessId);
   }
 
-  async reject(id: string, businessId: string, actorUserId: string, stage: string, reason: string) {
-    const record = await this._assertPending(id, businessId, stage);
+  async reject(id: string, businessId: string, actorUserId: string, actor: LeaveApprovalActor, reason: string) {
+    const expectedStage = actor === "hr" ? "admin" : "dept_head";
+    const record = await this._assertPending(id, businessId, expectedStage);
+    await this._assertActorCanActOnRecord(businessId, actorUserId, actor, record);
     await this.requestDAL.update(id, businessId, {
       approvalStage: "rejected",
       status: "rejected",
@@ -262,11 +292,30 @@ export class LeaveService {
     return record;
   }
 
-  private _stageFields(stage: string, actorUserId: string, comment?: string) {
+  private _stageFields(actor: LeaveApprovalActor, actorUserId: string, comment?: string) {
     const now = new Date();
-    if (stage === "dept_head") return { deptHeadApprovedBy: actorUserId, deptHeadActionAt: now, deptHeadComment: comment };
-    if (stage === "admin")     return { adminApprovedBy: actorUserId, adminActionAt: now, adminComment: comment };
+    if (actor === "department_head") return { deptHeadApprovedBy: actorUserId, deptHeadActionAt: now, deptHeadComment: comment };
+    if (actor === "business_admin") return { businessAdminApprovedBy: actorUserId, businessAdminActionAt: now, businessAdminComment: comment };
+    if (actor === "hr") return { adminApprovedBy: actorUserId, adminActionAt: now, adminComment: comment };
     return {};
+  }
+
+  private async _assertActorCanActOnRecord(businessId: string, actorUserId: string, actor: LeaveApprovalActor, record: any) {
+    if (actor !== "department_head") return;
+    const [actorDepartmentId, employeeDepartmentId] = await Promise.all([
+      this._employeeDepartmentId(businessId, actorUserId),
+      this._employeeDepartmentId(businessId, record.employeeUserId)
+    ]);
+    if (!actorDepartmentId || !employeeDepartmentId || actorDepartmentId !== employeeDepartmentId) {
+      throw Object.assign(new Error("Department heads can only approve leave requests for their own department."), { statusCode: 403 });
+    }
+  }
+
+  private async _employeeDepartmentId(businessId: string, userId: string) {
+    const record = await db.EmployeeRecord.findOne({ where: { businessId, userId }, attributes: ["departmentId"] });
+    if (record?.departmentId) return record.departmentId;
+    const profile = await db.BusinessUserProfile.findOne({ where: { businessId, userId }, attributes: ["departmentId"] });
+    return profile?.departmentId || null;
   }
 
   private _countWorkdays(start: string, end: string): number {
@@ -305,6 +354,36 @@ export class LeaveService {
       }
     } catch (err) {
       console.error("[LeaveService] Failed to notify role users:", err);
+    }
+  }
+
+  private async _notifyDepartmentHeadUsers(businessId: string, employeeUserId: string, payload: any) {
+    try {
+      const employeeDepartmentId = await this._employeeDepartmentId(businessId, employeeUserId);
+      if (!employeeDepartmentId) return;
+      const roles = await db.Role.findAll({ where: { businessId, key: ["DEPT_HEAD", "DEPARTMENT_HEAD"] } });
+      if (!roles.length) return;
+      const roleIds = roles.map((r: any) => r.id);
+      const userRoles = await db.UserRole.findAll({ where: { roleId: roleIds } });
+      const candidateIds: string[] = Array.from(new Set(userRoles.map((ur: any) => ur.userId as string)));
+      for (const recipientUserId of candidateIds) {
+        const recipientDepartmentId = await this._employeeDepartmentId(businessId, recipientUserId);
+        if (recipientDepartmentId !== employeeDepartmentId) continue;
+        await InternalNotifier.send({
+          businessId,
+          recipientUserId,
+          senderUserId: payload.senderUserId,
+          moduleKey: "attendance",
+          type: payload.type,
+          title: payload.title,
+          message: payload.message,
+          entityType: "leave_request",
+          entityId: payload.entityId,
+          priority: "high",
+        });
+      }
+    } catch (err) {
+      console.error("[LeaveService] Failed to notify department head users:", err);
     }
   }
 }

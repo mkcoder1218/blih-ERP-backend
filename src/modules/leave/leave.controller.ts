@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { LeaveService, LEAVE_ROLE_STAGE_MAP } from "./leave.service";
+import { LeaveService, LEAVE_ROLE_STAGE_MAP, type LeaveApprovalActor } from "./leave.service";
 import { AuditLogService } from "../../services/auditLog.service";
 
 export class LeaveController {
@@ -89,7 +89,7 @@ export class LeaveController {
   listAll = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const size = parseInt(req.query.size as string) || 20;
-    const result = await this.svc.listAll(req.user!.businessId, {
+    const filters = {
       status:      req.query.status as string | undefined,
       leaveType:   req.query.leaveType as string | undefined,
       approvalStage: req.query.approvalStage as string | undefined,
@@ -97,17 +97,24 @@ export class LeaveController {
       dateTo:      req.query.dateTo as string | undefined,
       page,
       size,
-    });
+    };
+    const perms = new Set(req.user?.permissions || []);
+    const roles = new Set((req.user?.roles || []).map((role: string) => role.toUpperCase()));
+    const canReadAll = Boolean(req.user?.isPlatformSuperAdmin || perms.has("leave.read") || perms.has("leave.approve") || roles.has("HR_MANAGER") || roles.has("BUSINESS_ADMIN"));
+    const result = canReadAll
+      ? await this.svc.listAll(req.user!.businessId, filters)
+      : await this.svc.listAllForDepartmentActor(req.user!.businessId, req.user!.id, filters);
     res.json({ rows: result.rows, total: result.count, page, size, totalPages: Math.ceil(result.count / size) });
   };
 
   listPending = async (req: Request, res: Response) => {
-    const stage = this._resolveStage(req);
-    if (!stage) { res.json({ rows: [], total: 0, page: 1, size: 20, totalPages: 0 }); return; }
+    const actor = this._resolveApprovalActor(req);
+    if (!actor) { res.json({ rows: [], total: 0, page: 1, size: 20, totalPages: 0 }); return; }
     const page = parseInt(req.query.page as string) || 1;
     const size = parseInt(req.query.size as string) || 20;
-    const result = await this.svc.listPendingForStage(req.user!.businessId, stage, { page, size });
-    res.json({ rows: result.rows, total: result.count, page, size, totalPages: Math.ceil(result.count / size), stage });
+    const result = await this.svc.listPendingForActor(req.user!.businessId, req.user!.id, actor, { page, size });
+    const stage = actor === "hr" ? "admin" : "dept_head";
+    res.json({ rows: result.rows, total: result.count, page, size, totalPages: Math.ceil(result.count / size), stage, actor });
   };
 
   get = async (req: Request, res: Response, next: NextFunction) => {
@@ -118,10 +125,10 @@ export class LeaveController {
 
   approve = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const stage = this._resolveStage(req);
-      if (!stage) return next({ statusCode: 403, message: "Your role cannot approve leave requests" });
-      const record = await this.svc.approve(req.params.id, req.user!.businessId, req.user!.id, stage, req.body.comment);
-      await AuditLogService.log("UPDATE", "leave_request", req.params.id, null, { stage, action: "approved" }, req);
+      const actor = this._resolveApprovalActor(req);
+      if (!actor) return next({ statusCode: 403, message: "Your role cannot approve leave requests" });
+      const record = await this.svc.approve(req.params.id, req.user!.businessId, req.user!.id, actor, req.body.comment);
+      await AuditLogService.log("UPDATE", "leave_request", req.params.id, null, { actor, action: "approved" }, req);
       res.json({ leaveRequest: record });
     } catch (err: any) {
       next({ statusCode: 400, message: err.message });
@@ -130,10 +137,10 @@ export class LeaveController {
 
   reject = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const stage = this._resolveStage(req);
-      if (!stage) return next({ statusCode: 403, message: "Your role cannot reject leave requests" });
-      const record = await this.svc.reject(req.params.id, req.user!.businessId, req.user!.id, stage, req.body.reason || req.body.comment);
-      await AuditLogService.log("UPDATE", "leave_request", req.params.id, null, { stage, action: "rejected" }, req, "warning");
+      const actor = this._resolveApprovalActor(req);
+      if (!actor) return next({ statusCode: 403, message: "Your role cannot reject leave requests" });
+      const record = await this.svc.reject(req.params.id, req.user!.businessId, req.user!.id, actor, req.body.reason || req.body.comment);
+      await AuditLogService.log("UPDATE", "leave_request", req.params.id, null, { actor, action: "rejected" }, req, "warning");
       res.json({ leaveRequest: record });
     } catch (err: any) {
       next({ statusCode: 400, message: err.message });
@@ -157,13 +164,16 @@ export class LeaveController {
 
   // ── Private ───────────────────────────────────────────────────────────────
 
-  private _resolveStage(req: Request): string | null {
+  private _resolveApprovalActor(req: Request): LeaveApprovalActor | null {
     const roles: string[] = req.user!.roles || [];
+    const perms = new Set(req.user!.permissions || []);
+    if (req.user!.isPlatformSuperAdmin || roles.some((role) => role.toUpperCase() === "HR_MANAGER")) return "hr";
+    if (roles.some((role) => role.toUpperCase() === "BUSINESS_ADMIN")) return "business_admin";
+    if (perms.has("self_department_leave_manage") || perms.has("self_department_leave_read")) return "department_head";
     for (const role of roles) {
-      const stage = LEAVE_ROLE_STAGE_MAP[role.toUpperCase()];
-      if (stage) return stage;
+      const actor = LEAVE_ROLE_STAGE_MAP[role.toUpperCase()];
+      if (actor) return actor;
     }
-    if (req.user!.isPlatformSuperAdmin) return "admin";
     return null;
   }
 }
