@@ -10,8 +10,11 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): LeaveTemplat
       businessId:  { type: dataTypes.UUID, allowNull: false },
       name:        { type: dataTypes.STRING(100), allowNull: false },
       leaveType:   { type: dataTypes.STRING(50),  allowNull: false }, // annual | sick | maternity | paternity | casual | unpaid | custom
+      hasAmount:   { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       totalDays:   { type: dataTypes.FLOAT, allowNull: false, defaultValue: 0 },
       description: { type: dataTypes.TEXT, allowNull: true },
+      requiresEvidence: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      evidenceInstructions: { type: dataTypes.TEXT, allowNull: true },
       isActive:    { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       createdBy:   { type: dataTypes.UUID, allowNull: true },
     },

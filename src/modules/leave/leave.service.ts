@@ -24,11 +24,30 @@ export class LeaveService {
   }
 
   async createTemplate(businessId: string, createdBy: string, data: any) {
-    return this.templateDAL.create({ ...data, businessId, createdBy });
+    return this.templateDAL.create({
+      ...data,
+      hasAmount: data.hasAmount !== false,
+      totalDays: data.hasAmount === false ? 0 : data.totalDays,
+      requiresEvidence: Boolean(data.requiresEvidence),
+      evidenceInstructions: data.evidenceInstructions || null,
+      businessId,
+      createdBy
+    });
   }
 
   async updateTemplate(id: string, businessId: string, data: any) {
-    return this.templateDAL.update(id, businessId, data);
+    const patch = { ...data };
+    if (Object.prototype.hasOwnProperty.call(patch, "requiresEvidence")) {
+      patch.requiresEvidence = Boolean(patch.requiresEvidence);
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, "hasAmount")) {
+      patch.hasAmount = patch.hasAmount !== false;
+      if (!patch.hasAmount) patch.totalDays = 0;
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, "evidenceInstructions")) {
+      patch.evidenceInstructions = patch.evidenceInstructions || null;
+    }
+    return this.templateDAL.update(id, businessId, patch);
   }
 
   async toggleTemplate(id: string, businessId: string) {
@@ -53,32 +72,39 @@ export class LeaveService {
     const tpl = await this.templateDAL.findById(data.leaveTemplateId, businessId);
     if (!tpl) throw new Error("Leave template not found");
     if (!tpl.isActive) throw new Error("This leave type is not currently active");
+    const evidenceUrl = String(data.evidenceUrl || "").trim();
+    const evidenceNote = String(data.evidenceNote || "").trim();
+    if (tpl.requiresEvidence && !evidenceUrl && !evidenceNote) {
+      throw new Error("Evidence is required for this leave type.");
+    }
 
     // 2. Calculate business days
     const totalDays = this._countWorkdays(data.startDate, data.endDate);
     if (totalDays <= 0) throw new Error("End date must be after start date");
 
-    // 3. Check balance
+    // 3. Check balance when this leave type uses an allowance
     const year = new Date().getFullYear();
-    let bal = await db.LeaveBalance.findOne({
-      where: { businessId, userId: employeeUserId, leaveType: tpl.leaveType, year },
-    });
-    // Auto-provision balance if missing (use template's totalDays as the entitlement)
-    if (!bal) {
-      bal = await db.LeaveBalance.create({
-        businessId,
-        userId: employeeUserId,
-        leaveType: tpl.leaveType,
-        totalDays: tpl.totalDays,
-        usedDays: 0,
-        remainingDays: tpl.totalDays,
-        year,
+    if (tpl.hasAmount !== false) {
+      let bal = await db.LeaveBalance.findOne({
+        where: { businessId, userId: employeeUserId, leaveType: tpl.leaveType, year },
       });
-    }
-    if (bal.remainingDays < totalDays) {
-      throw new Error(
-        `Insufficient leave balance. You have ${bal.remainingDays} day(s) remaining but requested ${totalDays} day(s).`
-      );
+      // Auto-provision balance if missing (use template's totalDays as the entitlement)
+      if (!bal) {
+        bal = await db.LeaveBalance.create({
+          businessId,
+          userId: employeeUserId,
+          leaveType: tpl.leaveType,
+          totalDays: tpl.totalDays,
+          usedDays: 0,
+          remainingDays: tpl.totalDays,
+          year,
+        });
+      }
+      if (bal.remainingDays < totalDays) {
+        throw new Error(
+          `Insufficient leave balance. You have ${bal.remainingDays} day(s) remaining but requested ${totalDays} day(s).`
+        );
+      }
     }
 
     // 4. Create the request
@@ -91,6 +117,8 @@ export class LeaveService {
       endDate: data.endDate,
       totalDays,
       reason: data.reason,
+      evidenceUrl: evidenceUrl || null,
+      evidenceNote: evidenceNote || null,
       approvalStage: "dept_head",
       status: "pending",
     });
@@ -139,14 +167,17 @@ export class LeaveService {
     if (isFinal) {
       // Deduct balance
       const year = new Date().getFullYear();
-      const bal = await db.LeaveBalance.findOne({
-        where: { businessId, userId: record.employeeUserId, leaveType: record.leaveType, year },
-      });
-      if (bal) {
-        await bal.update({
-          usedDays: bal.usedDays + record.totalDays,
-          remainingDays: Math.max(0, bal.remainingDays - record.totalDays),
+      const template = record.template || await this.templateDAL.findById(record.leaveTemplateId, businessId);
+      if (template?.hasAmount !== false) {
+        const bal = await db.LeaveBalance.findOne({
+          where: { businessId, userId: record.employeeUserId, leaveType: record.leaveType, year },
         });
+        if (bal) {
+          await bal.update({
+            usedDays: bal.usedDays + record.totalDays,
+            remainingDays: Math.max(0, bal.remainingDays - record.totalDays),
+          });
+        }
       }
       // Notify employee
       await InternalNotifier.send({

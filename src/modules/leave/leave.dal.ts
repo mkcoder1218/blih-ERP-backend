@@ -11,7 +11,7 @@ const includeUsers = [
 ];
 
 const includeTemplate = [
-  { model: db.LeaveTemplate, as: "template", attributes: ["id", "name", "leaveType", "totalDays", "isActive"], required: false },
+  { model: db.LeaveTemplate, as: "template", attributes: ["id", "name", "leaveType", "hasAmount", "totalDays", "isActive", "requiresEvidence", "evidenceInstructions"], required: false },
 ];
 
 // ── Templates ────────────────────────────────────────────────────────────────

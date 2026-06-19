@@ -15,6 +15,8 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): LeaveRequest
       endDate:         { type: dataTypes.DATEONLY, allowNull: false },
       totalDays:       { type: dataTypes.FLOAT, allowNull: false, defaultValue: 1 },
       reason:          { type: dataTypes.TEXT, allowNull: false },
+      evidenceUrl:     { type: dataTypes.TEXT, allowNull: true },
+      evidenceNote:    { type: dataTypes.TEXT, allowNull: true },
       /**
        * 2-stage approval: dept_head → admin → approved
        */

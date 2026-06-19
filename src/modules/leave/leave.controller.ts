@@ -8,7 +8,17 @@ export class LeaveController {
   // ── Templates ─────────────────────────────────────────────────────────────
 
   listTemplates = async (req: Request, res: Response) => {
-    const onlyActive = req.query.onlyActive === "true";
+    const perms = new Set(req.user?.permissions || []);
+    const roles = new Set((req.user?.roles || []).map((role: string) => role.toUpperCase()));
+    const canManageTemplates = Boolean(
+      req.user?.isPlatformSuperAdmin ||
+      perms.has("leave.read") ||
+      perms.has("leave.approve") ||
+      perms.has("leave.manage") ||
+      roles.has("HR_MANAGER") ||
+      roles.has("BUSINESS_ADMIN")
+    );
+    const onlyActive = canManageTemplates ? req.query.onlyActive === "true" : true;
     const templates = await this.svc.listTemplates(req.user!.businessId, onlyActive);
     res.json({ templates });
   };

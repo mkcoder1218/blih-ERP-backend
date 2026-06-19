@@ -10,7 +10,7 @@ const ctrl = new LeaveController();
 router.use(authRequired);
 
 // ── Templates (HR/Admin only) ─────────────────────────────────────────────
-router.get(   "/templates",         requireAnyPermission("leave.read", "leave.approve"), asyncHandler(ctrl.listTemplates));
+router.get(   "/templates",         asyncHandler(ctrl.listTemplates));
 router.post(  "/templates",         requireAnyPermission("leave.approve"),               asyncHandler(ctrl.createTemplate));
 router.patch( "/templates/:id",     requireAnyPermission("leave.approve"),               asyncHandler(ctrl.updateTemplate));
 router.patch( "/templates/:id/toggle", requireAnyPermission("leave.approve"),            asyncHandler(ctrl.toggleTemplate));
