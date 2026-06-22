@@ -257,6 +257,7 @@ export class ProjectsController {
 
   deleteNestedTask = async (req: Request, res: Response) => {
     try {
+      if (!(await this.canAccessProject(req, req.params.projectId))) return errorResponse(res, "Project not found", 404);
       const { before, task } = await this.service.deleteNestedTask(req.user!.businessId, req.params.projectId, req.params.taskId);
       await AuditLogService.log('DELETE_PROJECT_TASK', 'project_task', String(task.id), before, null, req);
       await this.service.logActivity(req.user!.businessId, {
