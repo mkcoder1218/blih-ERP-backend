@@ -93,6 +93,21 @@ export class AttendanceHrController {
     return ok(res, { rows }, "Lateness reason rules");
   };
 
+  getLatenessCreditConfig = async (req: Request, res: Response) => {
+    const config = await this.latenessReasonRules.getCreditConfig(req.user!.businessId);
+    return ok(res, { config }, "Lateness credit configuration");
+  };
+
+  updateLatenessCreditConfig = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      this.assertCanManageReasonRules(req);
+      const config = await this.latenessReasonRules.updateCreditConfig(req.user!.businessId, req.body || {});
+      return ok(res, { config }, "Lateness credit configuration updated");
+    } catch (err: any) {
+      return next({ statusCode: err.statusCode || 400, message: err.message });
+    }
+  };
+
   createLatenessReasonRule = async (req: Request, res: Response, next: NextFunction) => {
     try {
       this.assertCanManageReasonRules(req);

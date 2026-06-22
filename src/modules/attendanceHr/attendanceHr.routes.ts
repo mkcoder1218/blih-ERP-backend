@@ -21,6 +21,8 @@ router.use(authRequired);
 router.use(attendanceHrAccess);
 
 router.get("/summary", validate(summaryQuerySchema, "query"), asyncHandler(controller.summary));
+router.get("/lateness-credit-config", asyncHandler(controller.getLatenessCreditConfig));
+router.patch("/lateness-credit-config", asyncHandler(controller.updateLatenessCreditConfig));
 router.get("/lateness-reason-rules", asyncHandler(controller.listLatenessReasonRules));
 router.post("/lateness-reason-rules", asyncHandler(controller.createLatenessReasonRule));
 router.patch("/lateness-reason-rules/reorder", asyncHandler(controller.reorderLatenessReasonRules));

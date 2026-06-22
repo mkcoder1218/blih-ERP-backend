@@ -141,16 +141,20 @@ export class AttendanceRequestsService {
       if (!rule || rule.enabled === false || rule.isActive === false) throw Object.assign(new Error("Selected lateness reason is not enabled."), { statusCode: 400 });
       if (rule.requiresAttachment && !data.attachmentUrl && !data.attachmentId) throw Object.assign(new Error("Selected lateness reason requires an attachment."), { statusCode: 400 });
       if (new Date() > deadlineAt && !rule.allowAfterDeadline) validityStatus = "expired";
-      const used = await this.latenessRules.countApprovedUsableByReason(businessId, employeeUserId, reasonCode, noticeFromAt);
-      const limit = Number(rule.monthlyLimit || 0);
+      const creditConfig = await this.latenessRules.getCreditConfig(businessId);
+      const used = creditConfig.mode === "GLOBAL_POOL"
+        ? await this.latenessRules.countApprovedUsableGlobal(businessId, employeeUserId, noticeFromAt)
+        : await this.latenessRules.countApprovedUsableByReason(businessId, employeeUserId, reasonCode, noticeFromAt);
+      const limit = creditConfig.mode === "GLOBAL_POOL" ? creditConfig.globalMonthlyLimit : Number(rule.monthlyLimit || 0);
       if (limit <= 0 || used >= limit) {
-        const behavior = String(rule.behaviorWhenExceeded || "HR_REVIEW").toUpperCase();
+        const behavior = String((creditConfig.mode === "GLOBAL_POOL" ? creditConfig.behaviorWhenExceeded : rule.behaviorWhenExceeded) || "HR_REVIEW").toUpperCase();
         if (behavior === "BLOCK") throw Object.assign(new Error("Monthly limit reached for this lateness reason."), { statusCode: 400 });
         if (behavior === "MARK_INVALID") validityStatus = "invalid";
       }
-      if (Number(data.lateByMinutes || data.durationMinutes || 0) > Number(rule.coversMinutes || 0)) {
-        const behavior = String(rule.behaviorWhenExceeded || "HR_REVIEW").toUpperCase();
-        if (behavior === "BLOCK") throw Object.assign(new Error(`This lateness reason covers only ${rule.coversMinutes || 0} minutes.`), { statusCode: 400 });
+      const coversMinutes = creditConfig.mode === "GLOBAL_POOL" ? creditConfig.globalCoversMinutes : Number(rule.coversMinutes || 0);
+      if (Number(data.lateByMinutes || data.durationMinutes || 0) > coversMinutes) {
+        const behavior = String((creditConfig.mode === "GLOBAL_POOL" ? creditConfig.behaviorWhenExceeded : rule.behaviorWhenExceeded) || "HR_REVIEW").toUpperCase();
+        if (behavior === "BLOCK") throw Object.assign(new Error(creditConfig.mode === "GLOBAL_POOL" ? `The global credit covers only ${coversMinutes} minutes.` : `This lateness reason covers only ${coversMinutes} minutes.`), { statusCode: 400 });
         if (behavior === "MARK_INVALID") validityStatus = "invalid";
       }
     }

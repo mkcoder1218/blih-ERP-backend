@@ -3,6 +3,14 @@ import { db } from "../models";
 import { businessDateEndUtc, businessDateStartUtc } from "../utils/timezone";
 
 export type LatenessReasonExceededBehavior = "BLOCK" | "MARK_INVALID" | "HR_REVIEW";
+export type LatenessCreditMode = "PER_REASON" | "GLOBAL_POOL";
+
+export type LatenessCreditConfig = {
+  mode: LatenessCreditMode;
+  globalMonthlyLimit: number;
+  globalCoversMinutes: number;
+  behaviorWhenExceeded: LatenessReasonExceededBehavior;
+};
 
 export type LatenessReasonRuleBalance = {
   reasonCode: string;
@@ -14,11 +22,22 @@ export type LatenessReasonRuleBalance = {
   enabled: boolean;
   canUse: boolean;
   blockedReason: string | null;
+  creditMode?: LatenessCreditMode;
+  globalMonthlyLimit?: number;
+  globalUsedThisMonth?: number;
+  globalRemainingThisMonth?: number;
 };
 
 const ADDIS_ABABA_TZ = "Africa/Addis_Ababa";
 const DEFAULT_REASON_CODE = "OTHER";
 const VALID_BEHAVIORS = new Set(["BLOCK", "MARK_INVALID", "HR_REVIEW"]);
+const LATENESS_CREDIT_CONFIG_KEY = "lateness_reason_credit_config";
+const DEFAULT_CREDIT_CONFIG: LatenessCreditConfig = {
+  mode: "PER_REASON",
+  globalMonthlyLimit: 3,
+  globalCoversMinutes: 60,
+  behaviorWhenExceeded: "HR_REVIEW",
+};
 
 function normalizeCode(value: unknown) {
   return String(value || DEFAULT_REASON_CODE).trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_") || DEFAULT_REASON_CODE;
@@ -116,6 +135,22 @@ export class LatenessReasonRulesService {
     });
   }
 
+  async getCreditConfig(businessId: string): Promise<LatenessCreditConfig> {
+    const row = await db.BusinessSetting.findOne({ where: { businessId, key: LATENESS_CREDIT_CONFIG_KEY } });
+    return this.normalizeCreditConfig(row?.value);
+  }
+
+  async updateCreditConfig(businessId: string, data: any): Promise<LatenessCreditConfig> {
+    const config = this.normalizeCreditConfig(data);
+    const existing = await db.BusinessSetting.findOne({ where: { businessId, key: LATENESS_CREDIT_CONFIG_KEY } });
+    if (existing) {
+      await existing.update({ value: config, category: "attendance", isPublic: false });
+    } else {
+      await db.BusinessSetting.create({ businessId, key: LATENESS_CREDIT_CONFIG_KEY, value: config, category: "attendance", isPublic: false });
+    }
+    return config;
+  }
+
   async countApprovedUsableByReason(businessId: string, employeeUserId: string, reasonCode: string, anchorDate: Date, excludeRequestId?: string | null) {
     const { startUtc, endUtc } = monthBoundsUtc(anchorDate, ADDIS_ABABA_TZ);
     const where: any = {
@@ -131,13 +166,34 @@ export class LatenessReasonRulesService {
     return db.AttendanceRequest.count({ where });
   }
 
+  async countApprovedUsableGlobal(businessId: string, employeeUserId: string, anchorDate: Date, excludeRequestId?: string | null) {
+    const { startUtc, endUtc } = monthBoundsUtc(anchorDate, ADDIS_ABABA_TZ);
+    const where: any = {
+      businessId,
+      employeeUserId,
+      requestType: "lateness_notice",
+      status: "approved",
+      validityStatus: "valid",
+      approvedAt: { [Op.gte]: startUtc, [Op.lt]: endUtc },
+    };
+    if (excludeRequestId) where.id = { [Op.ne]: excludeRequestId };
+    return db.AttendanceRequest.count({ where });
+  }
+
   async balancesForEmployee(businessId: string, employeeUserId: string, anchorDate: Date = new Date()): Promise<LatenessReasonRuleBalance[]> {
     const rules = await this.listRules(businessId);
+    const config = await this.getCreditConfig(businessId);
+    const globalUsed = config.mode === "GLOBAL_POOL"
+      ? await this.countApprovedUsableGlobal(businessId, employeeUserId, anchorDate)
+      : 0;
+    const globalRemaining = config.globalMonthlyLimit > 0 ? Math.max(0, config.globalMonthlyLimit - globalUsed) : 0;
     const balances: LatenessReasonRuleBalance[] = [];
     for (const rule of rules) {
       const code = ruleCode(rule);
-      const monthlyLimit = Number(rule.monthlyLimit || 0);
-      const usedThisMonth = await this.countApprovedUsableByReason(businessId, employeeUserId, code, anchorDate);
+      const monthlyLimit = config.mode === "GLOBAL_POOL" ? config.globalMonthlyLimit : Number(rule.monthlyLimit || 0);
+      const usedThisMonth = config.mode === "GLOBAL_POOL"
+        ? globalUsed
+        : await this.countApprovedUsableByReason(businessId, employeeUserId, code, anchorDate);
       const remainingThisMonth = monthlyLimit > 0 ? Math.max(0, monthlyLimit - usedThisMonth) : 0;
       const isEnabled = enabled(rule);
       const canUse = isEnabled && monthlyLimit > 0 && usedThisMonth < monthlyLimit;
@@ -146,11 +202,12 @@ export class LatenessReasonRulesService {
         label: ruleLabel(rule),
         monthlyLimit,
         usedThisMonth,
-        remainingThisMonth,
-        coversMinutes: Number(rule.coversMinutes || 0),
+        remainingThisMonth: config.mode === "GLOBAL_POOL" ? globalRemaining : remainingThisMonth,
+        coversMinutes: config.mode === "GLOBAL_POOL" ? config.globalCoversMinutes : Number(rule.coversMinutes || 0),
         enabled: isEnabled,
         canUse,
         blockedReason: !isEnabled ? "disabled" : monthlyLimit <= 0 ? "no_monthly_allowance" : usedThisMonth >= monthlyLimit ? "monthly_limit_reached" : null,
+        ...(config.mode === "GLOBAL_POOL" ? { creditMode: config.mode, globalMonthlyLimit: config.globalMonthlyLimit, globalUsedThisMonth: globalUsed, globalRemainingThisMonth: globalRemaining } : {}),
       });
     }
     return balances;
@@ -168,15 +225,19 @@ export class LatenessReasonRulesService {
       return { validityStatus: "expired", noticeStatus: "Expired", usable: false, reasonCode, message: "Notice was submitted after the deadline." };
     }
 
-    const monthlyLimit = Number(rule.monthlyLimit || 0);
-    const used = await this.countApprovedUsableByReason(record.businessId, record.employeeUserId, reasonCode, new Date(record.fromAt || record.submittedAt || record.createdAt), record.id);
+    const config = await this.getCreditConfig(record.businessId);
+    const anchorDate = new Date(record.fromAt || record.submittedAt || record.createdAt);
+    const monthlyLimit = config.mode === "GLOBAL_POOL" ? config.globalMonthlyLimit : Number(rule.monthlyLimit || 0);
+    const used = config.mode === "GLOBAL_POOL"
+      ? await this.countApprovedUsableGlobal(record.businessId, record.employeeUserId, anchorDate, record.id)
+      : await this.countApprovedUsableByReason(record.businessId, record.employeeUserId, reasonCode, anchorDate, record.id);
     if (monthlyLimit <= 0 || used >= monthlyLimit) {
-      return this.exceededResult(rule, reasonCode, "Monthly limit reached for this lateness reason.");
+      return this.exceededResult(config.mode === "GLOBAL_POOL" ? config : rule, reasonCode, config.mode === "GLOBAL_POOL" ? "Monthly lateness credit limit reached." : "Monthly limit reached for this lateness reason.");
     }
 
-    const coversMinutes = Number(rule.coversMinutes || 0);
+    const coversMinutes = config.mode === "GLOBAL_POOL" ? config.globalCoversMinutes : Number(rule.coversMinutes || 0);
     if (lateByMinutes > coversMinutes) {
-      return this.exceededResult(rule, reasonCode, `This reason covers only ${coversMinutes} late minutes.`);
+      return this.exceededResult(config.mode === "GLOBAL_POOL" ? config : rule, reasonCode, config.mode === "GLOBAL_POOL" ? `The global credit covers only ${coversMinutes} late minutes.` : `This reason covers only ${coversMinutes} late minutes.`);
     }
 
     return { validityStatus: "valid", noticeStatus: "Approved", usable: true, reasonCode, message: null };
@@ -210,5 +271,15 @@ export class LatenessReasonRulesService {
     put("sortOrder", Number(data.sortOrder ?? 0));
     if (!partial && userId) put("createdBy", userId);
     return payload;
+  }
+
+  private normalizeCreditConfig(value: any): LatenessCreditConfig {
+    const mode = String(value?.mode || DEFAULT_CREDIT_CONFIG.mode).toUpperCase() === "GLOBAL_POOL" ? "GLOBAL_POOL" : "PER_REASON";
+    return {
+      mode,
+      globalMonthlyLimit: Math.max(0, Number(value?.globalMonthlyLimit ?? DEFAULT_CREDIT_CONFIG.globalMonthlyLimit) || 0),
+      globalCoversMinutes: Math.max(0, Number(value?.globalCoversMinutes ?? DEFAULT_CREDIT_CONFIG.globalCoversMinutes) || 0),
+      behaviorWhenExceeded: behavior({ behaviorWhenExceeded: value?.behaviorWhenExceeded ?? DEFAULT_CREDIT_CONFIG.behaviorWhenExceeded }),
+    };
   }
 }
