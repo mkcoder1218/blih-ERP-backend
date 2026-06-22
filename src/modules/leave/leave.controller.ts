@@ -100,7 +100,9 @@ export class LeaveController {
     };
     const perms = new Set(req.user?.permissions || []);
     const roles = new Set((req.user?.roles || []).map((role: string) => role.toUpperCase()));
-    const canReadAll = Boolean(req.user?.isPlatformSuperAdmin || perms.has("leave.read") || perms.has("leave.approve") || roles.has("HR_MANAGER") || roles.has("BUSINESS_ADMIN"));
+    const isDepartmentHead = roles.has("DEPARTMENT_HEAD") || roles.has("DEPT_HEAD");
+    const isCompanyLeaveAdmin = Boolean(req.user?.isPlatformSuperAdmin || roles.has("HR_MANAGER") || roles.has("BUSINESS_ADMIN"));
+    const canReadAll = Boolean(isCompanyLeaveAdmin || (!isDepartmentHead && (perms.has("leave.read") || perms.has("leave.approve"))));
     const result = canReadAll
       ? await this.svc.listAll(req.user!.businessId, filters)
       : await this.svc.listAllForDepartmentActor(req.user!.businessId, req.user!.id, filters);
