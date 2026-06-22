@@ -3,6 +3,7 @@ import { db } from '../../models';
 import { InternalNotifier } from '../notification/notification.service';
 import { generateProjectCode, generateTaskCode } from './projectCode';
 import { Op } from 'sequelize';
+import { ClientPortalService } from '../clientPortal/clientPortal.service';
 
 const PROJECT_STATUS_TRANSITIONS: Record<string, string[]> = {
   DRAFT: ["PLANNED", "CANCELLED", "ARCHIVED"],
@@ -208,6 +209,7 @@ function sanitizeCommentBody(body: string) {
 }
 
 export class ProjectsService {
+  private clientPortal = new ClientPortalService();
   
   async provisionForms(businessId: string) {
      const templates = PROJECT_WORKFLOW_FORMS.map((form) => ({ key: form.key, title: `${form.name} Form` }));
@@ -226,13 +228,25 @@ export class ProjectsService {
     const code = data.code || await generateProjectCode(businessId, data.title);
     if (data.ownerEmployeeId) await this.ensureEmployee(businessId, data.ownerEmployeeId);
     if (data.managerEmployeeId) await this.ensureEmployee(businessId, data.managerEmployeeId);
+    const clientId = await this.resolveProjectClient(businessId, data);
     const project = await db.Project.create({
       ...data,
       code,
       businessId,
+      clientId,
       status: normalizeProjectStatus(data.status) || "DRAFT",
       priority: data.priority || "NORMAL"
     });
+    if (data.clientPortalUser && clientId) {
+      const portalUser = await this.clientPortal.createPortalUser(businessId, { ...data.clientPortalUser, clientId });
+      const portalMetadata = portalUser.metadata || {};
+      (project as any).dataValues.clientPortalUser = {
+        id: portalUser.id,
+        email: portalUser.email,
+        fullName: portalUser.fullName,
+        temporaryPassword: portalMetadata.temporaryPassword || data.clientPortalUser.password || null
+      };
+    }
     await this.ensureOwnerManagerMembers(businessId, project);
     return project;
   }
@@ -401,7 +415,22 @@ export class ProjectsService {
     if (startDate && endDate && endDate < startDate) throw new Error("endDate must be on or after startDate");
     if (data.ownerEmployeeId) await this.ensureEmployee(businessId, data.ownerEmployeeId);
     if (data.managerEmployeeId) await this.ensureEmployee(businessId, data.managerEmployeeId);
-    await project.update(data);
+    const nextClientId = data.clientId || data.newClient ? await this.resolveProjectClient(businessId, { ...data, projectManagerUserId: data.projectManagerUserId || project.projectManagerUserId }) : data.clientId;
+    const updateData = { ...data };
+    delete updateData.newClient;
+    delete updateData.clientPortalUser;
+    if (data.clientId !== undefined || data.newClient) updateData.clientId = nextClientId || null;
+    await project.update(updateData);
+    if (data.clientPortalUser && (project.clientId || nextClientId)) {
+      const portalUser = await this.clientPortal.createPortalUser(businessId, { ...data.clientPortalUser, clientId: nextClientId || project.clientId });
+      const portalMetadata = portalUser.metadata || {};
+      (project as any).dataValues.clientPortalUser = {
+        id: portalUser.id,
+        email: portalUser.email,
+        fullName: portalUser.fullName,
+        temporaryPassword: portalMetadata.temporaryPassword || data.clientPortalUser.password || null
+      };
+    }
     await this.ensureOwnerManagerMembers(businessId, project);
     return { before, project };
   }
@@ -1084,6 +1113,28 @@ export class ProjectsService {
     return employee;
   }
 
+  private async resolveProjectClient(businessId: string, data: any) {
+    if (data.clientId) {
+      const client = await db.Client.findOne({ where: { id: data.clientId, businessId } });
+      if (!client) throw new Error("Client not found");
+      return client.id;
+    }
+    if (!data.newClient) return null;
+    const companyName = String(data.newClient.companyName || "").trim();
+    if (!companyName) throw new Error("Client company name is required");
+    const client = await db.Client.create({
+      businessId,
+      accountManagerUserId: data.newClient.accountManagerUserId || data.projectManagerUserId || null,
+      companyName,
+      contactName: data.newClient.contactName || null,
+      email: data.newClient.email || null,
+      phone: data.newClient.phone || null,
+      industry: data.newClient.industry || null,
+      status: "active"
+    });
+    return client.id;
+  }
+
   private async ensureEmployeeForUser(businessId: string, userId: string) {
     const employee = await db.EmployeeRecord.findOne({ where: { businessId, userId } });
     if (!employee) throw new Error("Employee not found");
@@ -1117,6 +1168,7 @@ export class ProjectsService {
     return [
       { model: db.EmployeeRecord, as: "owner", include: [{ model: db.User, as: "user", attributes: ["id", "fullName", "email"] }] },
       { model: db.EmployeeRecord, as: "manager", include: [{ model: db.User, as: "user", attributes: ["id", "fullName", "email"] }] },
+      { model: db.Client, attributes: ["id", "companyName", "contactName", "email", "phone"] },
       { model: db.ProjectMember, as: "members", include: [{ model: db.EmployeeRecord, as: "employee", include: [{ model: db.User, as: "user", attributes: ["id", "fullName", "email"] }] }] }
     ];
   }

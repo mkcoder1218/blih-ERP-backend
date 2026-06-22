@@ -176,6 +176,10 @@ export class AuthController {
     const permissionsSet = new Set<string>();
     (fullUser.Roles || []).forEach((r: any) => (r.Permissions || []).forEach((p: any) => permissionsSet.add(p.key)));
     ["attendance.self", "profiles.self", "performance.self", "project.self", "project.task"].forEach((key) => permissionsSet.add(key));
+    const portalUser = await db.ClientPortalUser.findOne({
+      where: { businessId: user.businessId, userId: user.id, status: "active" },
+      attributes: ["id", "clientId", "fullName", "email"]
+    });
 
     return ok(res, {
       accessToken: token,
@@ -195,6 +199,7 @@ export class AuthController {
       business: (fullUser as any).Business || null,
       roles,
       permissions: Array.from(permissionsSet),
+      portalUser: portalUser ? { id: portalUser.id, clientId: portalUser.clientId, fullName: portalUser.fullName, email: portalUser.email } : null,
       enabledModules
     }, "Logged in");
   };
@@ -248,6 +253,10 @@ export class AuthController {
     ["attendance.self", "profiles.self", "performance.self", "project.self", "project.task"].forEach((key) => permissionsSet.add(key));
     const department = (profile as any)?.department || (employeeRecord as any)?.department || null;
     const position = (profile as any)?.position || (employeeRecord as any)?.position || null;
+    const portalUser = await db.ClientPortalUser.findOne({
+      where: { businessId: user.businessId, userId: user.id, status: "active" },
+      attributes: ["id", "clientId", "fullName", "email"]
+    });
 
     return ok(res, {
       user: {
@@ -269,6 +278,7 @@ export class AuthController {
       business: (user as any).Business || null,
       roles,
       permissions: Array.from(permissionsSet),
+      portalUser: portalUser ? { id: portalUser.id, clientId: portalUser.clientId, fullName: portalUser.fullName, email: portalUser.email } : null,
       enabledModules
     });
   };
@@ -304,9 +314,8 @@ export class AuthController {
         // Emergency contact
         emergencyName, emergencyPhone, emergencyRelationship,
         // Bank / optional
-        bankName, bankAccount,
+        bankName, bankAccount, onboardingId, resourceAcknowledgements, policyAcknowledgements,
       } = req.body;
-      const normalizedEmail = normalizeEmail(email);
       const isIntern = employmentType === 'intern';
       const askInternPaymentType = internPaymentType === 'paid' || internPaymentType === 'unpaid';
       const normalizedInternPaymentType = isIntern && internPaymentType === 'paid' ? 'paid' : 'unpaid';
@@ -318,6 +327,22 @@ export class AuthController {
       const business = await db.Business.findOne({ where: { slug: businessSlug } });
       if (!business) return next({ statusCode: 404, message: "Registration link not found" });
       const businessId = business.id;
+      const onboarding = onboardingId
+        ? await db.CandidateOnboarding.findOne({ where: { onboardingId, businessId } })
+        : null;
+      if (onboardingId && !onboarding) {
+        return next({ statusCode: 404, message: "Onboarding invite not found" });
+      }
+      const onboardingMeta = onboarding?.metadata || {};
+      const submittedEmail = normalizeEmail(onboardingMeta.assignedEmail || email);
+      const isOnboardingRegistration = Boolean(onboarding);
+      const parseJson = (value: any) => {
+        if (!value) return {};
+        if (typeof value === "object") return value;
+        try { return JSON.parse(String(value)); } catch { return {}; }
+      };
+      const parsedResourceAcknowledgements = parseJson(resourceAcknowledgements);
+      const parsedPolicyAcknowledgements = parseJson(policyAcknowledgements);
 
       // 2. Load public-registration settings — order by updatedAt DESC so the most
       //    recently saved value wins (guards against any surviving duplicate rows)
@@ -335,15 +360,15 @@ export class AuthController {
       ]);
 
       const enabled = enabledSetting?.value === true || enabledSetting?.value?.enabled === true;
-      if (!enabled) return next({ statusCode: 403, message: "Self-registration is not currently enabled for this company" });
+      if (!enabled && !isOnboardingRegistration) return next({ statusCode: 403, message: "Self-registration is not currently enabled for this company" });
 
       // 3. Check time window
       const now = new Date();
-      if (fromSetting?.value) {
+      if (!isOnboardingRegistration && fromSetting?.value) {
         const from = new Date(fromSetting.value as string);
         if (now < from) return next({ statusCode: 403, message: "Registration window has not opened yet" });
       }
-      if (untilSetting?.value) {
+      if (!isOnboardingRegistration && untilSetting?.value) {
         const until = new Date(untilSetting.value as string);
         if (now > until) return next({ statusCode: 403, message: "Registration window has closed" });
       }
@@ -355,11 +380,11 @@ export class AuthController {
       }
 
       // 5. Check duplicate
-      const existing = await db.User.findOne({ where: { businessId, email: normalizedEmail } });
+      const existing = await db.User.findOne({ where: { businessId, email: submittedEmail } });
       if (existing) return next({ statusCode: 409, message: "An account with this email already exists" });
 
       // 6. Create user
-      const autoApprove = autoSetting?.value === true || autoSetting?.value?.enabled === true;
+      const autoApprove = (autoSetting?.value === true || autoSetting?.value?.enabled === true) && !onboarding;
       const hashed = await bcrypt.hash(password, env.bcryptSaltRounds);
       // Generate a unique registration token for the resubmit link
       const crypto = require('crypto');
@@ -367,7 +392,7 @@ export class AuthController {
       const user = await db.User.create({
         businessId,
         fullName,
-        email: normalizedEmail,
+        email: submittedEmail,
         password: hashed,
         phone: phone || null,
         status: autoApprove ? 'active' : 'pending',
@@ -442,14 +467,14 @@ export class AuthController {
         userId:         user.id,
         departmentId:   departmentId   || null,
         positionId:     positionId     || null,
-        workEmail:      normalizedEmail,
+        workEmail:      submittedEmail,
         workPhone:      phone          || null,
         employmentType: employmentType || null,
         joinedAt:       hireDate       ? new Date(hireDate) : null,
         status:         autoApprove ? 'active' : 'pending',
         settings: {
           fullName,
-          email:            normalizedEmail,
+          email:            submittedEmail,
           phone:            phone            || null,
           address:          address          || null,
           city:             city             || null,
@@ -462,6 +487,13 @@ export class AuthController {
           selfRegistered:   true,
           requestedRoleKey: requestedRoleKey || null,
           internPaymentType: isIntern ? normalizedInternPaymentType : null,
+          onboardingId:     onboarding?.onboardingId || null,
+          offerId:          onboarding?.offerId || null,
+          assignedEmail:    onboardingMeta.assignedEmail || null,
+          requiredPolicies: onboarding?.requiredPolicies || [],
+          resourceResponses: parsedResourceAcknowledgements,
+          policyAcknowledgements: parsedPolicyAcknowledgements,
+          inventoryItems:   onboarding?.resources || [],
         },
       });
 
@@ -473,7 +505,7 @@ export class AuthController {
         departmentId:     departmentId   || null,
         positionId:       positionId     || null,
         employmentType:   employmentType || 'full_time',
-        employmentStatus: 'active',
+        employmentStatus: onboarding ? 'onboarding' : 'active',
         hireDate:         hireDate || new Date().toISOString().slice(0, 10),
         salaryInfo:       {},
         emergencyContact: emergencyContact ?? {},
@@ -494,8 +526,52 @@ export class AuthController {
           internship:         isIntern ? { stipendType: normalizedInternPaymentType } : undefined,
           selfRegistered:     true,
           requestedRoleKey:   requestedRoleKey || null,
+          onboardingId:       onboarding?.onboardingId || null,
+          offerId:            onboarding?.offerId || null,
+          resourceAcknowledgements: parsedResourceAcknowledgements,
+          policyAcknowledgements: parsedPolicyAcknowledgements,
         },
       }).catch(() => null); // Non-fatal if EmployeeRecord creation fails (e.g. missing required fields)
+
+      if (onboarding) {
+        await onboarding.update({
+          status: 'SUBMITTED_FOR_REVIEW',
+          candidateData: {
+            ...(onboarding.candidateData || {}),
+            personal_info: {
+              ...((onboarding.candidateData || {}).personal_info || {}),
+              email: submittedEmail,
+              phone: phone || null,
+              firstName: fullName?.split(' ')?.[0] || fullName,
+              lastName: fullName?.split(' ')?.slice(1).join(' ') || '',
+              dateOfBirth: dateOfBirth || null,
+              gender: gender || null,
+              maritalStatus: maritalStatus || null,
+              nationality: nationality || null,
+              address: address || null,
+              city: city || null,
+              country: country || null,
+              zipCode: zipCode || null,
+            },
+            emergency_contact: {
+              name: emergencyName || null,
+              phone: emergencyPhone || null,
+              relationship: emergencyRelationship || null,
+            },
+            payroll: {
+              bankName: bankName || null,
+              bankAccount: bankAccount || null,
+            },
+            policies: parsedPolicyAcknowledgements,
+          },
+          resourceResponses: (onboarding.resources || []).map((resource: any, index: number) => ({
+            resourceIndex: index,
+            status: parsedResourceAcknowledgements[index] ? "ACCEPTED" : "PENDING",
+            resourceName: resource.resourceName || resource.name || null,
+          })),
+          progress: 100,
+        });
+      }
 
       // 9. Assign requested role if specified and auto-approve is on
       if (requestedRoleKey && autoApprove) {
@@ -517,9 +593,11 @@ export class AuthController {
       }
 
       return ok(res, {
-        autoApproved: false,
-        userId: user.id,
-        message: 'Your account has been created and is pending approval by HR. You will be notified once activated.',
+          autoApproved: false,
+          userId: user.id,
+        message: onboarding
+          ? 'Your onboarding registration has been submitted and is pending approval by HR.'
+          : 'Your account has been created and is pending approval by HR. You will be notified once activated.',
       }, 'Registration submitted.', 201);
     } catch (e: any) { return next({ statusCode: 500, message: e.message }); }
   };

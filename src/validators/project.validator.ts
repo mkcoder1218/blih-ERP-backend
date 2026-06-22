@@ -14,6 +14,22 @@ const projectDateWindow = (value: any, helpers: any) => {
 
 export const createProjectSchema = Joi.object({
   clientId: uuid.optional().allow(null, ""),
+  newClient: Joi.object({
+    companyName: Joi.string().min(2).max(255).required(),
+    contactName: Joi.string().max(255).optional().allow(null, ""),
+    email: Joi.string().email().max(255).optional().allow(null, ""),
+    phone: Joi.string().max(50).optional().allow(null, ""),
+    industry: Joi.string().max(120).optional().allow(null, ""),
+    accountManagerUserId: uuid.optional().allow(null, "")
+  }).optional(),
+  clientPortalUser: Joi.object({
+    fullName: Joi.string().max(255).optional().allow(null, ""),
+    email: Joi.string().email().max(255).optional().allow(null, ""),
+    phone: Joi.string().max(50).optional().allow(null, ""),
+    password: Joi.string().min(6).max(128).optional().allow(null, ""),
+    status: Joi.string().valid("active", "inactive", "invited").optional(),
+    metadata: Joi.object().optional()
+  }).optional(),
   dealId: uuid.optional().allow(null, ""),
   ownerEmployeeId: uuid.optional().allow(null, ""),
   managerEmployeeId: uuid.optional().allow(null, ""),
@@ -36,6 +52,22 @@ export const createProjectSchema = Joi.object({
 
 export const updateProjectSchema = Joi.object({
   clientId: uuid.optional().allow(null, ""),
+  newClient: Joi.object({
+    companyName: Joi.string().min(2).max(255).required(),
+    contactName: Joi.string().max(255).optional().allow(null, ""),
+    email: Joi.string().email().max(255).optional().allow(null, ""),
+    phone: Joi.string().max(50).optional().allow(null, ""),
+    industry: Joi.string().max(120).optional().allow(null, ""),
+    accountManagerUserId: uuid.optional().allow(null, "")
+  }).optional(),
+  clientPortalUser: Joi.object({
+    fullName: Joi.string().max(255).optional().allow(null, ""),
+    email: Joi.string().email().max(255).optional().allow(null, ""),
+    phone: Joi.string().max(50).optional().allow(null, ""),
+    password: Joi.string().min(6).max(128).optional().allow(null, ""),
+    status: Joi.string().valid("active", "inactive", "invited").optional(),
+    metadata: Joi.object().optional()
+  }).optional(),
   dealId: uuid.optional().allow(null, ""),
   ownerEmployeeId: uuid.optional().allow(null, ""),
   managerEmployeeId: uuid.optional().allow(null, ""),
