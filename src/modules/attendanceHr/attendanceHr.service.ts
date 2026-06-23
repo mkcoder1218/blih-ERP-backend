@@ -8,6 +8,13 @@ import { AttendanceDailyReportService } from "../../services/attendanceDailyRepo
 import { AttendanceTelegramService } from "../attendanceTelegram/attendanceTelegram.service";
 
 type Status = string;
+type LatenessReasonCreditSummary = {
+  mode: "PER_REASON" | "GLOBAL_POOL";
+  remaining: number;
+  limit: number;
+  used: number;
+  reasons: any[];
+};
 
 const REMOTE_WORKED_MINUTES = 8 * 60;
 const REASON_REQUEST_TYPES = ["lateness_notice", "not_available"];
@@ -77,9 +84,26 @@ export class AttendanceHrService {
     const balancePairs = await Promise.all(userIds.map(async (employeeId) => {
       const balances = await this.latenessReasonRules.balancesForEmployee(businessId, employeeId, startUtc);
       const enabled = balances.filter((balance) => balance.enabled);
+      const global = enabled.find((balance) => balance.creditMode === "GLOBAL_POOL");
+      if (global) {
+        const credit: LatenessReasonCreditSummary = {
+          mode: "GLOBAL_POOL",
+          remaining: Number(global.globalRemainingThisMonth ?? global.remainingThisMonth ?? 0),
+          limit: Number(global.globalMonthlyLimit ?? global.monthlyLimit ?? 0),
+          used: Number(global.globalUsedThisMonth ?? global.usedThisMonth ?? 0),
+          reasons: enabled.map((balance) => ({
+            ...balance,
+            remainingThisMonth: Number(global.globalRemainingThisMonth ?? global.remainingThisMonth ?? 0),
+            monthlyLimit: Number(global.globalMonthlyLimit ?? global.monthlyLimit ?? 0),
+          }))
+        };
+        return [employeeId, credit] as const;
+      }
       const remaining = enabled.reduce((sum, balance) => sum + Number(balance.remainingThisMonth || 0), 0);
       const limit = enabled.reduce((sum, balance) => sum + Number(balance.monthlyLimit || 0), 0);
-      return [employeeId, { remaining, limit, reasons: enabled }] as const;
+      const used = enabled.reduce((sum, balance) => sum + Number(balance.usedThisMonth || 0), 0);
+      const credit: LatenessReasonCreditSummary = { mode: "PER_REASON", remaining, limit, used, reasons: enabled };
+      return [employeeId, credit] as const;
     }));
     const creditByEmployee = new Map(balancePairs);
 
