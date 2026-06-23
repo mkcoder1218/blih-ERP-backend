@@ -46,6 +46,19 @@ describe("AttendanceDeductionService", () => {
     });
   });
 
+  it("does not deduct approved leave days", () => {
+    const result = new AttendanceDeductionService().calculate(row({
+      LatenessStatus: "ApprovedLeave",
+      ApprovedLeaveDays: 1,
+    }));
+
+    expect(result).toMatchObject({
+      DeductionLabel: "None",
+      FullDayDeductions: 0,
+      DeductedHours: 0,
+    });
+  });
+
   it("applies configurable incomplete punch deduction", () => {
     const config: AttendanceDeductionConfig = {
       incompletePunchDeduction: "2hr",

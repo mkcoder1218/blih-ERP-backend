@@ -180,10 +180,12 @@ export class AttendanceHrService {
         nowUtc: new Date()
       });
 
-      const finalCalculation = isRemoteEmployee(er) ? applyRemoteAttendanceOverride(calculation) : calculation;
-      const finalStatus: Status =
-        finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
       const reportRow: any = reportByEmployee.get(roster.employeeId) || null;
+      const isApprovedLeaveDay = reportRow?.LatenessStatus === "ApprovedLeave";
+      const finalCalculation = isRemoteEmployee(er) ? applyRemoteAttendanceOverride(calculation) : calculation;
+      const finalStatus: Status = isApprovedLeaveDay
+        ? "ON_LEAVE"
+        : finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
       const reportDeduction = reportRow ? this.deductionService.calculate(reportRow) : null;
       const isActiveDay = !finalCalculation.isComplete && ["IN_PROGRESS", "LATE", "ON_BREAK"].includes(String(finalStatus));
       const ignoreLiveIncompletePenalty = isActiveDay && reportRow?.LatenessStatus === "IncompletePunch";
@@ -236,8 +238,10 @@ export class AttendanceHrService {
         hasLeaveRequest,
         lateNoReasonPenaltyEligible: isLateWithoutReason,
         noReasonPenaltyMessageEligible: isLateWithoutReason || isMissedWithoutLeave,
-        latenessReasonCreditApplies: !["MISSED", "NOT_STARTED"].includes(String(finalStatus)),
-        latenessReasonCreditNote: ["MISSED", "NOT_STARTED"].includes(String(finalStatus)) ? "Absence requires leave; lateness credit is not used." : null
+        latenessReasonCreditApplies: !["MISSED", "NOT_STARTED", "ON_LEAVE"].includes(String(finalStatus)),
+        latenessReasonCreditNote: ["MISSED", "NOT_STARTED"].includes(String(finalStatus))
+          ? "Absence requires leave; lateness credit is not used."
+          : String(finalStatus) === "ON_LEAVE" ? "Approved leave is paid for the day; lateness credit is not used." : null
       };
     });
 
