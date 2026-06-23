@@ -177,7 +177,9 @@ export class AttendanceHrService {
         hasSubmittedLatenessReason: hasSubmittedReason,
         hasLeaveRequest,
         lateNoReasonPenaltyEligible: isLateWithoutReason,
-        noReasonPenaltyMessageEligible: isLateWithoutReason || isMissedWithoutLeave
+        noReasonPenaltyMessageEligible: isLateWithoutReason || isMissedWithoutLeave,
+        latenessReasonCreditApplies: !["MISSED", "NOT_STARTED"].includes(String(finalStatus)),
+        latenessReasonCreditNote: ["MISSED", "NOT_STARTED"].includes(String(finalStatus)) ? "Absence requires leave; lateness credit is not used." : null
       };
     });
 
