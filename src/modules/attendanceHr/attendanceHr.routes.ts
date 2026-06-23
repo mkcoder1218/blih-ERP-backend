@@ -30,6 +30,7 @@ router.patch("/lateness-reason-rules/:idOrCode", asyncHandler(controller.updateL
 router.patch("/lateness-reason-rules/:idOrCode/enable", asyncHandler(controller.enableLatenessReasonRule));
 router.patch("/lateness-reason-rules/:idOrCode/disable", asyncHandler(controller.disableLatenessReasonRule));
 router.get("/daily", validate(dailyQuerySchema, "query"), asyncHandler(controller.daily));
+router.get("/lateness-reason-usage", asyncHandler(controller.latenessReasonUsage));
 router.get(
   "/employees/:employeeId",
   validate(employeeDailyParamsSchema, "params"),

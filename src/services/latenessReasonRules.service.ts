@@ -280,6 +280,7 @@ export class LatenessReasonRulesService {
       businessId,
       employeeId: employeeUserId,
       reasonType: "late",
+      lateReasonId: { [Op.ne]: null },
       dateYmd: { [Op.gte]: startYmd, [Op.lt]: endYmd },
     };
     if (excludeDailyReasonId) where.id = { [Op.ne]: excludeDailyReasonId };

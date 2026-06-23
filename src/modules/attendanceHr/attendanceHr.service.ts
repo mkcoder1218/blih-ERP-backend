@@ -302,6 +302,105 @@ export class AttendanceHrService {
     return { date: dateYmd, timezone: daily.timezone, cards: counts };
   }
 
+  async latenessReasonUsage(businessId: string, opts: { startDate?: string; endDate?: string; search?: string | null; size?: number }) {
+    const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
+    const tz = settings?.timezone || "UTC";
+    const endDate = opts.endDate || new Date().toISOString().slice(0, 10);
+    const startDate = opts.startDate || `${endDate.slice(0, 7)}-01`;
+    const size = Math.min(200, Math.max(1, Number(opts.size || 100)));
+    const startUtc = businessDateStartUtc(startDate, tz);
+    const endUtc = businessDateEndUtc(endDate, tz);
+
+    const [requests, dailyReasons] = await Promise.all([
+      db.AttendanceRequest.findAll({
+        where: {
+          businessId,
+          requestType: "lateness_notice",
+          fromAt: { [Op.gte]: startUtc, [Op.lt]: endUtc },
+          status: { [Op.notIn]: ["rejected", "cancelled"] }
+        },
+        include: [{
+          model: db.User,
+          as: "employee",
+          attributes: ["id", "fullName", "email", "phone"],
+          include: [{
+            model: db.BusinessUserProfile,
+            required: false,
+            include: [
+              { model: db.Department, as: "department", attributes: ["id", "name"] },
+              { model: db.Position, as: "position", attributes: ["id", "title"] },
+            ],
+          }],
+        }],
+        order: [["fromAt", "DESC"], ["createdAt", "DESC"]],
+        limit: size
+      }),
+      db.AttendanceDailyReason.findAll({
+        where: {
+          businessId,
+          reasonType: "late",
+          lateReasonId: { [Op.ne]: null },
+          dateYmd: { [Op.gte]: startDate, [Op.lte]: endDate }
+        },
+        include: [
+          {
+            model: db.User,
+            as: "employee",
+            attributes: ["id", "fullName", "email", "phone"],
+            include: [{
+              model: db.BusinessUserProfile,
+              required: false,
+              include: [
+                { model: db.Department, as: "department", attributes: ["id", "name"] },
+                { model: db.Position, as: "position", attributes: ["id", "title"] },
+              ],
+            }],
+          },
+          { model: db.AttendanceLateReason, as: "lateReason", attributes: ["id", "name", "label", "reasonCode"] }
+        ],
+        order: [["dateYmd", "DESC"], ["createdAt", "DESC"]],
+        limit: size
+      })
+    ]);
+
+    const rows = [
+      ...requests.map((row: any) => ({
+        id: row.id,
+        source: "lateness_notice",
+        employee: row.employee || null,
+        reasonCategory: row.reasonCategory || row.category || null,
+        reasonText: row.reasonText || row.reason || null,
+        status: row.status,
+        validityStatus: row.validityStatus || null,
+        fromAt: row.fromAt,
+        submittedAt: row.submittedAt || row.createdAt,
+        createdAt: row.createdAt
+      })),
+      ...dailyReasons.map((row: any) => ({
+        id: row.id,
+        source: "daily_reason",
+        employee: row.employee || null,
+        reasonCategory: row.lateReason?.reasonCode || row.lateReason?.label || row.lateReason?.name || null,
+        reasonText: row.comment || row.lateReason?.name || null,
+        status: "submitted",
+        validityStatus: "submitted",
+        fromAt: row.dateYmd ? `${row.dateYmd}T00:00:00.000Z` : null,
+        submittedAt: row.createdAt,
+        createdAt: row.createdAt
+      }))
+    ];
+
+    const search = String(opts.search || "").trim().toLowerCase();
+    const filtered = search
+      ? rows.filter((row: any) => {
+          const haystack = `${row.employee?.fullName || ""} ${row.employee?.email || ""} ${row.reasonCategory || ""} ${row.reasonText || ""}`.toLowerCase();
+          return haystack.includes(search);
+        })
+      : rows;
+    filtered.sort((a: any, b: any) => new Date(b.submittedAt || b.createdAt || 0).getTime() - new Date(a.submittedAt || a.createdAt || 0).getTime());
+    return { rows: filtered.slice(0, size), total: filtered.length, startDate, endDate };
+  }
+
   async employeeDetails(businessId: string, employeeId: string, dateYmd: string) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     const tz = settings?.timezone || "UTC";

@@ -173,6 +173,20 @@ export class AttendanceHrController {
     return ok(res, data, "Attendance (daily)");
   };
 
+  latenessReasonUsage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await this.service.latenessReasonUsage(req.user!.businessId, {
+        startDate: (req.query as any).startDate,
+        endDate: (req.query as any).endDate,
+        search: (req.query as any).search || null,
+        size: Number((req.query as any).size || 100)
+      });
+      return ok(res, data, "Lateness reason usage");
+    } catch (e: any) {
+      return next({ statusCode: e.statusCode || 500, message: e.message || "Failed" });
+    }
+  };
+
   employee = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const businessId = req.user!.businessId;
