@@ -33,6 +33,7 @@ export type AttendanceDailyReportRow = AttendanceDailyReportPunches & {
   DeductionApplied: boolean;
   LeaveCategory: "Annual" | "Sick" | "Other" | null;
   ApprovedLeaveDays: number;
+  LateNoReasonPenaltyGraceMinutes?: number;
   LatenessReason_HROnly?: string | null;
   PenaltyOverride?: "HalfDay" | null;
   PenaltyReason?: string | null;
@@ -231,6 +232,8 @@ export class AttendanceDailyReportService {
 
   async generate(businessId: string, opts: AttendanceDailyReportOptions): Promise<AttendanceDailyReportRow[]> {
     const audience = opts.audience || "hr";
+    const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
+    const lateNoReasonPenaltyGraceMinutes = Math.max(0, Number(settings?.lateNoReasonPenaltyGraceMinutes ?? 0));
     const rosterRows = await this.rosterResolver.resolveExpectedEmployees(businessId, {
       startDate: opts.startDate,
       endDate: opts.endDate,
@@ -347,6 +350,7 @@ export class AttendanceDailyReportService {
         approvedOvertimeRequests: overtimeByEmployeeDate.get(`${roster.employeeId}__${roster.dateYmd}`) || [],
         lateByEventId,
         dailyReasons: dailyReasonsByEmployeeDate.get(`${roster.employeeId}__${roster.dateYmd}`) || [],
+        lateNoReasonPenaltyGraceMinutes,
         audience,
       });
       const resolved = await row;
@@ -367,9 +371,10 @@ export class AttendanceDailyReportService {
     approvedOvertimeRequests: any[];
     lateByEventId: Map<string, any>;
     dailyReasons: any[];
+    lateNoReasonPenaltyGraceMinutes: number;
     audience: "hr" | "public";
   }): Promise<AttendanceDailyReportRow> {
-    const { roster, events, corrections, leaves, notices, approvedOvertimeRequests, lateByEventId, dailyReasons } = params;
+    const { roster, events, corrections, leaves, notices, approvedOvertimeRequests, lateByEventId, dailyReasons, lateNoReasonPenaltyGraceMinutes } = params;
     const punchMap = buildPunchMap(events, corrections);
     const checkIn = punchMap.CHECK_IN ? new Date(punchMap.CHECK_IN.timestampUtc) : null;
     const lunchOut = punchMap.LUNCH_OUT ? new Date(punchMap.LUNCH_OUT.timestampUtc) : null;
@@ -498,6 +503,7 @@ export class AttendanceDailyReportService {
       PenaltyReason: invalidNoticeEvaluation?.evaluation?.penaltyReason || null,
       LeaveCategory: approvedLeave ? leaveCategory(approvedLeave.leaveType) : null,
       ApprovedLeaveDays: approvedLeave ? 1 : 0,
+      LateNoReasonPenaltyGraceMinutes: lateNoReasonPenaltyGraceMinutes,
       LatenessReason_HROnly: latenessReason,
       LatenessNotice_HROnly: noticeDetail,
     };

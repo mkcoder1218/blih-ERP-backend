@@ -40,6 +40,7 @@ export const upsertAttendanceSettingsSchema = Joi.object({
   defaultStartTime: timeHHmm.optional(),
   defaultEndTime: timeHHmm.optional(),
   lateGracePeriodMinutes: Joi.number().integer().min(0).optional(),
+  lateNoReasonPenaltyGraceMinutes: Joi.number().integer().min(0).optional(),
 
   lunchBreakEnabled: Joi.boolean().optional(),
   lunchMode: Joi.string().valid("FIXED", "FLEXIBLE").optional(),

@@ -25,6 +25,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): BusinessAtte
       defaultStartTime: { type: dataTypes.STRING(5), allowNull: false, defaultValue: "09:00" },
       defaultEndTime: { type: dataTypes.STRING(5), allowNull: false, defaultValue: "17:00" },
       lateGracePeriodMinutes: { type: dataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      lateNoReasonPenaltyGraceMinutes: { type: dataTypes.INTEGER, allowNull: false, defaultValue: 0 },
 
       lunchBreakEnabled: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       lunchMode: { type: dataTypes.STRING(20), allowNull: false, defaultValue: "FLEXIBLE" },

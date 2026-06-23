@@ -12,7 +12,8 @@ const DEFAULTS = {
   expectedDailyMinutes: 480,
   defaultStartTime: "09:00",
   defaultEndTime: "17:00",
-  lateGracePeriodMinutes: 0
+  lateGracePeriodMinutes: 0,
+  lateNoReasonPenaltyGraceMinutes: 0
 };
 
 export class AttendanceSettingsService {
@@ -33,4 +34,3 @@ export class AttendanceSettingsService {
     return record;
   }
 }
-

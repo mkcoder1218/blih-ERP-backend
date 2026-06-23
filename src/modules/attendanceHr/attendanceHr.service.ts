@@ -3,6 +3,9 @@ import { db } from "../../models";
 import { businessDateEndUtc, businessDateStartUtc } from "../../utils/timezone";
 import { calculateAttendanceDay } from "../../services/attendanceCalculation.service";
 import { AttendanceRosterResolver } from "../../services/attendanceRosterResolver.service";
+import { LatenessReasonRulesService } from "../../services/latenessReasonRules.service";
+import { AttendanceDailyReportService } from "../../services/attendanceDailyReport.service";
+import { AttendanceTelegramService } from "../attendanceTelegram/attendanceTelegram.service";
 
 type Status = string;
 
@@ -34,6 +37,9 @@ function applyRemoteAttendanceOverride(calculation: any) {
 
 export class AttendanceHrService {
   private rosterResolver = new AttendanceRosterResolver();
+  private latenessReasonRules = new LatenessReasonRulesService();
+  private dailyReport = new AttendanceDailyReportService();
+  private telegram = new AttendanceTelegramService();
 
   async buildDaily(businessId: string, opts: { dateYmd: string; departmentId?: string | null; status?: Status | null; search?: string | null; sortBy: string; sortOrder: string }) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
@@ -67,6 +73,30 @@ export class AttendanceHrService {
     }
 
     const settingsJson = typeof settings.toJSON === "function" ? settings.toJSON() : settings;
+    const balancePairs = await Promise.all(userIds.map(async (employeeId) => {
+      const balances = await this.latenessReasonRules.balancesForEmployee(businessId, employeeId, startUtc);
+      const enabled = balances.filter((balance) => balance.enabled);
+      const remaining = enabled.reduce((sum, balance) => sum + Number(balance.remainingThisMonth || 0), 0);
+      const limit = enabled.reduce((sum, balance) => sum + Number(balance.monthlyLimit || 0), 0);
+      return [employeeId, { remaining, limit, reasons: enabled }] as const;
+    }));
+    const creditByEmployee = new Map(balancePairs);
+
+    const submittedReasonRows = userIds.length
+      ? await db.AttendanceRequest.findAll({
+          where: {
+            businessId,
+            employeeUserId: { [Op.in]: userIds },
+            requestType: "lateness_notice",
+            status: "approved",
+            fromAt: { [Op.gte]: startUtc, [Op.lt]: endUtc }
+          },
+          attributes: ["employeeUserId"]
+        })
+      : [];
+    const submittedReasonEmployeeIds = new Set(submittedReasonRows.map((row: any) => row.employeeUserId));
+    const noReasonPenaltyGraceMinutes = Number((settings as any).lateNoReasonPenaltyGraceMinutes || 0);
+
     const rows = rosterRows.map((roster) => {
       const er = roster.employeeRecord || null;
       const evs = byEmployee.get(roster.employeeId) || [];
@@ -104,12 +134,18 @@ export class AttendanceHrService {
         breakMinutes: finalCalculation.totalBreakMinutes,
         penaltyMinutes: finalCalculation.penaltyMinutes,
         penaltyReason: finalCalculation.penaltyReason,
+        latenessReasonCredit: creditByEmployee.get(roster.employeeId) || { remaining: 0, limit: 0, reasons: [] },
         expectedMinutes: finalCalculation.expectedMinutes,
         overtimeMinutes: finalCalculation.overtimeMinutes,
         missingMinutes: finalCalculation.missingMinutes,
         status: finalStatus,
         isLate: finalCalculation.isLate,
-        lateByMinutes: finalCalculation.lateByMinutes
+        lateByMinutes: finalCalculation.lateByMinutes,
+        hasSubmittedLatenessReason: submittedReasonEmployeeIds.has(roster.employeeId),
+        lateNoReasonPenaltyEligible:
+          Boolean(finalCalculation.isLate) &&
+          Number(finalCalculation.lateByMinutes || 0) > noReasonPenaltyGraceMinutes &&
+          !submittedReasonEmployeeIds.has(roster.employeeId)
       };
     });
 
@@ -134,6 +170,31 @@ export class AttendanceHrService {
     });
 
     return { date: opts.dateYmd, timezone: tz, settings, rows: filtered };
+  }
+
+  async sendLateNoReasonPenaltyMessage(businessId: string, employeeId: string, dateYmd: string) {
+    const rows = await this.dailyReport.generate(businessId, {
+      startDate: dateYmd,
+      endDate: dateYmd,
+      employeeId,
+      audience: "hr"
+    });
+    const row = rows[0];
+    if (!row) throw Object.assign(new Error("Attendance row not found for the selected employee and date"), { statusCode: 404 });
+    if (row.LatenessStatus !== "Late-NoNotice" || Number(row.MinutesLate || 0) <= 0) {
+      throw Object.assign(new Error("Penalty message can only be sent for late employees without a submitted reason"), { statusCode: 400 });
+    }
+
+    const employeeName = row.EmployeeName || "Unknown employee";
+    const department = row.Department || "N/A";
+    const minutesLate = Number(row.MinutesLate || 0);
+    const message = [
+      `name:${employeeName}`,
+      `message : ${employeeName} who works in ${department} late this ${minutesLate} min and didnot send a reason to the group and due to that he will get a 4hr penality if you have any complain contact your HR manager`
+    ].join("\n");
+
+    await this.telegram.sendAttendanceGroupMessage(businessId, message, "late_no_reason_penalty_notice");
+    return { sent: true, message };
   }
 
   async summary(businessId: string, dateYmd: string, departmentId?: string | null) {

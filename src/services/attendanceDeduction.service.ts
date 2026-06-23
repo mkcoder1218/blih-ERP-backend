@@ -4,10 +4,6 @@ export type AttendanceDeductionLabel = "None" | "1hr" | "2hr" | "HalfDay" | "Ful
 
 export type AttendanceDeductionConfig = {
   incompletePunchDeduction: Exclude<AttendanceDeductionLabel, "None" | "FullDay" | "Exempt-Art61">;
-  lateNoNoticeRules: Array<{
-    minMinutesLate: number;
-    deduction: Exclude<AttendanceDeductionLabel, "FullDay" | "Exempt-Art61">;
-  }>;
   noticeCapExceededDeduction: Exclude<AttendanceDeductionLabel, "FullDay" | "Exempt-Art61">;
   monthlyApprovedNoticeCap: number;
 };
@@ -26,11 +22,6 @@ export type AttendanceDeductionResult = {
 
 export const DEFAULT_ATTENDANCE_DEDUCTION_CONFIG: AttendanceDeductionConfig = {
   incompletePunchDeduction: "HalfDay",
-  lateNoNoticeRules: [
-    { minMinutesLate: 121, deduction: "HalfDay" },
-    { minMinutesLate: 61, deduction: "2hr" },
-    { minMinutesLate: 1, deduction: "1hr" },
-  ],
   noticeCapExceededDeduction: "1hr",
   monthlyApprovedNoticeCap: 3,
 };
@@ -51,9 +42,9 @@ function fullDaysForLabel(label: AttendanceDeductionLabel) {
   return label === "FullDay" ? 1 : 0;
 }
 
-function lateNoNoticeDeduction(minutesLate: number, config: AttendanceDeductionConfig) {
-  const sorted = [...config.lateNoNoticeRules].sort((a, b) => b.minMinutesLate - a.minMinutesLate);
-  return sorted.find((rule) => minutesLate >= rule.minMinutesLate)?.deduction || "None";
+function lateNoNoticeDeduction(row: AttendanceDailyReportRow) {
+  const graceMinutes = Math.max(0, Number(row.LateNoReasonPenaltyGraceMinutes ?? 0));
+  return row.MinutesLate > graceMinutes ? "HalfDay" : "None";
 }
 
 export class AttendanceDeductionService {
@@ -92,7 +83,7 @@ export class AttendanceDeductionService {
     if (row.LatenessStatus === "ApprovedLeave") return "None";
     if (row.LatenessStatus === "Absent") return "FullDay";
     if (row.LatenessStatus === "IncompletePunch") return row.NoticeStatus === "Approved" ? "None" : this.config.incompletePunchDeduction;
-    if (row.LatenessStatus === "Late-NoNotice") return lateNoNoticeDeduction(row.MinutesLate, this.config);
+    if (row.LatenessStatus === "Late-NoNotice") return lateNoNoticeDeduction(row);
     if (row.LatenessStatus === "Late-WithNotice") {
       return row.LatenessNoticesUsedMonth > this.config.monthlyApprovedNoticeCap ? this.config.noticeCapExceededDeduction : "None";
     }
@@ -104,7 +95,7 @@ export class AttendanceDeductionService {
     if (row.PenaltyOverride === "HalfDay") return row.PenaltyReason || "Lateness exceeded the approved reason coverage.";
     if (label === "FullDay") return "Scheduled employee absent without approved leave.";
     if (row.LatenessStatus === "IncompletePunch" && label !== "None") return "Required punch missing without approved correction.";
-    if (row.LatenessStatus === "Late-NoNotice" && label !== "None") return "Late check-in without approved valid notice.";
+    if (row.LatenessStatus === "Late-NoNotice" && label !== "None") return `Late check-in without approved valid notice after ${Number(row.LateNoReasonPenaltyGraceMinutes ?? 0)} minute penalty window.`;
     if (row.LatenessStatus === "Late-WithNotice" && label !== "None") return "Approved lateness notice monthly cap exceeded.";
     return "No automatic deduction.";
   }

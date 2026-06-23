@@ -36,6 +36,11 @@ router.get(
   validate(employeeDailyQuerySchema, "query"),
   asyncHandler(controller.employee)
 );
+router.post(
+  "/employees/:employeeId/late-no-reason-message",
+  validate(employeeDailyParamsSchema, "params"),
+  asyncHandler(controller.sendLateNoReasonPenaltyMessage)
+);
 
 router.get("/report", validate(reportQuerySchema, "query"), asyncHandler(controller.report));
 router.get("/export", validate(exportQuerySchema, "query"), asyncHandler(controller.export));

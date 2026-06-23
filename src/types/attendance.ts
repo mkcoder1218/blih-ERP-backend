@@ -4,6 +4,7 @@ export type BusinessAttendanceSettings = {
   defaultStartTime: string;
   defaultEndTime?: string;
   lateGracePeriodMinutes: number;
+  lateNoReasonPenaltyGraceMinutes?: number;
   lunchBreakEnabled?: boolean;
   lunchMode?: "FIXED" | "FLEXIBLE";
   fixedLunchStartTime?: string | null;

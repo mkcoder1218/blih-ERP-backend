@@ -185,6 +185,18 @@ export class AttendanceHrController {
     }
   };
 
+  sendLateNoReasonPenaltyMessage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const businessId = req.user!.businessId;
+      const employeeId = req.params.employeeId;
+      const dateYmd = req.body?.date || new Date().toISOString().slice(0, 10);
+      const data = await this.service.sendLateNoReasonPenaltyMessage(businessId, employeeId, dateYmd);
+      return ok(res, data, "Penalty message sent");
+    } catch (e: any) {
+      return next({ statusCode: e.statusCode || 500, message: e.message || "Failed" });
+    }
+  };
+
   report = async (req: Request, res: Response) => {
     const businessId = req.user!.businessId;
     const q: any = req.query;

@@ -49,7 +49,6 @@ describe("AttendanceDeductionService", () => {
   it("applies configurable incomplete punch deduction", () => {
     const config: AttendanceDeductionConfig = {
       incompletePunchDeduction: "2hr",
-      lateNoNoticeRules: [{ minMinutesLate: 1, deduction: "1hr" }],
       noticeCapExceededDeduction: "1hr",
       monthlyApprovedNoticeCap: 3,
     };
@@ -60,12 +59,12 @@ describe("AttendanceDeductionService", () => {
     expect(result.DeductedHours).toBe(2);
   });
 
-  it("applies late no notice thresholds", () => {
+  it("applies half-day for late no notice after the configured penalty window", () => {
     const service = new AttendanceDeductionService();
 
-    expect(service.calculate(row({ LatenessStatus: "Late-NoNotice", MinutesLate: 20 })).DeductionLabel).toBe("1hr");
-    expect(service.calculate(row({ LatenessStatus: "Late-NoNotice", MinutesLate: 90 })).DeductionLabel).toBe("2hr");
-    expect(service.calculate(row({ LatenessStatus: "Late-NoNotice", MinutesLate: 150 })).DeductionLabel).toBe("HalfDay");
+    expect(service.calculate(row({ LatenessStatus: "Late-NoNotice", MinutesLate: 1, LateNoReasonPenaltyGraceMinutes: 0 })).DeductionLabel).toBe("HalfDay");
+    expect(service.calculate(row({ LatenessStatus: "Late-NoNotice", MinutesLate: 15, LateNoReasonPenaltyGraceMinutes: 15 })).DeductionLabel).toBe("None");
+    expect(service.calculate(row({ LatenessStatus: "Late-NoNotice", MinutesLate: 16, LateNoReasonPenaltyGraceMinutes: 15 })).DeductionLabel).toBe("HalfDay");
   });
 
   it("applies half-day penalty when an approved reason exceeds its covered minutes", () => {
@@ -97,9 +96,9 @@ describe("AttendanceDeductionService", () => {
     ]);
 
     expect(result.totals).toEqual({
-      HalfDayDeductions: 1,
+      HalfDayDeductions: 2,
       FullDayDeductions: 1,
-      DeductedHours: 14,
+      DeductedHours: 16,
     });
   });
 });

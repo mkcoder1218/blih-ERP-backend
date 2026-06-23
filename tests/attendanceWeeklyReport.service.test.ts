@@ -50,7 +50,7 @@ describe("AttendanceWeeklyReportService", () => {
       LatenessNoticesUsed: 1,
       PunctualityRatePercent: 20,
       NetHoursWorked: 23.5,
-      HalfDayDeductions: 1,
+      HalfDayDeductions: 2,
       FullDayDeductions: 1,
     });
   });

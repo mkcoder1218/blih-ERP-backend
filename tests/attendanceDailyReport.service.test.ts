@@ -25,6 +25,7 @@ jest.mock("../src/models", () => ({
     AttendanceDailyReason: { findAll: mockDailyReasonFindAll },
     AttendanceLateReason: { findOne: mockLateReasonFindOne, findAll: mockLateReasonFindAll },
     BusinessSetting: { findOne: jest.fn().mockResolvedValue(null) },
+    BusinessAttendanceSettings: { findOne: jest.fn().mockResolvedValue({ lateNoReasonPenaltyGraceMinutes: 0 }) },
   },
 }));
 

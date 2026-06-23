@@ -690,6 +690,15 @@ export class AttendanceTelegramService {
     await this.sendAndLog(setting, "late_reason_submitted", { chat_id: setting.chatId, text: msg });
   }
 
+  async sendAttendanceGroupMessage(businessId: string, text: string, eventType = "attendance_group_message") {
+    const setting = await this.getMainSetting(businessId, true);
+    if (!setting?.botToken || !setting.chatId) {
+      throw Object.assign(new Error("Telegram attendance group is not configured"), { statusCode: 400 });
+    }
+    await this.sendAndLog(setting, eventType, { chat_id: setting.chatId, text });
+    return { sent: true };
+  }
+
   async runDailySummarySweep(now = new Date()) {
     const settings = await db.TelegramBotSetting.findAll({ where: { botType: MAIN_BOT_TYPE, enabled: true } });
     console.log(`[TelegramAttendanceSummary] enabled summary configs: ${settings.length}`);
