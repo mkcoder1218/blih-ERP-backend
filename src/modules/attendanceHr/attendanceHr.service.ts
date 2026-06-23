@@ -265,6 +265,8 @@ export class AttendanceHrService {
   }
 
   async sendLateNoReasonPenaltyMessage(businessId: string, employeeId: string, dateYmd: string) {
+    const daily = await this.buildDaily(businessId, { dateYmd, sortBy: "name", sortOrder: "asc" });
+    const liveRow: any = daily.rows.find((row: any) => row.employeeId === employeeId);
     const rows = await this.dailyReport.generate(businessId, {
       startDate: dateYmd,
       endDate: dateYmd,
@@ -272,18 +274,17 @@ export class AttendanceHrService {
       audience: "hr"
     });
     const row = rows[0];
-    if (!row) throw Object.assign(new Error("Attendance row not found for the selected employee and date"), { statusCode: 404 });
-    const canSend =
-      (row.LatenessStatus === "Late-NoNotice" && row.NoticeStatus === "None" && Number(row.MinutesLate || 0) > 0) ||
-      (row.LatenessStatus === "Absent" && row.NoticeStatus === "None" && Number(row.ApprovedLeaveDays || 0) <= 0);
+    if (!row && !liveRow) throw Object.assign(new Error("Attendance row not found for the selected employee and date"), { statusCode: 404 });
+    const canSend = Boolean(liveRow?.noReasonPenaltyMessageEligible);
     if (!canSend) {
       throw Object.assign(new Error("Penalty message can only be sent for late or absent employees without a reason or leave request"), { statusCode: 400 });
     }
 
-    const employeeName = row.EmployeeName || "Unknown employee";
-    const department = row.Department || "N/A";
-    const minutesLate = Number(row.MinutesLate || 0);
-    const messageText = row.LatenessStatus === "Absent"
+    const employeeName = row?.EmployeeName || liveRow?.employeeName || "Unknown employee";
+    const department = row?.Department || liveRow?.department?.name || liveRow?.department || "N/A";
+    const minutesLate = Math.max(Number(row?.MinutesLate || 0), Number(liveRow?.lateByMinutes || 0));
+    const isAbsent = row?.LatenessStatus === "Absent" || ["MISSED", "NOT_STARTED"].includes(String(liveRow?.status || ""));
+    const messageText = isAbsent
       ? `${employeeName} who works in ${department} didnot come to work and didnot send a reason to the group and due to that he will get a 4hr penality if you have any complain contact your HR manager`
       : `${employeeName} who works in ${department} late this ${minutesLate} min and didnot send a reason to the group and due to that he will get a 4hr penality if you have any complain contact your HR manager`;
     const message = [
