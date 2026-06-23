@@ -88,7 +88,7 @@ describe("lateness notice approval logic", () => {
     expect(where[orKey as any]).toEqual([{ reasonCode: "CAR_ACCIDENT" }]);
   });
 
-  it("allows managed manual lateness notices for another employee only as hr review", async () => {
+  it("auto-approves managed manual lateness notices for another employee", async () => {
     mockCreate.mockImplementation(async (payload) => payload);
     const record = await new AttendanceRequestsService().create("biz-1", "admin-1", {
       requestType: "lateness_notice",
@@ -97,42 +97,18 @@ describe("lateness notice approval logic", () => {
       reason: "Network issue prevented normal employee submission",
       reasonCategory: "TRANSPORT",
       fromAt: "2099-06-22T08:00",
-      manualValidityStatus: "hr_review",
     }, { canManage: true });
 
     expect(record).toMatchObject({
       employeeUserId: "user-2",
       requestType: "lateness_notice",
-      validityStatus: "hr_review",
+      status: "approved",
+      validityStatus: "valid",
+      approvedByUserId: "admin-1",
     });
     expect(mockCount).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ employeeUserId: "user-2" }),
     }));
-
-    await expect(new AttendanceRequestsService().create("biz-1", "admin-1", {
-      requestType: "lateness_notice",
-      employeeUserId: "user-2",
-      title: "Manual lateness reason",
-      reason: "Network issue prevented normal employee submission",
-      reasonCategory: "TRANSPORT",
-      fromAt: "2099-06-22T08:00",
-      manualValidityStatus: "valid",
-    }, { canManage: true })).rejects.toMatchObject({
-      statusCode: 400,
-      message: "Manual lateness reason must start as HR review.",
-    });
-
-    await expect(new AttendanceRequestsService().create("biz-1", "user-1", {
-      requestType: "lateness_notice",
-      title: "Manual lateness reason",
-      reason: "Network issue prevented normal employee submission",
-      reasonCategory: "TRANSPORT",
-      fromAt: "2099-06-22T08:00",
-      manualValidityStatus: "hr_review",
-    })).rejects.toMatchObject({
-      statusCode: 403,
-      message: "Manual lateness reason requires attendance management access.",
-    });
   });
 
   it("rejects approval when the selected reason monthly cap is reached", async () => {

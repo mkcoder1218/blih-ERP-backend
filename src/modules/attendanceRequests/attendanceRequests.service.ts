@@ -5,7 +5,6 @@ import { LatenessReasonRulesService } from "../../services/latenessReasonRules.s
 
 const VALID_TYPES = new Set(["work_from_home", "memo_log", "check_in_correction", "not_available", "lateness_notice"]);
 const VALID_STATUSES = new Set(["pending", "approved", "rejected", "invalid", "expired", "cancelled"]);
-const MANUAL_LATENESS_VALIDITY_STATUSES = new Set(["hr_review"]);
 const CORRECTION_EVENT_TYPES = new Set(["CHECK_IN", "LUNCH_OUT", "LUNCH_IN", "CHECK_OUT"]);
 const LATE_NOTICE_DEADLINE_HOUR = 8;
 const LATE_NOTICE_DEADLINE_MINUTES = 30;
@@ -113,7 +112,6 @@ export class AttendanceRequestsService {
     const isLatenessNotice = data.requestType === "lateness_notice";
     const canTargetEmployee = isCorrection || (isLatenessNotice && options.canManage);
     const targetEmployeeUserId = canTargetEmployee && data.employeeUserId ? String(data.employeeUserId || "") : employeeUserId;
-    const manualValidityStatus = data.manualValidityStatus ? String(data.manualValidityStatus).trim().toLowerCase() : null;
     let correctionFromAt: Date | null = null;
     let noticeFromAt: Date | null = null;
     let deadlineAt: Date | null = null;
@@ -138,41 +136,30 @@ export class AttendanceRequestsService {
         const employee = await db.User.findOne({ where: { id: targetEmployeeUserId, businessId } });
         if (!employee) throw new Error("Employee not found.");
       }
-      if (manualValidityStatus && !options.canManage) {
-        throw Object.assign(new Error("Manual lateness reason requires attendance management access."), { statusCode: 403 });
-      }
-      if (manualValidityStatus && !MANUAL_LATENESS_VALIDITY_STATUSES.has(manualValidityStatus)) {
-        throw Object.assign(new Error("Manual lateness reason must start as HR review."), { statusCode: 400 });
-      }
       const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
       noticeFromAt = data.fromAt ? parseCorrectionWallTime(data.fromAt, settings?.timezone || "Africa/Addis_Ababa") : new Date();
       if (!noticeFromAt) throw new Error("Valid lateness notice date and time is required.");
       deadlineAt = buildNoticeDeadline(noticeFromAt, settings?.timezone || "Africa/Addis_Ababa");
       reasonText = String(data.reasonText || data.reason || "").trim();
       validityStatus = validateNoticeText(reasonText);
-      if (manualValidityStatus) validityStatus = manualValidityStatus;
       const reasonCode = this.latenessRules.normalizeReasonCode(data.reasonCategory || data.category);
       const rule = await this.latenessRules.findRule(businessId, reasonCode);
       if (!rule || rule.enabled === false || rule.isActive === false) throw Object.assign(new Error("Selected lateness reason is not enabled."), { statusCode: 400 });
       if (rule.requiresAttachment && !data.attachmentUrl && !data.attachmentId) throw Object.assign(new Error("Selected lateness reason requires an attachment."), { statusCode: 400 });
-      if (!manualValidityStatus && new Date() > deadlineAt && !rule.allowAfterDeadline) validityStatus = "expired";
+      if (new Date() > deadlineAt && !rule.allowAfterDeadline) validityStatus = "expired";
       const creditConfig = await this.latenessRules.getCreditConfig(businessId);
       const used = creditConfig.mode === "GLOBAL_POOL"
         ? await this.latenessRules.countApprovedUsableGlobal(businessId, targetEmployeeUserId, noticeFromAt)
         : await this.latenessRules.countApprovedUsableByReason(businessId, targetEmployeeUserId, reasonCode, noticeFromAt);
       const limit = creditConfig.mode === "GLOBAL_POOL" ? creditConfig.globalMonthlyLimit : Number(rule.monthlyLimit || 0);
-      if (!manualValidityStatus && (limit <= 0 || used >= limit)) {
+      if (limit <= 0 || used >= limit) {
         const behavior = String((creditConfig.mode === "GLOBAL_POOL" ? creditConfig.behaviorWhenExceeded : rule.behaviorWhenExceeded) || "HR_REVIEW").toUpperCase();
         if (behavior === "BLOCK") throw Object.assign(new Error("Monthly limit reached for this lateness reason."), { statusCode: 400 });
         if (behavior === "MARK_INVALID") validityStatus = "invalid";
       }
-      const coversMinutes = creditConfig.mode === "GLOBAL_POOL" ? creditConfig.globalCoversMinutes : Number(rule.coversMinutes || 0);
-      if (!manualValidityStatus && Number(data.lateByMinutes || data.durationMinutes || 0) > coversMinutes) {
-        const behavior = String((creditConfig.mode === "GLOBAL_POOL" ? creditConfig.behaviorWhenExceeded : rule.behaviorWhenExceeded) || "HR_REVIEW").toUpperCase();
-        if (behavior === "BLOCK") throw Object.assign(new Error(creditConfig.mode === "GLOBAL_POOL" ? `The global credit covers only ${coversMinutes} minutes.` : `This lateness reason covers only ${coversMinutes} minutes.`), { statusCode: 400 });
-        if (behavior === "MARK_INVALID") validityStatus = "invalid";
-      }
     }
+    const autoApproveLateness = isLatenessNotice && validityStatus === "valid";
+    const now = new Date();
     return db.AttendanceRequest.create({
       businessId,
       employeeUserId: targetEmployeeUserId,
@@ -183,8 +170,12 @@ export class AttendanceRequestsService {
       fromAt: isCorrection ? correctionFromAt : isLatenessNotice ? noticeFromAt : data.fromAt || null,
       toAt: data.toAt || null,
       durationMinutes: data.durationMinutes ?? null,
-      status: "pending",
-      submittedAt: new Date(),
+      status: autoApproveLateness ? "approved" : "pending",
+      submittedAt: now,
+      approvedAt: autoApproveLateness ? now : null,
+      approvedByUserId: autoApproveLateness ? employeeUserId : null,
+      actionedAt: autoApproveLateness ? now : null,
+      actionedByUserId: autoApproveLateness ? employeeUserId : null,
       reasonCategory: isLatenessNotice ? this.latenessRules.normalizeReasonCode(data.reasonCategory || data.category) : data.reasonCategory || data.category || null,
       reasonText,
       validityStatus,
