@@ -70,6 +70,14 @@ function monthBoundsUtc(anchorDate: Date, timeZone = ADDIS_ABABA_TZ) {
   };
 }
 
+function monthBoundsYmd(anchorDate: Date, timeZone = ADDIS_ABABA_TZ) {
+  const ymd = localDateYmd(anchorDate, timeZone);
+  const startYmd = `${ymd.slice(0, 7)}-01`;
+  const end = new Date(`${startYmd}T00:00:00.000Z`);
+  end.setUTCMonth(end.getUTCMonth() + 1);
+  return { startYmd, endYmd: end.toISOString().slice(0, 10) };
+}
+
 function ruleCode(rule: any) {
   return normalizeCode(rule?.reasonCode || rule?.code || rule?.name);
 }
@@ -180,7 +188,9 @@ export class LatenessReasonRulesService {
       approvedAt: { [Op.gte]: startUtc, [Op.lt]: endUtc },
     };
     if (excludeRequestId) where.id = { [Op.ne]: excludeRequestId };
-    return db.AttendanceRequest.count({ where });
+    const requestCount = await db.AttendanceRequest.count({ where });
+    const dailyReasonCount = await this.countDailyReasonUsesByReason(businessId, employeeUserId, reasonCode, anchorDate);
+    return requestCount + dailyReasonCount;
   }
 
   async countApprovedUsableGlobal(businessId: string, employeeUserId: string, anchorDate: Date, excludeRequestId?: string | null) {
@@ -194,7 +204,42 @@ export class LatenessReasonRulesService {
       approvedAt: { [Op.gte]: startUtc, [Op.lt]: endUtc },
     };
     if (excludeRequestId) where.id = { [Op.ne]: excludeRequestId };
-    return db.AttendanceRequest.count({ where });
+    const requestCount = await db.AttendanceRequest.count({ where });
+    const dailyReasonCount = await this.countDailyReasonUsesGlobal(businessId, employeeUserId, anchorDate);
+    return requestCount + dailyReasonCount;
+  }
+
+  async countDailyReasonUsesByReason(businessId: string, employeeUserId: string, reasonCode: string, anchorDate: Date, excludeDailyReasonId?: string | null) {
+    if (!db.AttendanceLateReason?.findAll || !db.AttendanceDailyReason?.count) return 0;
+    const { startYmd, endYmd } = monthBoundsYmd(anchorDate, ADDIS_ABABA_TZ);
+    const rules = await db.AttendanceLateReason.findAll({
+      where: { businessId, reasonCode: normalizeCode(reasonCode) },
+      attributes: ["id"],
+    });
+    const lateReasonIds = rules.map((rule: any) => rule.id);
+    if (!lateReasonIds.length) return 0;
+    const where: any = {
+      businessId,
+      employeeId: employeeUserId,
+      reasonType: "late",
+      lateReasonId: { [Op.in]: lateReasonIds },
+      dateYmd: { [Op.gte]: startYmd, [Op.lt]: endYmd },
+    };
+    if (excludeDailyReasonId) where.id = { [Op.ne]: excludeDailyReasonId };
+    return db.AttendanceDailyReason.count({ where });
+  }
+
+  async countDailyReasonUsesGlobal(businessId: string, employeeUserId: string, anchorDate: Date, excludeDailyReasonId?: string | null) {
+    if (!db.AttendanceDailyReason?.count) return 0;
+    const { startYmd, endYmd } = monthBoundsYmd(anchorDate, ADDIS_ABABA_TZ);
+    const where: any = {
+      businessId,
+      employeeId: employeeUserId,
+      reasonType: "late",
+      dateYmd: { [Op.gte]: startYmd, [Op.lt]: endYmd },
+    };
+    if (excludeDailyReasonId) where.id = { [Op.ne]: excludeDailyReasonId };
+    return db.AttendanceDailyReason.count({ where });
   }
 
   async balancesForEmployee(businessId: string, employeeUserId: string, anchorDate: Date = new Date()): Promise<LatenessReasonRuleBalance[]> {
@@ -248,6 +293,49 @@ export class LatenessReasonRulesService {
     const used = config.mode === "GLOBAL_POOL"
       ? await this.countApprovedUsableGlobal(record.businessId, record.employeeUserId, anchorDate, record.id)
       : await this.countApprovedUsableByReason(record.businessId, record.employeeUserId, reasonCode, anchorDate, record.id);
+    if (monthlyLimit <= 0 || used >= monthlyLimit) {
+      return this.exceededResult(config.mode === "GLOBAL_POOL" ? config : rule, reasonCode, config.mode === "GLOBAL_POOL" ? "Monthly lateness credit limit reached." : "Monthly limit reached for this lateness reason.");
+    }
+
+    const coversMinutes = config.mode === "GLOBAL_POOL" ? config.globalCoversMinutes : Number(rule.coversMinutes || 0);
+    if (lateByMinutes > coversMinutes) {
+      return {
+        validityStatus: "invalid",
+        noticeStatus: "Invalid",
+        usable: false,
+        reasonCode,
+        message: config.mode === "GLOBAL_POOL" ? `The global credit covers only ${coversMinutes} late minutes.` : `This reason covers only ${coversMinutes} late minutes.`,
+        penaltyLabel: "HalfDay",
+        penaltyReason: "Lateness exceeded the approved reason coverage.",
+      };
+    }
+
+    return { validityStatus: "valid", noticeStatus: "Approved", usable: true, reasonCode, message: null };
+  }
+
+  async evaluateDailyReason(record: any, lateByMinutes = 0): Promise<LatenessNoticeEvaluation> {
+    const rule = record.lateReason || (record.lateReasonId ? await db.AttendanceLateReason.findOne({ where: { id: record.lateReasonId, businessId: record.businessId } }) : null);
+    const reasonCode = rule ? ruleCode(rule) : null;
+    if (!rule || !reasonCode) return { validityStatus: "invalid", noticeStatus: "Invalid", usable: false, reasonCode, message: "Lateness reason category is not configured." };
+    if (!enabled(rule)) return { validityStatus: "invalid", noticeStatus: "Invalid", usable: false, reasonCode, message: "Lateness reason category is disabled." };
+
+    const config = await this.getCreditConfig(record.businessId);
+    const anchorDate = new Date(`${record.dateYmd || localDateYmd(new Date())}T00:00:00.000Z`);
+    const monthlyLimit = config.mode === "GLOBAL_POOL" ? config.globalMonthlyLimit : Number(rule.monthlyLimit || 0);
+    const requestWhere: any = {
+      businessId: record.businessId,
+      employeeUserId: record.employeeId,
+      requestType: "lateness_notice",
+      status: "approved",
+      validityStatus: "valid",
+      approvedAt: { [Op.gte]: monthBoundsUtc(anchorDate, ADDIS_ABABA_TZ).startUtc, [Op.lt]: monthBoundsUtc(anchorDate, ADDIS_ABABA_TZ).endUtc },
+    };
+    if (config.mode !== "GLOBAL_POOL") requestWhere.reasonCategory = reasonCode;
+    const requestUsed = await db.AttendanceRequest.count({ where: requestWhere });
+    const dailyUsed = config.mode === "GLOBAL_POOL"
+      ? await this.countDailyReasonUsesGlobal(record.businessId, record.employeeId, anchorDate, record.id)
+      : await this.countDailyReasonUsesByReason(record.businessId, record.employeeId, reasonCode, anchorDate, record.id);
+    const used = requestUsed + dailyUsed;
     if (monthlyLimit <= 0 || used >= monthlyLimit) {
       return this.exceededResult(config.mode === "GLOBAL_POOL" ? config : rule, reasonCode, config.mode === "GLOBAL_POOL" ? "Monthly lateness credit limit reached." : "Monthly limit reached for this lateness reason.");
     }

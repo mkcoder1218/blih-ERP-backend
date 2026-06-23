@@ -95,6 +95,18 @@ export class AttendanceHrService {
         })
       : [];
     const submittedReasonEmployeeIds = new Set(submittedReasonRows.map((row: any) => row.employeeUserId));
+    const dailyReasonRows = userIds.length
+      ? await db.AttendanceDailyReason.findAll({
+          where: {
+            businessId,
+            employeeId: { [Op.in]: userIds },
+            reasonType: "late",
+            dateYmd: opts.dateYmd
+          },
+          attributes: ["employeeId"]
+        })
+      : [];
+    for (const row of dailyReasonRows) submittedReasonEmployeeIds.add((row as any).employeeId);
     const leaveRows = userIds.length
       ? await db.LeaveRequest.findAll({
           where: {
@@ -128,7 +140,7 @@ export class AttendanceHrService {
         finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
       const hasSubmittedReason = submittedReasonEmployeeIds.has(roster.employeeId);
       const hasLeaveRequest = leaveEmployeeIds.has(roster.employeeId);
-      const isMissedWithoutReasonOrLeave = ["MISSED", "NOT_STARTED"].includes(String(finalStatus)) && !hasSubmittedReason && !hasLeaveRequest;
+      const isMissedWithoutLeave = ["MISSED", "NOT_STARTED"].includes(String(finalStatus)) && !hasLeaveRequest;
       const isLateWithoutReason =
         Boolean(finalCalculation.isLate) &&
         Number(finalCalculation.lateByMinutes || 0) > noReasonPenaltyGraceMinutes &&
@@ -165,7 +177,7 @@ export class AttendanceHrService {
         hasSubmittedLatenessReason: hasSubmittedReason,
         hasLeaveRequest,
         lateNoReasonPenaltyEligible: isLateWithoutReason,
-        noReasonPenaltyMessageEligible: isLateWithoutReason || isMissedWithoutReasonOrLeave
+        noReasonPenaltyMessageEligible: isLateWithoutReason || isMissedWithoutLeave
       };
     });
 

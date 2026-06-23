@@ -188,8 +188,30 @@ async function countApprovedUsableNotices(notices: any[], startYmd: string, endE
   return { total: Object.values(usedByReason).reduce((sum, value) => sum + value, 0), usedByReason };
 }
 
+async function countUsableDailyReasons(dailyReasons: any[], startYmd: string, endExclusiveYmd: string, rules: LatenessReasonRulesService) {
+  const usedByReason: Record<string, number> = {};
+  for (const reason of dailyReasons) {
+    if (reason.reasonType !== "late" || !reason.lateReasonId) continue;
+    if (!reason.dateYmd || reason.dateYmd < startYmd || reason.dateYmd >= endExclusiveYmd) continue;
+    const evaluation = await rules.evaluateDailyReason(reason, 0);
+    if (!evaluation.usable || !evaluation.reasonCode) continue;
+    usedByReason[evaluation.reasonCode] = (usedByReason[evaluation.reasonCode] || 0) + 1;
+  }
+  return { total: Object.values(usedByReason).reduce((sum, value) => sum + value, 0), usedByReason };
+}
+
 function approvedOvertimeMinutesForDay(requests: any[]) {
   return requests.reduce((sum, request) => sum + Number(request.approvedOvertimeMinutes || 0), 0);
+}
+
+function mergeReasonUsage(...items: Array<Record<string, number> | undefined>) {
+  const merged: Record<string, number> = {};
+  for (const item of items) {
+    for (const [key, value] of Object.entries(item || {})) {
+      merged[key] = (merged[key] || 0) + Number(value || 0);
+    }
+  }
+  return merged;
 }
 
 function groupByEmployeeDate(events: any[]) {
@@ -401,17 +423,20 @@ export class AttendanceDailyReportService {
     const selectedNotice = approvedNotice || pendingNotice || invalidNotice || expiredNotice || rejectedNotice || dayNotices[0] || null;
     const weekNoticeUsage = await countApprovedUsableNotices(notices, isoWeekStart(roster.dateYmd), isoWeekEndExclusive(roster.dateYmd), this.latenessRules);
     const monthNoticeUsage = await countApprovedUsableNotices(notices, monthStart(roster.dateYmd), monthEndExclusive(roster.dateYmd), this.latenessRules);
+    const weekDailyReasonUsage = await countUsableDailyReasons(dailyReasons, isoWeekStart(roster.dateYmd), isoWeekEndExclusive(roster.dateYmd), this.latenessRules);
+    const monthDailyReasonUsage = await countUsableDailyReasons(dailyReasons, monthStart(roster.dateYmd), monthEndExclusive(roster.dateYmd), this.latenessRules);
 
     let latenessStatus: AttendanceDailyReportRow["LatenessStatus"] = "OnTime";
     let noticeStatus: AttendanceDailyReportRow["NoticeStatus"] = "NotApplicable";
     let minutesLate = 0;
+    let selectedDailyReasonEvaluation: { reason: any; evaluation: Awaited<ReturnType<LatenessReasonRulesService["evaluateDailyReason"]>> } | null = null;
 
     if (!hasAnyPunch && hasApprovedLeave) {
       latenessStatus = "ApprovedLeave";
       noticeStatus = "NotApplicable";
     } else if (!hasAnyPunch && !hasApprovedLeave) {
       latenessStatus = "Absent";
-      noticeStatus = selectedNotice ? (approvedNotice ? "Approved" : pendingNotice ? "Pending" : expiredNotice ? "Expired" : rejectedNotice ? "Rejected" : "Invalid") : "None";
+      noticeStatus = "None";
     } else if (!hasAllPunches) {
       latenessStatus = "IncompletePunch";
       noticeStatus = selectedNotice ? (approvedNotice ? "Approved" : pendingNotice ? "Pending" : expiredNotice ? "Expired" : rejectedNotice ? "Rejected" : "Invalid") : "None";
@@ -436,8 +461,25 @@ export class AttendanceDailyReportService {
         latenessStatus = "Late-NoNotice";
         noticeStatus = "Invalid";
       } else {
-        latenessStatus = "Late-NoNotice";
-        noticeStatus = "None";
+        const categorizedDailyReasons = dailyReasons.filter((reason: any) => reason.lateReasonId || reason.lateReason);
+        const evaluatedDailyReasons = await Promise.all(categorizedDailyReasons.map(async (reason: any) => ({
+          reason,
+          evaluation: await this.latenessRules.evaluateDailyReason(reason, minutesLate),
+        })));
+        const usableDailyReason = evaluatedDailyReasons.find((item) => item.evaluation.usable) || null;
+        const invalidDailyReason = evaluatedDailyReasons.find((item) => !item.evaluation.usable) || null;
+        if (usableDailyReason) {
+          selectedDailyReasonEvaluation = usableDailyReason;
+          latenessStatus = "Late-WithNotice";
+          noticeStatus = "Approved";
+        } else if (invalidDailyReason) {
+          selectedDailyReasonEvaluation = invalidDailyReason;
+          latenessStatus = "Late-NoNotice";
+          noticeStatus = "Invalid";
+        } else {
+          latenessStatus = "Late-NoNotice";
+          noticeStatus = "None";
+        }
       }
     }
 
@@ -494,13 +536,13 @@ export class AttendanceDailyReportService {
       LatenessStatus: latenessStatus,
       MinutesLate: minutesLate,
       NoticeStatus: noticeStatus,
-      LatenessNoticesUsedWeek: weekNoticeUsage.total,
-      LatenessNoticesUsedMonth: monthNoticeUsage.total,
-      LatenessNoticesUsedByReason: monthNoticeUsage.usedByReason,
-      LatenessReasonCode: latenessStatus === "Late-WithNotice" ? approvedNoticeEvaluation?.evaluation?.reasonCode || null : null,
+      LatenessNoticesUsedWeek: weekNoticeUsage.total + weekDailyReasonUsage.total,
+      LatenessNoticesUsedMonth: monthNoticeUsage.total + monthDailyReasonUsage.total,
+      LatenessNoticesUsedByReason: mergeReasonUsage(monthNoticeUsage.usedByReason, monthDailyReasonUsage.usedByReason),
+      LatenessReasonCode: latenessStatus === "Late-WithNotice" ? approvedNoticeEvaluation?.evaluation?.reasonCode || selectedDailyReasonEvaluation?.evaluation.reasonCode || null : null,
       DeductionApplied: latenessStatus === "Absent" || latenessStatus === "IncompletePunch" || latenessStatus === "Late-NoNotice",
-      PenaltyOverride: invalidNoticeEvaluation?.evaluation?.penaltyLabel === "HalfDay" ? "HalfDay" : null,
-      PenaltyReason: invalidNoticeEvaluation?.evaluation?.penaltyReason || null,
+      PenaltyOverride: invalidNoticeEvaluation?.evaluation?.penaltyLabel === "HalfDay" || selectedDailyReasonEvaluation?.evaluation.penaltyLabel === "HalfDay" ? "HalfDay" : null,
+      PenaltyReason: invalidNoticeEvaluation?.evaluation?.penaltyReason || selectedDailyReasonEvaluation?.evaluation.penaltyReason || null,
       LeaveCategory: approvedLeave ? leaveCategory(approvedLeave.leaveType) : null,
       ApprovedLeaveDays: approvedLeave ? 1 : 0,
       LateNoReasonPenaltyGraceMinutes: lateNoReasonPenaltyGraceMinutes,
