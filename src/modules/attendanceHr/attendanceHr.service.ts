@@ -165,6 +165,7 @@ export class AttendanceHrService {
         })
       : [];
     const leaveEmployeeIds = new Set(leaveRows.map((row: any) => row.employeeUserId));
+    const noReasonPenaltyGraceMinutes = Number((settings as any).lateNoReasonPenaltyGraceMinutes || 0);
 
     const rows = rosterRows.map((roster) => {
       const er = roster.employeeRecord || null;
@@ -184,17 +185,24 @@ export class AttendanceHrService {
         finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
       const reportRow: any = reportByEmployee.get(roster.employeeId) || null;
       const reportDeduction = reportRow ? this.deductionService.calculate(reportRow) : null;
-      const reportPenaltyMinutes = reportDeduction ? Math.round(Number(reportDeduction.DeductedHours || 0) * 60) : 0;
+      const isActiveDay = !finalCalculation.isComplete && ["IN_PROGRESS", "LATE", "ON_BREAK"].includes(String(finalStatus));
+      const ignoreLiveIncompletePenalty = isActiveDay && reportRow?.LatenessStatus === "IncompletePunch";
+      const reportPenaltyMinutes = reportDeduction && !ignoreLiveIncompletePenalty ? Math.round(Number(reportDeduction.DeductedHours || 0) * 60) : 0;
       const reportNoticeStatus = String(reportRow?.NoticeStatus || "");
       const hasSubmittedReason = submittedReasonEmployeeIds.has(roster.employeeId) || Boolean(reportNoticeStatus && !["None", "NotApplicable"].includes(reportNoticeStatus));
       const hasLeaveRequest = leaveEmployeeIds.has(roster.employeeId);
       const isMissedWithoutLeave = (reportRow?.LatenessStatus === "Absent" || ["MISSED", "NOT_STARTED"].includes(String(finalStatus))) && !hasLeaveRequest;
-      const isLateWithoutReason = reportRow
-        ? reportRow.LatenessStatus === "Late-NoNotice" && reportRow.NoticeStatus === "None" && Number(reportRow.MinutesLate || 0) > 0
-        : Boolean(finalCalculation.isLate) &&
-          Number(finalCalculation.lateByMinutes || 0) > 0 &&
-          !hasSubmittedReason &&
-          !hasLeaveRequest;
+      const liveLateWithoutReason = Boolean(finalCalculation.isLate) && Number(finalCalculation.lateByMinutes || 0) > 0 && !hasSubmittedReason && !hasLeaveRequest;
+      const reportLateWithoutReason = reportRow?.LatenessStatus === "Late-NoNotice" && reportRow.NoticeStatus === "None" && Number(reportRow.MinutesLate || 0) > 0;
+      const isLateWithoutReason = Boolean(reportLateWithoutReason || liveLateWithoutReason);
+      const liveLateNoReasonPenaltyMinutes = liveLateWithoutReason && Number(finalCalculation.lateByMinutes || 0) > noReasonPenaltyGraceMinutes ? 240 : 0;
+      const appliedPenaltyMinutes = Math.max(Number(finalCalculation.penaltyMinutes || 0), reportPenaltyMinutes, liveLateNoReasonPenaltyMinutes);
+      const appliedPenaltyReason = liveLateNoReasonPenaltyMinutes > 0
+        ? `Late check-in without approved valid notice after ${noReasonPenaltyGraceMinutes} minute penalty window.`
+        : reportPenaltyMinutes > 0
+          ? reportDeduction?.Reason || finalCalculation.penaltyReason
+          : finalCalculation.penaltyReason;
+      const deductionLabel = liveLateNoReasonPenaltyMinutes > 0 ? "HalfDay" : reportDeduction?.DeductionLabel || "None";
 
       return {
         employeeId: roster.employeeId,
@@ -214,9 +222,9 @@ export class AttendanceHrService {
         workedMinutes: finalCalculation.totalWorkedMinutes,
         rawWorkedMinutes: finalCalculation.rawWorkedMinutes,
         breakMinutes: finalCalculation.totalBreakMinutes,
-        penaltyMinutes: Math.max(Number(finalCalculation.penaltyMinutes || 0), reportPenaltyMinutes),
-        penaltyReason: reportPenaltyMinutes > 0 ? reportDeduction?.Reason || finalCalculation.penaltyReason : finalCalculation.penaltyReason,
-        deductionLabel: reportDeduction?.DeductionLabel || "None",
+        penaltyMinutes: appliedPenaltyMinutes,
+        penaltyReason: appliedPenaltyReason,
+        deductionLabel,
         latenessReasonCredit: creditByEmployee.get(roster.employeeId) || { remaining: 0, limit: 0, reasons: [] },
         expectedMinutes: finalCalculation.expectedMinutes,
         overtimeMinutes: finalCalculation.overtimeMinutes,
