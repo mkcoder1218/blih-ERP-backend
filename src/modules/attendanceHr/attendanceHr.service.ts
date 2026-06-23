@@ -163,7 +163,6 @@ export class AttendanceHrService {
         })
       : [];
     const leaveEmployeeIds = new Set(leaveRows.map((row: any) => row.employeeUserId));
-    const noReasonPenaltyGraceMinutes = Number((settings as any).lateNoReasonPenaltyGraceMinutes || 0);
 
     const rows = rosterRows.map((roster) => {
       const er = roster.employeeRecord || null;
@@ -187,9 +186,9 @@ export class AttendanceHrService {
       const hasLeaveRequest = leaveEmployeeIds.has(roster.employeeId);
       const isMissedWithoutLeave = (reportRow?.LatenessStatus === "Absent" || ["MISSED", "NOT_STARTED"].includes(String(finalStatus))) && !hasLeaveRequest;
       const isLateWithoutReason = reportRow
-        ? reportRow.LatenessStatus === "Late-NoNotice" && reportRow.NoticeStatus === "None" && Number(reportRow.MinutesLate || 0) > noReasonPenaltyGraceMinutes
+        ? reportRow.LatenessStatus === "Late-NoNotice" && reportRow.NoticeStatus === "None" && Number(reportRow.MinutesLate || 0) > 0
         : Boolean(finalCalculation.isLate) &&
-          Number(finalCalculation.lateByMinutes || 0) > noReasonPenaltyGraceMinutes &&
+          Number(finalCalculation.lateByMinutes || 0) > 0 &&
           !hasSubmittedReason &&
           !hasLeaveRequest;
 

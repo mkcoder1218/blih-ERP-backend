@@ -49,6 +49,7 @@ const DEFAULT_CREDIT_CONFIG: LatenessCreditConfig = {
   globalCoversMinutes: 60,
   behaviorWhenExceeded: "HR_REVIEW",
 };
+const CREDIT_EFFECTIVE_START_YMD = "2026-06-22";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizeCode(value: unknown) {
@@ -62,10 +63,11 @@ function localDateYmd(date: Date, timeZone = ADDIS_ABABA_TZ) {
 function monthBoundsUtc(anchorDate: Date, timeZone = ADDIS_ABABA_TZ) {
   const ymd = localDateYmd(anchorDate, timeZone);
   const monthStart = `${ymd.slice(0, 7)}-01`;
+  const effectiveStart = monthStart < CREDIT_EFFECTIVE_START_YMD ? CREDIT_EFFECTIVE_START_YMD : monthStart;
   const end = new Date(`${monthStart}T00:00:00.000Z`);
   end.setUTCMonth(end.getUTCMonth() + 1);
   return {
-    startUtc: businessDateStartUtc(monthStart, timeZone),
+    startUtc: businessDateStartUtc(effectiveStart, timeZone),
     endUtc: businessDateStartUtc(end.toISOString().slice(0, 10), timeZone),
   };
 }
@@ -73,9 +75,10 @@ function monthBoundsUtc(anchorDate: Date, timeZone = ADDIS_ABABA_TZ) {
 function monthBoundsYmd(anchorDate: Date, timeZone = ADDIS_ABABA_TZ) {
   const ymd = localDateYmd(anchorDate, timeZone);
   const startYmd = `${ymd.slice(0, 7)}-01`;
+  const effectiveStartYmd = startYmd < CREDIT_EFFECTIVE_START_YMD ? CREDIT_EFFECTIVE_START_YMD : startYmd;
   const end = new Date(`${startYmd}T00:00:00.000Z`);
   end.setUTCMonth(end.getUTCMonth() + 1);
-  return { startYmd, endYmd: end.toISOString().slice(0, 10) };
+  return { startYmd: effectiveStartYmd, endYmd: end.toISOString().slice(0, 10) };
 }
 
 function ruleCode(rule: any) {
