@@ -86,16 +86,29 @@ export class AttendanceHrService {
       const enabled = balances.filter((balance) => balance.enabled);
       const global = enabled.find((balance) => balance.creditMode === "GLOBAL_POOL");
       if (global) {
+        const globalRemaining = Number(global.globalRemainingThisMonth ?? global.remainingThisMonth ?? 0);
+        const globalLimit = Number(global.globalMonthlyLimit ?? global.monthlyLimit ?? 0);
+        const globalUsed = Number(global.globalUsedThisMonth ?? global.usedThisMonth ?? 0);
         const credit: LatenessReasonCreditSummary = {
           mode: "GLOBAL_POOL",
-          remaining: Number(global.globalRemainingThisMonth ?? global.remainingThisMonth ?? 0),
-          limit: Number(global.globalMonthlyLimit ?? global.monthlyLimit ?? 0),
-          used: Number(global.globalUsedThisMonth ?? global.usedThisMonth ?? 0),
-          reasons: enabled.map((balance) => ({
-            ...balance,
-            remainingThisMonth: Number(global.globalRemainingThisMonth ?? global.remainingThisMonth ?? 0),
-            monthlyLimit: Number(global.globalMonthlyLimit ?? global.monthlyLimit ?? 0),
-          }))
+          remaining: globalRemaining,
+          limit: globalLimit,
+          used: globalUsed,
+          reasons: [{
+            reasonCode: "GLOBAL_POOL",
+            label: "Shared pool",
+            monthlyLimit: globalLimit,
+            usedThisMonth: globalUsed,
+            remainingThisMonth: globalRemaining,
+            coversMinutes: Number(global.coversMinutes || 0),
+            enabled: true,
+            canUse: globalRemaining > 0,
+            blockedReason: globalRemaining > 0 ? null : "monthly_limit_reached",
+            creditMode: "GLOBAL_POOL",
+            globalMonthlyLimit: globalLimit,
+            globalUsedThisMonth: globalUsed,
+            globalRemainingThisMonth: globalRemaining,
+          }]
         };
         return [employeeId, credit] as const;
       }
