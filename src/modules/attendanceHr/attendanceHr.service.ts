@@ -5,6 +5,7 @@ import { calculateAttendanceDay } from "../../services/attendanceCalculation.ser
 import { AttendanceRosterResolver } from "../../services/attendanceRosterResolver.service";
 import { LatenessReasonRulesService } from "../../services/latenessReasonRules.service";
 import { AttendanceDailyReportService } from "../../services/attendanceDailyReport.service";
+import { AttendanceDeductionService } from "../../services/attendanceDeduction.service";
 import { AttendanceTelegramService } from "../attendanceTelegram/attendanceTelegram.service";
 
 type Status = string;
@@ -47,6 +48,7 @@ export class AttendanceHrService {
   private rosterResolver = new AttendanceRosterResolver();
   private latenessReasonRules = new LatenessReasonRulesService();
   private dailyReport = new AttendanceDailyReportService();
+  private deductionService = new AttendanceDeductionService();
   private telegram = new AttendanceTelegramService();
 
   async buildDaily(businessId: string, opts: { dateYmd: string; departmentId?: string | null; status?: Status | null; search?: string | null; sortBy: string; sortOrder: string }) {
@@ -181,6 +183,8 @@ export class AttendanceHrService {
       const finalStatus: Status =
         finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
       const reportRow: any = reportByEmployee.get(roster.employeeId) || null;
+      const reportDeduction = reportRow ? this.deductionService.calculate(reportRow) : null;
+      const reportPenaltyMinutes = reportDeduction ? Math.round(Number(reportDeduction.DeductedHours || 0) * 60) : 0;
       const reportNoticeStatus = String(reportRow?.NoticeStatus || "");
       const hasSubmittedReason = submittedReasonEmployeeIds.has(roster.employeeId) || Boolean(reportNoticeStatus && !["None", "NotApplicable"].includes(reportNoticeStatus));
       const hasLeaveRequest = leaveEmployeeIds.has(roster.employeeId);
@@ -210,8 +214,9 @@ export class AttendanceHrService {
         workedMinutes: finalCalculation.totalWorkedMinutes,
         rawWorkedMinutes: finalCalculation.rawWorkedMinutes,
         breakMinutes: finalCalculation.totalBreakMinutes,
-        penaltyMinutes: finalCalculation.penaltyMinutes,
-        penaltyReason: finalCalculation.penaltyReason,
+        penaltyMinutes: Math.max(Number(finalCalculation.penaltyMinutes || 0), reportPenaltyMinutes),
+        penaltyReason: reportPenaltyMinutes > 0 ? reportDeduction?.Reason || finalCalculation.penaltyReason : finalCalculation.penaltyReason,
+        deductionLabel: reportDeduction?.DeductionLabel || "None",
         latenessReasonCredit: creditByEmployee.get(roster.employeeId) || { remaining: 0, limit: 0, reasons: [] },
         expectedMinutes: finalCalculation.expectedMinutes,
         overtimeMinutes: finalCalculation.overtimeMinutes,
