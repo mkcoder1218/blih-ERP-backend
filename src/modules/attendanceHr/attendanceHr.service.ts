@@ -106,6 +106,12 @@ export class AttendanceHrService {
       return [employeeId, credit] as const;
     }));
     const creditByEmployee = new Map(balancePairs);
+    const reportRows = await this.dailyReport.generate(businessId, {
+      startDate: opts.dateYmd,
+      endDate: opts.dateYmd,
+      audience: "hr"
+    });
+    const reportByEmployee = new Map(reportRows.map((row: any) => [row.EmployeeId, row]));
 
     const submittedReasonRows = userIds.length
       ? await db.AttendanceRequest.findAll({
@@ -162,14 +168,17 @@ export class AttendanceHrService {
       const finalCalculation = isRemoteEmployee(er) ? applyRemoteAttendanceOverride(calculation) : calculation;
       const finalStatus: Status =
         finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
-      const hasSubmittedReason = submittedReasonEmployeeIds.has(roster.employeeId);
+      const reportRow: any = reportByEmployee.get(roster.employeeId) || null;
+      const reportNoticeStatus = String(reportRow?.NoticeStatus || "");
+      const hasSubmittedReason = submittedReasonEmployeeIds.has(roster.employeeId) || Boolean(reportNoticeStatus && !["None", "NotApplicable"].includes(reportNoticeStatus));
       const hasLeaveRequest = leaveEmployeeIds.has(roster.employeeId);
-      const isMissedWithoutLeave = ["MISSED", "NOT_STARTED"].includes(String(finalStatus)) && !hasLeaveRequest;
-      const isLateWithoutReason =
-        Boolean(finalCalculation.isLate) &&
-        Number(finalCalculation.lateByMinutes || 0) > noReasonPenaltyGraceMinutes &&
-        !hasSubmittedReason &&
-        !hasLeaveRequest;
+      const isMissedWithoutLeave = (reportRow?.LatenessStatus === "Absent" || ["MISSED", "NOT_STARTED"].includes(String(finalStatus))) && !hasLeaveRequest;
+      const isLateWithoutReason = reportRow
+        ? reportRow.LatenessStatus === "Late-NoNotice" && reportRow.NoticeStatus === "None" && Number(reportRow.MinutesLate || 0) > noReasonPenaltyGraceMinutes
+        : Boolean(finalCalculation.isLate) &&
+          Number(finalCalculation.lateByMinutes || 0) > noReasonPenaltyGraceMinutes &&
+          !hasSubmittedReason &&
+          !hasLeaveRequest;
 
       return {
         employeeId: roster.employeeId,
