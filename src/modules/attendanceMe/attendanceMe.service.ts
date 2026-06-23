@@ -315,6 +315,28 @@ export class AttendanceMeService {
             lock: t.LOCK.UPDATE
           }) : [];
           const preSubmittedReasonIds = preSubmittedReasons.map((item: any) => item.lateReasonId).filter(Boolean);
+          const approvedNotices = db.AttendanceRequest?.findAll ? await db.AttendanceRequest.findAll({
+            where: {
+              businessId,
+              employeeUserId: userId,
+              requestType: "lateness_notice",
+              status: "approved",
+              validityStatus: "valid",
+              fromAt: { [Op.gte]: startUtc, [Op.lt]: endUtc },
+            },
+            order: [["approvedAt", "ASC"], ["createdAt", "ASC"]],
+            transaction: t,
+            lock: t.LOCK.UPDATE,
+          }) : [];
+          for (const notice of approvedNotices) {
+            const evaluation = await this.latenessReasonRules.evaluateNotice(notice, lateByMinutes);
+            if (evaluation.validityStatus === "invalid" && evaluation.penaltyLabel === "HalfDay") {
+              await notice.update(
+                { validityStatus: "invalid", actionNote: evaluation.message || "Lateness exceeded the approved reason coverage." },
+                { transaction: t }
+              );
+            }
+          }
           const preSubmittedReasonRows = preSubmittedReasonIds.length
             ? await db.AttendanceLateReason.findAll({
                 where: { id: { [Op.in]: preSubmittedReasonIds }, businessId },

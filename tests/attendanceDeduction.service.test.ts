@@ -68,6 +68,20 @@ describe("AttendanceDeductionService", () => {
     expect(service.calculate(row({ LatenessStatus: "Late-NoNotice", MinutesLate: 150 })).DeductionLabel).toBe("HalfDay");
   });
 
+  it("applies half-day penalty when an approved reason exceeds its covered minutes", () => {
+    const result = new AttendanceDeductionService().calculate(row({
+      LatenessStatus: "Late-NoNotice",
+      NoticeStatus: "Invalid",
+      MinutesLate: 65,
+      PenaltyOverride: "HalfDay",
+      PenaltyReason: "Lateness exceeded the approved reason coverage.",
+    }));
+
+    expect(result.DeductionLabel).toBe("HalfDay");
+    expect(result.HalfDayDeductions).toBe(1);
+    expect(result.DeductedHours).toBe(4);
+  });
+
   it("does not deduct Late-WithNotice unless monthly cap is exceeded", () => {
     const service = new AttendanceDeductionService();
 

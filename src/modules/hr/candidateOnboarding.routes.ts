@@ -48,6 +48,11 @@ export const candidateOnboardingRoutes = authRouter;
 const publicRouter = Router();
 
 publicRouter.get(
+  "/:onboardingId/policies/:policyType",
+  asyncHandler(controller.getPublicPolicy)
+);
+
+publicRouter.get(
   "/:onboardingId",
   asyncHandler(controller.getPublic)
 );

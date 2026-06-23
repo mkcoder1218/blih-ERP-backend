@@ -35,7 +35,10 @@ export class AttendanceRequestsController {
           return next({ statusCode: 403, message: "Forbidden (permission)" });
         }
       }
-      const record = await this.svc.create(req.user!.businessId, req.user!.id, req.body);
+      const perms = new Set(req.user!.permissions || []);
+      const roles = new Set(req.user!.roles || []);
+      const canManage = req.user!.isPlatformSuperAdmin || perms.has("attendance.manage") || roles.has("BUSINESS_ADMIN") || roles.has("HR_MANAGER");
+      const record = await this.svc.create(req.user!.businessId, req.user!.id, req.body, { canManage });
       await AuditLogService.log("CREATE", "attendance_request", String(record.id), null, record, req);
       res.status(201).json({ attendanceRequest: record });
     } catch (err: any) {

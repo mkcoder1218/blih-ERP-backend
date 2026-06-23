@@ -5,6 +5,7 @@ import { LatenessReasonRulesService } from "../../services/latenessReasonRules.s
 
 const VALID_TYPES = new Set(["work_from_home", "memo_log", "check_in_correction", "not_available", "lateness_notice"]);
 const VALID_STATUSES = new Set(["pending", "approved", "rejected", "invalid", "expired", "cancelled"]);
+const MANUAL_LATENESS_VALIDITY_STATUSES = new Set(["hr_review"]);
 const CORRECTION_EVENT_TYPES = new Set(["CHECK_IN", "LUNCH_OUT", "LUNCH_IN", "CHECK_OUT"]);
 const LATE_NOTICE_DEADLINE_HOUR = 8;
 const LATE_NOTICE_DEADLINE_MINUTES = 30;
@@ -105,17 +106,20 @@ export class AttendanceRequestsService {
     });
   }
 
-  async create(businessId: string, employeeUserId: string, data: any) {
+  async create(businessId: string, employeeUserId: string, data: any, options: { canManage?: boolean } = {}) {
     assertType(String(data.requestType));
     if (!data.title || !data.reason) throw new Error("title and reason are required.");
     const isCorrection = data.requestType === "check_in_correction";
     const isLatenessNotice = data.requestType === "lateness_notice";
-    const targetEmployeeUserId = isCorrection ? String(data.employeeUserId || "") : employeeUserId;
+    const canTargetEmployee = isCorrection || (isLatenessNotice && options.canManage);
+    const targetEmployeeUserId = canTargetEmployee && data.employeeUserId ? String(data.employeeUserId || "") : employeeUserId;
+    const manualValidityStatus = data.manualValidityStatus ? String(data.manualValidityStatus).trim().toLowerCase() : null;
     let correctionFromAt: Date | null = null;
     let noticeFromAt: Date | null = null;
     let deadlineAt: Date | null = null;
     let validityStatus: string | null = null;
     let reasonText: string | null = null;
+    if (canTargetEmployee && !targetEmployeeUserId) throw new Error("Employee is required.");
     if (isCorrection) {
       if (!targetEmployeeUserId) throw new Error("Employee is required for check-in correction requests.");
       if (!CORRECTION_EVENT_TYPES.has(String(data.category || ""))) {
@@ -130,29 +134,40 @@ export class AttendanceRequestsService {
       if (!employee) throw new Error("Employee not found.");
     }
     if (isLatenessNotice) {
+      if (targetEmployeeUserId !== employeeUserId) {
+        const employee = await db.User.findOne({ where: { id: targetEmployeeUserId, businessId } });
+        if (!employee) throw new Error("Employee not found.");
+      }
+      if (manualValidityStatus && !options.canManage) {
+        throw Object.assign(new Error("Manual lateness reason requires attendance management access."), { statusCode: 403 });
+      }
+      if (manualValidityStatus && !MANUAL_LATENESS_VALIDITY_STATUSES.has(manualValidityStatus)) {
+        throw Object.assign(new Error("Manual lateness reason must start as HR review."), { statusCode: 400 });
+      }
       const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
       noticeFromAt = data.fromAt ? parseCorrectionWallTime(data.fromAt, settings?.timezone || "Africa/Addis_Ababa") : new Date();
       if (!noticeFromAt) throw new Error("Valid lateness notice date and time is required.");
       deadlineAt = buildNoticeDeadline(noticeFromAt, settings?.timezone || "Africa/Addis_Ababa");
       reasonText = String(data.reasonText || data.reason || "").trim();
       validityStatus = validateNoticeText(reasonText);
+      if (manualValidityStatus) validityStatus = manualValidityStatus;
       const reasonCode = this.latenessRules.normalizeReasonCode(data.reasonCategory || data.category);
       const rule = await this.latenessRules.findRule(businessId, reasonCode);
       if (!rule || rule.enabled === false || rule.isActive === false) throw Object.assign(new Error("Selected lateness reason is not enabled."), { statusCode: 400 });
       if (rule.requiresAttachment && !data.attachmentUrl && !data.attachmentId) throw Object.assign(new Error("Selected lateness reason requires an attachment."), { statusCode: 400 });
-      if (new Date() > deadlineAt && !rule.allowAfterDeadline) validityStatus = "expired";
+      if (!manualValidityStatus && new Date() > deadlineAt && !rule.allowAfterDeadline) validityStatus = "expired";
       const creditConfig = await this.latenessRules.getCreditConfig(businessId);
       const used = creditConfig.mode === "GLOBAL_POOL"
-        ? await this.latenessRules.countApprovedUsableGlobal(businessId, employeeUserId, noticeFromAt)
-        : await this.latenessRules.countApprovedUsableByReason(businessId, employeeUserId, reasonCode, noticeFromAt);
+        ? await this.latenessRules.countApprovedUsableGlobal(businessId, targetEmployeeUserId, noticeFromAt)
+        : await this.latenessRules.countApprovedUsableByReason(businessId, targetEmployeeUserId, reasonCode, noticeFromAt);
       const limit = creditConfig.mode === "GLOBAL_POOL" ? creditConfig.globalMonthlyLimit : Number(rule.monthlyLimit || 0);
-      if (limit <= 0 || used >= limit) {
+      if (!manualValidityStatus && (limit <= 0 || used >= limit)) {
         const behavior = String((creditConfig.mode === "GLOBAL_POOL" ? creditConfig.behaviorWhenExceeded : rule.behaviorWhenExceeded) || "HR_REVIEW").toUpperCase();
         if (behavior === "BLOCK") throw Object.assign(new Error("Monthly limit reached for this lateness reason."), { statusCode: 400 });
         if (behavior === "MARK_INVALID") validityStatus = "invalid";
       }
       const coversMinutes = creditConfig.mode === "GLOBAL_POOL" ? creditConfig.globalCoversMinutes : Number(rule.coversMinutes || 0);
-      if (Number(data.lateByMinutes || data.durationMinutes || 0) > coversMinutes) {
+      if (!manualValidityStatus && Number(data.lateByMinutes || data.durationMinutes || 0) > coversMinutes) {
         const behavior = String((creditConfig.mode === "GLOBAL_POOL" ? creditConfig.behaviorWhenExceeded : rule.behaviorWhenExceeded) || "HR_REVIEW").toUpperCase();
         if (behavior === "BLOCK") throw Object.assign(new Error(creditConfig.mode === "GLOBAL_POOL" ? `The global credit covers only ${coversMinutes} minutes.` : `This lateness reason covers only ${coversMinutes} minutes.`), { statusCode: 400 });
         if (behavior === "MARK_INVALID") validityStatus = "invalid";

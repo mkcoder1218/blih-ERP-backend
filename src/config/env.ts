@@ -27,6 +27,7 @@ export type Env = {
   jobWorkerEnabled: boolean;
   jobTimezone: string;
   guestApiKey?: string;
+  policiesApiBaseUrl?: string;
   nodeEnv: string;
   port: number;
   jwtAccessSecret: string;
@@ -59,6 +60,7 @@ export const env: Env = {
   jobWorkerEnabled: toBool(process.env.JOB_WORKER_ENABLED, false),
   jobTimezone: process.env.JOB_TIMEZONE || "UTC",
   guestApiKey: process.env.GUEST_API_KEY,
+  policiesApiBaseUrl: process.env.POLICIES_API_BASE_URL,
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 4000),
 

@@ -34,6 +34,8 @@ export type AttendanceDailyReportRow = AttendanceDailyReportPunches & {
   LeaveCategory: "Annual" | "Sick" | "Other" | null;
   ApprovedLeaveDays: number;
   LatenessReason_HROnly?: string | null;
+  PenaltyOverride?: "HalfDay" | null;
+  PenaltyReason?: string | null;
   LatenessNotice_HROnly?: {
     id: string;
     submittedAt: string | null;
@@ -179,6 +181,7 @@ async function countApprovedUsableNotices(notices: any[], startYmd: string, endE
     if (!date || date < startYmd || date >= endExclusiveYmd) continue;
     const evaluation = await rules.evaluateNotice(notice, Number(notice.durationMinutes || 0));
     if (!evaluation.usable) continue;
+    if (!evaluation.reasonCode) continue;
     usedByReason[evaluation.reasonCode] = (usedByReason[evaluation.reasonCode] || 0) + 1;
   }
   return { total: Object.values(usedByReason).reduce((sum, value) => sum + value, 0), usedByReason };
@@ -387,8 +390,9 @@ export class AttendanceDailyReportService {
     const pendingNotice = dayNotices.find((notice) => notice.status === "pending" && notice.validityStatus !== "invalid" && !isVagueReason(notice.reasonText || notice.reason));
     const rejectedNotice = dayNotices.find((notice) => notice.status === "rejected");
     const expiredNotice = dayNotices.find((notice) => notice.status === "expired" || notice.validityStatus === "expired" || (!notice.allowAfterDeadline && !isBeforeDeadline(notice)));
+    const invalidNoticeEvaluation = evaluatedNotices.find((item) => item.notice.status === "approved" && item.evaluation && !item.evaluation.usable && item.evaluation.noticeStatus === "Invalid") || null;
     const invalidNotice = dayNotices.find((notice) => notice.status === "invalid" || notice.validityStatus === "invalid" || isVagueReason(notice.reasonText || notice.reason)) ||
-      evaluatedNotices.find((item) => item.notice.status === "approved" && item.evaluation && !item.evaluation.usable && item.evaluation.noticeStatus === "Invalid")?.notice;
+      invalidNoticeEvaluation?.notice;
     const selectedNotice = approvedNotice || pendingNotice || invalidNotice || expiredNotice || rejectedNotice || dayNotices[0] || null;
     const weekNoticeUsage = await countApprovedUsableNotices(notices, isoWeekStart(roster.dateYmd), isoWeekEndExclusive(roster.dateYmd), this.latenessRules);
     const monthNoticeUsage = await countApprovedUsableNotices(notices, monthStart(roster.dateYmd), monthEndExclusive(roster.dateYmd), this.latenessRules);
@@ -490,6 +494,8 @@ export class AttendanceDailyReportService {
       LatenessNoticesUsedByReason: monthNoticeUsage.usedByReason,
       LatenessReasonCode: latenessStatus === "Late-WithNotice" ? approvedNoticeEvaluation?.evaluation?.reasonCode || null : null,
       DeductionApplied: latenessStatus === "Absent" || latenessStatus === "IncompletePunch" || latenessStatus === "Late-NoNotice",
+      PenaltyOverride: invalidNoticeEvaluation?.evaluation?.penaltyLabel === "HalfDay" ? "HalfDay" : null,
+      PenaltyReason: invalidNoticeEvaluation?.evaluation?.penaltyReason || null,
       LeaveCategory: approvedLeave ? leaveCategory(approvedLeave.leaveType) : null,
       ApprovedLeaveDays: approvedLeave ? 1 : 0,
       LatenessReason_HROnly: latenessReason,

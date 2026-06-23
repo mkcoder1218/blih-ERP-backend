@@ -88,6 +88,7 @@ export class AttendanceDeductionService {
 
   private resolveLabel(row: AttendanceDailyReportRow): AttendanceDeductionLabel {
     if (row.EmploymentCategory === "Managerial") return "Exempt-Art61";
+    if (row.PenaltyOverride === "HalfDay") return "HalfDay";
     if (row.LatenessStatus === "ApprovedLeave") return "None";
     if (row.LatenessStatus === "Absent") return "FullDay";
     if (row.LatenessStatus === "IncompletePunch") return row.NoticeStatus === "Approved" ? "None" : this.config.incompletePunchDeduction;
@@ -100,6 +101,7 @@ export class AttendanceDeductionService {
 
   private reasonFor(row: AttendanceDailyReportRow, label: AttendanceDeductionLabel) {
     if (label === "Exempt-Art61") return "Managerial employee exempt from automatic attendance deductions.";
+    if (row.PenaltyOverride === "HalfDay") return row.PenaltyReason || "Lateness exceeded the approved reason coverage.";
     if (label === "FullDay") return "Scheduled employee absent without approved leave.";
     if (row.LatenessStatus === "IncompletePunch" && label !== "None") return "Required punch missing without approved correction.";
     if (row.LatenessStatus === "Late-NoNotice" && label !== "None") return "Late check-in without approved valid notice.";

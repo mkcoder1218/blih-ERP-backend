@@ -818,6 +818,25 @@ export class HRController {
             const role     = await db.Role.findOne({ where: { key: roleKey.toUpperCase(), businessId: null } });
             if (role) await user.setRoles([role]).catch(() => null);
 
+            if (settings.onboardingId) {
+                const onboarding = await db.CandidateOnboarding.findOne({ where: { onboardingId: settings.onboardingId, businessId } });
+                if (onboarding) {
+                    await onboarding.update({ status: 'COMPLETED' });
+                    await db.EmployeeRecord.update(
+                        { employmentStatus: 'active' },
+                        { where: { userId: user.id, businessId } },
+                    );
+                    await db.InventoryItem.update(
+                        {
+                            status: 'ASSIGNED',
+                            assignedToUserId: user.id,
+                            reservedForOnboardingId: null,
+                        },
+                        { where: { businessId, reservedForOnboardingId: onboarding.id } },
+                    );
+                }
+            }
+
             // Send approval email (non-fatal)
             const business = await db.Business.findByPk(businessId, { attributes: ['name'] });
             sendApprovalEmail({ toEmail: user.email, toName: user.fullName, businessName: business?.name || '' }).catch(() => null);

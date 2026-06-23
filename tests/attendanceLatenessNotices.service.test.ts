@@ -1,6 +1,20 @@
 const mockFindOne = jest.fn();
 const mockCreate = jest.fn();
 const mockCount = jest.fn();
+const mockUserFindOne = jest.fn().mockResolvedValue({ id: "user-2" });
+const mockLateReasonFindOne = jest.fn().mockResolvedValue({
+  id: "reason-1",
+  reasonCode: "TRANSPORT",
+  name: "Transport",
+  label: "Transport",
+  enabled: true,
+  isActive: true,
+  monthlyLimit: 1,
+  coversMinutes: 30,
+  requiresAttachment: false,
+  allowAfterDeadline: false,
+  behaviorWhenExceeded: "BLOCK",
+});
 
 jest.mock("../src/models", () => ({
   db: {
@@ -10,24 +24,13 @@ jest.mock("../src/models", () => ({
       count: mockCount,
     },
     AttendanceLateReason: {
-      findOne: jest.fn().mockResolvedValue({
-        id: "reason-1",
-        reasonCode: "TRANSPORT",
-        name: "Transport",
-        label: "Transport",
-        enabled: true,
-        isActive: true,
-        monthlyLimit: 1,
-        coversMinutes: 30,
-        requiresAttachment: false,
-        allowAfterDeadline: false,
-        behaviorWhenExceeded: "BLOCK",
-      }),
+      findOne: mockLateReasonFindOne,
       findAll: jest.fn(),
     },
     BusinessAttendanceSettings: { findOne: jest.fn().mockResolvedValue({ timezone: "Africa/Addis_Ababa" }) },
+    BusinessSetting: { findOne: jest.fn().mockResolvedValue(null), create: jest.fn() },
     AttendanceEvent: { findOne: jest.fn(), create: jest.fn() },
-    User: { findOne: jest.fn() },
+    User: { findOne: mockUserFindOne },
   },
 }));
 
@@ -36,6 +39,20 @@ import { AttendanceRequestsService } from "../src/modules/attendanceRequests/att
 describe("lateness notice approval logic", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLateReasonFindOne.mockResolvedValue({
+      id: "reason-1",
+      reasonCode: "TRANSPORT",
+      name: "Transport",
+      label: "Transport",
+      enabled: true,
+      isActive: true,
+      monthlyLimit: 1,
+      coversMinutes: 30,
+      requiresAttachment: false,
+      allowAfterDeadline: false,
+      behaviorWhenExceeded: "BLOCK",
+    });
+    mockUserFindOne.mockResolvedValue({ id: "user-2" });
   });
 
   it("creates invalid pending notice when reason is vague", async () => {
@@ -44,7 +61,7 @@ describe("lateness notice approval logic", () => {
       requestType: "lateness_notice",
       title: "Late notice",
       reason: "traffic",
-      fromAt: "2026-06-22T08:45",
+      fromAt: "2099-06-22T08:00",
     });
 
     expect(record).toMatchObject({
@@ -52,6 +69,69 @@ describe("lateness notice approval logic", () => {
       status: "pending",
       validityStatus: "invalid",
       reasonText: "traffic",
+    });
+  });
+
+  it("looks up non-uuid lateness reason codes without comparing them to the uuid id column", async () => {
+    mockCreate.mockImplementation(async (payload) => payload);
+    await new AttendanceRequestsService().create("biz-1", "user-1", {
+      requestType: "lateness_notice",
+      title: "Late notice",
+      reason: "Car accident blocked the road",
+      reasonCategory: "CAR_ACCIDENT",
+      fromAt: "2026-06-22T08:00",
+    });
+
+    const where = mockLateReasonFindOne.mock.calls[0][0].where;
+    const orKey = Object.getOwnPropertySymbols(where).find((symbol) => String(symbol).includes("or"));
+
+    expect(where[orKey as any]).toEqual([{ reasonCode: "CAR_ACCIDENT" }]);
+  });
+
+  it("allows managed manual lateness notices for another employee only as hr review", async () => {
+    mockCreate.mockImplementation(async (payload) => payload);
+    const record = await new AttendanceRequestsService().create("biz-1", "admin-1", {
+      requestType: "lateness_notice",
+      employeeUserId: "user-2",
+      title: "Manual lateness reason",
+      reason: "Network issue prevented normal employee submission",
+      reasonCategory: "TRANSPORT",
+      fromAt: "2099-06-22T08:00",
+      manualValidityStatus: "hr_review",
+    }, { canManage: true });
+
+    expect(record).toMatchObject({
+      employeeUserId: "user-2",
+      requestType: "lateness_notice",
+      validityStatus: "hr_review",
+    });
+    expect(mockCount).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ employeeUserId: "user-2" }),
+    }));
+
+    await expect(new AttendanceRequestsService().create("biz-1", "admin-1", {
+      requestType: "lateness_notice",
+      employeeUserId: "user-2",
+      title: "Manual lateness reason",
+      reason: "Network issue prevented normal employee submission",
+      reasonCategory: "TRANSPORT",
+      fromAt: "2099-06-22T08:00",
+      manualValidityStatus: "valid",
+    }, { canManage: true })).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Manual lateness reason must start as HR review.",
+    });
+
+    await expect(new AttendanceRequestsService().create("biz-1", "user-1", {
+      requestType: "lateness_notice",
+      title: "Manual lateness reason",
+      reason: "Network issue prevented normal employee submission",
+      reasonCategory: "TRANSPORT",
+      fromAt: "2099-06-22T08:00",
+      manualValidityStatus: "hr_review",
+    })).rejects.toMatchObject({
+      statusCode: 403,
+      message: "Manual lateness reason requires attendance management access.",
     });
   });
 

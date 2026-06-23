@@ -28,6 +28,17 @@ export type LatenessReasonRuleBalance = {
   globalRemainingThisMonth?: number;
 };
 
+export type LatenessNoticeEvaluation = {
+  validityStatus: string;
+  noticeStatus: string;
+  usable: boolean;
+  reasonCode: string | null;
+  message: string | null;
+  block?: boolean;
+  penaltyLabel?: "HalfDay";
+  penaltyReason?: string;
+};
+
 const ADDIS_ABABA_TZ = "Africa/Addis_Ababa";
 const DEFAULT_REASON_CODE = "OTHER";
 const VALID_BEHAVIORS = new Set(["BLOCK", "MARK_INVALID", "HR_REVIEW"]);
@@ -38,6 +49,7 @@ const DEFAULT_CREDIT_CONFIG: LatenessCreditConfig = {
   globalCoversMinutes: 60,
   behaviorWhenExceeded: "HR_REVIEW",
 };
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizeCode(value: unknown) {
   return String(value || DEFAULT_REASON_CODE).trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_") || DEFAULT_REASON_CODE;
@@ -127,10 +139,15 @@ export class LatenessReasonRulesService {
   }
 
   async findRule(businessId: string, idOrCode: string) {
+    const key = String(idOrCode || "").trim();
+    const code = normalizeCode(key);
+    const identityFilters: any[] = [{ reasonCode: code }];
+    if (UUID_PATTERN.test(key)) identityFilters.unshift({ id: key });
+
     return db.AttendanceLateReason.findOne({
       where: {
         businessId,
-        [Op.or]: [{ id: idOrCode }, { reasonCode: normalizeCode(idOrCode) }],
+        [Op.or]: identityFilters,
       },
     });
   }
@@ -213,7 +230,7 @@ export class LatenessReasonRulesService {
     return balances;
   }
 
-  async evaluateNotice(record: any, lateByMinutes = 0) {
+  async evaluateNotice(record: any, lateByMinutes = 0): Promise<LatenessNoticeEvaluation> {
     const reasonCode = normalizeCode(record.reasonCategory || record.category);
     const rule = await this.findRule(record.businessId, reasonCode);
     if (!rule) return { validityStatus: "invalid", noticeStatus: "Invalid", usable: false, reasonCode, message: "Lateness reason category is not configured." };
@@ -237,7 +254,15 @@ export class LatenessReasonRulesService {
 
     const coversMinutes = config.mode === "GLOBAL_POOL" ? config.globalCoversMinutes : Number(rule.coversMinutes || 0);
     if (lateByMinutes > coversMinutes) {
-      return this.exceededResult(config.mode === "GLOBAL_POOL" ? config : rule, reasonCode, config.mode === "GLOBAL_POOL" ? `The global credit covers only ${coversMinutes} late minutes.` : `This reason covers only ${coversMinutes} late minutes.`);
+      return {
+        validityStatus: "invalid",
+        noticeStatus: "Invalid",
+        usable: false,
+        reasonCode,
+        message: config.mode === "GLOBAL_POOL" ? `The global credit covers only ${coversMinutes} late minutes.` : `This reason covers only ${coversMinutes} late minutes.`,
+        penaltyLabel: "HalfDay",
+        penaltyReason: "Lateness exceeded the approved reason coverage.",
+      };
     }
 
     return { validityStatus: "valid", noticeStatus: "Approved", usable: true, reasonCode, message: null };

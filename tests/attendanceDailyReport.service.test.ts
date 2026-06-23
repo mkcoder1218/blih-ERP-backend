@@ -24,6 +24,7 @@ jest.mock("../src/models", () => ({
     AttendanceLateExplanation: { findAll: mockLateExplanationFindAll },
     AttendanceDailyReason: { findAll: mockDailyReasonFindAll },
     AttendanceLateReason: { findOne: mockLateReasonFindOne, findAll: mockLateReasonFindAll },
+    BusinessSetting: { findOne: jest.fn().mockResolvedValue(null) },
   },
 }));
 
@@ -169,6 +170,39 @@ describe("AttendanceDailyReportService", () => {
     expect(row.DeductionApplied).toBe(false);
     expect(row.LatenessNoticesUsedMonth).toBe(1);
     expect(row.LatenessReason_HROnly).toBe("Traffic after client errand");
+  });
+
+  it("invalidates an approved lateness notice and flags half-day penalty when actual lateness exceeds coverage", async () => {
+    setupDb({
+      events: [
+        event("CHECK_IN", "2026-06-22T06:45:00.000Z", "check-in-1"),
+        event("LUNCH_OUT", "2026-06-22T09:00:00.000Z"),
+        event("LUNCH_IN", "2026-06-22T10:00:00.000Z"),
+        event("CHECK_OUT", "2026-06-22T14:30:00.000Z"),
+      ],
+      notices: [{
+        id: "notice-coverage",
+        employeeUserId: EMP_ID,
+        businessId: BIZ_ID,
+        requestType: "lateness_notice",
+        status: "approved",
+        validityStatus: "valid",
+        submittedAt: new Date("2026-06-22T05:00:00.000Z"),
+        approvedAt: new Date("2026-06-22T05:10:00.000Z"),
+        deadlineAt: new Date("2026-06-22T06:30:00.000Z"),
+        reasonText: "Transport delay from road closure",
+        reasonCategory: "TRANSPORT",
+        fromAt: new Date("2026-06-22T05:00:00.000Z"),
+      }],
+    });
+
+    const [row] = await generate();
+
+    expect(row.MinutesLate).toBe(75);
+    expect(row.LatenessStatus).toBe("Late-NoNotice");
+    expect(row.NoticeStatus).toBe("Invalid");
+    expect(row.PenaltyOverride).toBe("HalfDay");
+    expect(row.LatenessNotice_HROnly?.validityStatus).toBe("invalid");
   });
 
   it("does not let an exhausted reason block another reason category", async () => {

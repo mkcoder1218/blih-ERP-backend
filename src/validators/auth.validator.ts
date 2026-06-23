@@ -38,6 +38,9 @@ export const publicRegisterSchema = Joi.object({
   emergencyRelationship: Joi.string().max(100).allow(null, '').optional(),
   bankName:              Joi.string().max(200).allow(null, '').optional(),
   bankAccount:           Joi.string().max(100).allow(null, '').optional(),
+  onboardingId:          Joi.string().guid({ version: ['uuidv4'] }).allow(null, '').optional(),
+  resourceAcknowledgements: Joi.string().allow(null, '').optional(),
+  policyAcknowledgements:   Joi.string().allow(null, '').optional(),
 });
 
 export const loginSchema = Joi.object({

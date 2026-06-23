@@ -122,6 +122,7 @@ import definePromotionRequest from "./PromotionRequest";
 import defineHREvent from "./HREvent";
 import definePolicy from "./Policy";
 import definePolicyAcceptance from "./PolicyAcceptance";
+import defineInventoryItem from "./InventoryItem";
 import defineTrustedDevice from "./TrustedDevice";
 import defineTelegramBotSetting from "./TelegramBotSetting";
 import defineTelegramAccountLink from "./TelegramAccountLink";
@@ -251,6 +252,7 @@ export type DB = {
   HREvent: any;
   Policy: any;
   PolicyAcceptance: any;
+  InventoryItem: any;
   TrustedDevice: any;
   TelegramBotSetting: any;
   TelegramAccountLink: any;
@@ -381,6 +383,7 @@ export const db: DB = {
   HREvent: defineHREvent(sequelize, DataTypes),
   Policy: definePolicy(sequelize, DataTypes),
   PolicyAcceptance: definePolicyAcceptance(sequelize, DataTypes),
+  InventoryItem: defineInventoryItem(sequelize, DataTypes),
   TrustedDevice: defineTrustedDevice(sequelize, DataTypes),
   TelegramBotSetting: defineTelegramBotSetting(sequelize, DataTypes),
   TelegramAccountLink: defineTelegramAccountLink(sequelize, DataTypes),
