@@ -211,9 +211,12 @@ export class AttendanceHrService {
     const employeeName = row.EmployeeName || "Unknown employee";
     const department = row.Department || "N/A";
     const minutesLate = Number(row.MinutesLate || 0);
+    const messageText = row.LatenessStatus === "Absent"
+      ? `${employeeName} who works in ${department} didnot come to work and didnot send a reason to the group and due to that he will get a 4hr penality if you have any complain contact your HR manager`
+      : `${employeeName} who works in ${department} late this ${minutesLate} min and didnot send a reason to the group and due to that he will get a 4hr penality if you have any complain contact your HR manager`;
     const message = [
       `name:${employeeName}`,
-      `message : ${employeeName} who works in ${department} late this ${minutesLate} min and didnot send a reason to the group and due to that he will get a 4hr penality if you have any complain contact your HR manager`
+      `message : ${messageText}`
     ].join("\n");
 
     await this.telegram.sendAttendanceGroupMessage(businessId, message, "late_no_reason_penalty_notice");
