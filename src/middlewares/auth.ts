@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { env } from "../config/env";
 import { db } from "../models";
 import type { AccessTokenPayload } from "../types/jwt";
+import { TERMINATED_EMPLOYMENT_STATUS } from "../constants/employee.constants";
 
 function parseBearer(req: Request): string | null {
   const header = req.headers.authorization;
@@ -32,6 +33,13 @@ export async function authRequired(req: Request, res: Response, next: NextFuncti
     if (!user) return next({ statusCode: 401, message: "Invalid user" });
     if (user.deletedAt) return next({ statusCode: 401, message: "User deleted" });
     if (user.status !== "active") return next({ statusCode: 403, message: "User is not active" });
+    const employeeRecord = await db.EmployeeRecord.findOne({
+      where: { businessId: user.businessId, userId: user.id },
+      attributes: ["employmentStatus"],
+    });
+    if (employeeRecord?.employmentStatus === TERMINATED_EMPLOYMENT_STATUS) {
+      return next({ statusCode: 403, message: "Employee has left the company" });
+    }
 
     const roles = (user.Roles || []).map((r: any) => r.key);
     const permissions = new Set<string>();

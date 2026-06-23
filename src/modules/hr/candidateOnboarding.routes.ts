@@ -28,6 +28,14 @@ authRouter.get(
 
 // Must come before /:id
 authRouter.get(
+  "/available-policies",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write"),
+  asyncHandler(controller.listAvailablePolicies)
+);
+
+// Must come before /:id
+authRouter.get(
   "/by-offer/:offerId",
   authRequired,
   requireAnyPermission("hr.read", "hr.write"),

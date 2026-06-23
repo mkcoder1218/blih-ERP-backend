@@ -10,6 +10,17 @@ import { DEFAULT_EMPLOYMENT_TYPE, EMPLOYMENT_TYPES, type EmploymentType } from "
 import { env } from "../../config/env";
 
 export class CandidateOnboardingController {
+  private readonly policyTypes = [
+    "terms-and-conditions",
+    "privacy-policy",
+    "code-of-conduct",
+    "nda",
+    "it-security",
+    "acceptable-use",
+    "data-protection",
+    "other",
+  ];
+
   private normalizeEmploymentType(input: unknown): EmploymentType {
     const value = (input ?? "").toString().trim();
     return EMPLOYMENT_TYPES.includes(value as EmploymentType) ? value as EmploymentType : DEFAULT_EMPLOYMENT_TYPE;
@@ -66,6 +77,29 @@ export class CandidateOnboardingController {
     };
   }
 
+  private policySnapshotFromGuestPolicy(policy: any, policyType: string) {
+    return {
+      policyId: policy._id || policy.id || policy.policyType || policyType,
+      policyType: policy.policyType || policyType,
+      title: policy.title || this.fallbackPolicySnapshot(policyType).title,
+      version: policy.version || 1,
+      required: policy.isRequired !== false,
+      content: policy.contentText || policy.content || policy.bodyText || policy.description || "",
+      contentHtml: policy.contentHtml || policy.html || policy.bodyHtml || null,
+      publishedAt: policy.publishedAt || null,
+    };
+  }
+
+  private async buildPolicySnapshots(policyTypes: string[]) {
+    const snapshots = await Promise.all(
+      policyTypes.map(async (policyType) => {
+        const policy = await this.fetchGuestPolicy(policyType);
+        return this.policySnapshotFromGuestPolicy(policy, policyType);
+      })
+    );
+    return snapshots;
+  }
+
   private normalizeDeadline(value: unknown) {
     if (!value) return null;
     const date = new Date(String(value));
@@ -120,22 +154,9 @@ export class CandidateOnboardingController {
         const requestedPolicyTypes = Array.isArray(policyTypes) && policyTypes.length
           ? policyTypes
           : (existing.requiredPolicies || []).map((policy: any) => policy.policyType).filter(Boolean);
-        const refreshedPolicies = requestedPolicyTypes.length
-          ? (await Promise.all(requestedPolicyTypes.map((type: string) => this.fetchGuestPolicy(type).catch(() => null)))).filter(Boolean)
+        const finalPolicySnapshots = requestedPolicyTypes.length
+          ? await this.buildPolicySnapshots(requestedPolicyTypes)
           : [];
-        const refreshedPolicySnapshots = refreshedPolicies.map((policy: any) => ({
-          policyId: policy._id || policy.id || policy.policyType,
-          policyType: policy.policyType,
-          title: policy.title,
-          version: policy.version || 1,
-          required: policy.isRequired !== false,
-          content: policy.contentText || policy.content || policy.bodyText || policy.description || "",
-          contentHtml: policy.contentHtml || policy.html || policy.bodyHtml || null,
-          publishedAt: policy.publishedAt || null,
-        }));
-        const finalPolicySnapshots = requestedPolicyTypes.map((type: string) =>
-          refreshedPolicySnapshots.find((policy: any) => policy.policyType === type) || this.fallbackPolicySnapshot(type)
-        );
         await existing.update({
           sections: sections && sections.length > 0 ? sections : existing.sections,
           resources: resources || existing.resources,
@@ -202,20 +223,7 @@ export class CandidateOnboardingController {
       }));
 
       const requestedPolicyTypes = Array.isArray(policyTypes) && policyTypes.length ? policyTypes : ["terms-and-conditions"];
-      const fetchedPolicies = (await Promise.all(requestedPolicyTypes.map((type: string) => this.fetchGuestPolicy(type).catch(() => null)))).filter(Boolean);
-      const policySnapshots = fetchedPolicies.map((policy: any) => ({
-        policyId: policy._id || policy.id || policy.policyType,
-        policyType: policy.policyType,
-        title: policy.title,
-        version: policy.version || 1,
-        required: policy.isRequired !== false,
-        content: policy.contentText || policy.content || policy.bodyText || policy.description || "",
-        contentHtml: policy.contentHtml || policy.html || policy.bodyHtml || null,
-        publishedAt: policy.publishedAt || null,
-      }));
-      const finalPolicySnapshots = requestedPolicyTypes.map((type: string) =>
-        policySnapshots.find((policy: any) => policy.policyType === type) || this.fallbackPolicySnapshot(type)
-      );
+      const finalPolicySnapshots = await this.buildPolicySnapshots(requestedPolicyTypes);
       const finalSections = sections && sections.length > 0 ? sections : defaultSections;
       const finalResources = [...(resources || []), ...inventoryResources];
       const nextExpiresAt = this.normalizeDeadline(expiresAt) || (deadlineDays ? new Date(Date.now() + Number(deadlineDays) * 86400000) : null);
@@ -278,6 +286,33 @@ export class CandidateOnboardingController {
       );
 
       successResponse(res, { onboarding, onboardingUrl }, "Onboarding initialized", 201);
+    } catch (e: any) {
+      errorResponse(res, e.message);
+    }
+  };
+
+  listAvailablePolicies = async (_req: Request, res: Response) => {
+    try {
+      const results = await Promise.all(
+        this.policyTypes.map(async (policyType) => {
+          try {
+            const policy = await this.fetchGuestPolicy(policyType);
+            if (!policy) return null;
+            return {
+              policyId: policy._id || policy.id || policy.policyType || policyType,
+              policyType: policy.policyType || policyType,
+              title: policy.title || this.fallbackPolicySnapshot(policyType).title,
+              version: policy.version || 1,
+              required: policy.isRequired !== false,
+              publishedAt: policy.publishedAt || null,
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      successResponse(res, results.filter(Boolean));
     } catch (e: any) {
       errorResponse(res, e.message);
     }

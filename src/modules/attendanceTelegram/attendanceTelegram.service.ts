@@ -709,13 +709,8 @@ export class AttendanceTelegramService {
       }
       const ymd = localDateYmd(now, setting.timezone || "UTC");
       if (setting.lastSentForDate === ymd) {
-        const lastSentAt = setting.lastSentAt ? new Date(setting.lastSentAt).getTime() : 0;
-        const updatedAt = setting.updatedAt ? new Date(setting.updatedAt).getTime() : 0;
-        if (!updatedAt || updatedAt <= lastSentAt) {
-          console.log(`[TelegramAttendanceSummary] skipped ${setting.businessId}: already sent for ${ymd}`);
-          continue;
-        }
-        console.log(`[TelegramAttendanceSummary] resending ${setting.businessId}: settings changed after last send for ${ymd}`);
+        console.log(`[TelegramAttendanceSummary] skipped ${setting.businessId}: already sent for ${ymd}`);
+        continue;
       }
       const currentMinutes = hhmmToMinutes(localTimeHhmm(now, setting.timezone || "UTC"));
       const scheduledMinutes = hhmmToMinutes(setting.sendTime);

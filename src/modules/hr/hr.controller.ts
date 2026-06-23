@@ -6,6 +6,7 @@ import { db } from '../../models';
 import { renderOfferLetter } from '../../utils/offerLetterRenderer';
 import { generateOfferLetterPdf } from '../../utils/offerLetterPdfGenerator';
 import { sendOfferLetterEmail } from '../../utils/offerLetterMailer';
+import { Op } from 'sequelize';
 import {
   DEFAULT_EMPLOYMENT_STATUS,
   DEFAULT_EMPLOYMENT_TYPE,
@@ -169,6 +170,7 @@ export class HRController {
          if (departmentId) q.departmentId = departmentId;
          if (employmentType) q.employmentType = employmentType;
          if (employmentStatus) q.employmentStatus = employmentStatus;
+         else q.employmentStatus = { [Op.ne]: 'terminated' };
 
          const result = await this.service.listRecords(q, limit, offset);
          const rowsWithFilteredSalaries = result.rows.map((r: any) => {

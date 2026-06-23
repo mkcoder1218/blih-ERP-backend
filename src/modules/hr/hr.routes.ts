@@ -572,6 +572,17 @@ router.patch(
   asyncHandler(perfController.updateExitStatus),
 );
 router.post(
+  "/exit/:id/offboarding-form/send",
+  authRequired,
+  requireAnyPermission("hr.write"),
+  asyncHandler(perfController.sendOffboardingForm),
+);
+router.post(
+  "/exit/:id/offboarding-form",
+  authRequired,
+  asyncHandler(perfController.submitOffboardingForm),
+);
+router.post(
   "/exit/:id/approve",
   authRequired,
   requireAnyPermission("hr.write"),

@@ -1,0 +1,3440 @@
+
+> blih-erp-backend@1.0.0 dev
+> ts-node-dev --respawn --transpile-only src/server.ts
+
+[INFO] 16:53:47 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 6.0.3)
+◇ injected env (38) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+(node:1528) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T13:55:00.161Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T13:55:00.200Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T13:56:00.169Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T13:56:00.176Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+Job TelegramPersonalBotPoller skipped: already running.
+Job TelegramPersonalBotPoller skipped: already running.
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T13:57:00.095Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T13:57:00.101Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+Job TelegramPersonalBotPoller skipped: already running.
+Job TelegramPersonalBotPoller skipped: already running.
+Job TelegramPersonalBotPoller skipped: already running.
+[CORS] incoming origin: 'none'
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T13:58:00.114Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T13:58:00.125Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'none'
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T13:59:00.112Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T13:59:00.120Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:00:00.153Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:00:00.177Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:01:00.091Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:01:00.100Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:02:00.121Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:02:00.127Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:03:00.065Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:03:00.072Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:04:00.084Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:04:00.094Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 17:04:31 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\candidateOnboarding.controller.ts has been modified
+◇ injected env (38) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+(node:13880) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+[INFO] 17:05:05 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\candidateOnboarding.controller.ts has been modified
+◇ injected env (38) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+(node:11940) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:06:00.274Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:06:00.282Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 17:06:36 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\candidateOnboarding.controller.ts has been modified
+◇ injected env (38) from .env // tip: ⌘ suppress logs { quiet: true }
+[INFO] 17:06:53 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\candidateOnboarding.controller.ts has been modified
+◇ injected env (38) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+(node:10744) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:08:00.104Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:08:00.121Z
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:09:00.072Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:09:00.078Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:10:00.107Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:10:00.122Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[2026-06-23T14:10:15.186Z] [PID: 10744] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Tue Jun 23 2026 17:10:10 GMT+0300 (East Africa Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:11:00.075Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:11:00.088Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:12:00.052Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:12:00.062Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:13:00.056Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:13:00.061Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:14:00.044Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:14:00.049Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:15:00.104Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:15:00.114Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:16:00.075Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:16:00.085Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:17:00.142Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:17:00.151Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:18:00.088Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:18:00.093Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 17:18:40 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\constants\employee.constants.ts has been modified
+◇ injected env (38) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+(node:20104) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+[INFO] 17:19:05 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\performance.service.ts has been modified
+◇ injected env (38) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+[INFO] 17:19:33 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\performance.controller.ts has been modified
+◇ injected env (38) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+(node:3512) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:21:00.582Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:21:00.603Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:22:00.127Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:22:00.136Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:23:00.451Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:23:00.462Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:24:00.725Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:24:00.885Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:25:00.844Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:25:01.102Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:26:00.823Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:26:00.833Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:27:00.136Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:27:00.141Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:28:00.464Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:28:00.497Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:29:00.133Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:29:00.138Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T14:30:01.010Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T14:30:01.150Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 17:30:55 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\performance.service.ts has been modified
+◇ injected env (38) from .env // tip: ⌘ suppress logs { quiet: true }
+(node:15712) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Error: listen EADDRINUSE: address already in use :::4003
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at Server.listen (node:net:2110:7)
+    at start (C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\server.ts:19:10)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+[ERROR] 17:33:00 Error: listen EADDRINUSE: address already in use :::4003
+[INFO] 17:59:45 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\performance.service.ts has been modified
+◇ injected env (38) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+(node:19512) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:01:00.115Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:01:00.146Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:02:00.096Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:02:00.104Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:03:00.204Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:03:00.211Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:04:00.139Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:04:00.152Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:05:00.276Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:05:00.297Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[2026-06-23T15:06:01.278Z] [PID: 19512] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Tue Jun 23 2026 18:06:00 GMT+0300 (East Africa Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-06-23T15:06:01.541Z] [PID: 19512] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Tue Jun 23 2026 18:06:00 GMT+0300 (East Africa Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:07:00.083Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:07:00.092Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+User real m jsanx disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:08:00.085Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:08:00.094Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:09:00.146Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:09:00.152Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:10:00.215Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:10:00.230Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:11:00.273Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:11:00.282Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:12:00.709Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:12:00.726Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+User NEBA adsde askdash disconnected from WebSocket
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:13:00.150Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:13:00.159Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+User NEBA adsde askdash connected to WebSocket
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:14:00.406Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:14:00.425Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+User NEBA adsde askdash disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[2026-06-23T15:14:11.057Z] [PID: 19512] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Tue Jun 23 2026 18:14:10 GMT+0300 (East Africa Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+User test user sdas connected to WebSocket
+User test user sdas disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:15:00.141Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:15:00.200Z
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:16:00.159Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:16:00.182Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:17:00.902Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:17:00.916Z
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:18:00.340Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:18:00.348Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 18:18:48 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\performance.controller.ts has been modified
+[TelegramPersonalBot] enabled personal bot configs: 1
+◇ injected env (38) from .env // tip: ⌘ suppress logs { quiet: true }
+(node:2932) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Error: listen EADDRINUSE: address already in use :::4003
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at Server.listen (node:net:2110:7)
+    at start (C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\server.ts:19:10)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+[ERROR] 18:20:44 Error: listen EADDRINUSE: address already in use :::4003
+[INFO] 18:30:48 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\performance.controller.ts has been modified
+◇ injected env (38) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+(node:3056) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:33:00.108Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:33:00.122Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:34:00.068Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:34:00.075Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:35:00.102Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:35:00.111Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+User NEBA adsde askdash connected to WebSocket
+User NEBA adsde askdash disconnected from WebSocket
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:36:00.094Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:36:00.109Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:37:00.055Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:37:00.060Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:38:00.078Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:38:00.087Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:39:00.096Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:39:00.106Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:40:00.958Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:40:01.428Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+User NEBA adsde askdash disconnected from WebSocket
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:41:00.475Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:41:00.478Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:42:00.725Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:42:00.832Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:43:00.483Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:43:00.687Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:44:00.130Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:44:00.133Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:45:00.177Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:45:00.195Z
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:46:01.669Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:46:01.684Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:47:00.082Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:47:00.105Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 18:47:09 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\performance.service.ts has been modified
+[TelegramPersonalBot] enabled personal bot configs: 1
+◇ injected env (38) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+(node:19044) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Error: listen EADDRINUSE: address already in use :::4003
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at Server.listen (node:net:2110:7)
+    at start (C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\server.ts:19:10)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+[ERROR] 18:48:02 Error: listen EADDRINUSE: address already in use :::4003
+[INFO] 18:52:33 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\hr\performance.controller.ts has been modified
+◇ injected env (38) from .env // tip: ⌘ suppress logs { quiet: true }
+(node:2692) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:55:00.411Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:55:00.442Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] failed for 99fc7d4b-b085-4229-a563-8086fdfee17d: spawn pg_dump ENOENT
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:56:00.242Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:56:00.259Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:57:03.836Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:57:04.384Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+User NEBA adsde askdash disconnected from WebSocket
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+User NEBA adsde askdash disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:58:00.068Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:58:00.075Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User real m jsanx disconnected from WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User NEBA adsde askdash connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-06-23T15:59:00.140Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-06-23
+[TelegramAttendanceSummary] sweep finished at 2026-06-23T15:59:00.150Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000

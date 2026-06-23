@@ -21,4 +21,5 @@ export const DEFAULT_EMPLOYMENT_STATUS: EmploymentStatus = "onboarding";
 export const DEFAULT_EMPLOYMENT_TYPE: EmploymentType = "full_time";
 export const ACTIVE_EMPLOYMENT_STATUS: EmploymentStatus = "active";
 export const INACTIVE_EMPLOYMENT_STATUS: EmploymentStatus = "inactive";
+export const ON_LEAVE_EMPLOYMENT_STATUS: EmploymentStatus = "on_leave";
 export const TERMINATED_EMPLOYMENT_STATUS: EmploymentStatus = "terminated";

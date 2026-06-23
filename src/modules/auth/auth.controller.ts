@@ -8,6 +8,7 @@ import { normalizeEmail } from "../../utils/normalizeEmail";
 import { Op } from "sequelize";
 import { profileImageUrl } from "../../middlewares/profileImageUpload";
 import { FileService } from "../file/file.service";
+import { TERMINATED_EMPLOYMENT_STATUS } from "../../constants/employee.constants";
 
 export class AuthController {
   private fileService = new FileService();
@@ -140,6 +141,14 @@ export class AuthController {
   private finishLoginForUser = async (user: any, password: string, res: any, next: any) => {
     if (user.deletedAt) return next({ statusCode: 403, message: "User is deleted" });
     if (user.status !== "active") return next({ statusCode: 403, message: "User is not active" });
+
+    const loginEmployeeRecord = await db.EmployeeRecord.findOne({
+      where: { businessId: user.businessId, userId: user.id },
+      attributes: ["employmentStatus"],
+    });
+    if (loginEmployeeRecord?.employmentStatus === TERMINATED_EMPLOYMENT_STATUS) {
+      return next({ statusCode: 403, message: "Employee has left the company" });
+    }
 
     const okPass = await bcrypt.compare(password, user.password);
     if (!okPass) return next({ statusCode: 401, message: "Invalid credentials" });

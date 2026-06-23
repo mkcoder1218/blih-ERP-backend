@@ -1,6 +1,6 @@
 
 import { db } from '../../models';
-import { ACTIVE_EMPLOYMENT_STATUS, INACTIVE_EMPLOYMENT_STATUS, TERMINATED_EMPLOYMENT_STATUS } from '../../constants/employee.constants';
+import { ACTIVE_EMPLOYMENT_STATUS, ON_LEAVE_EMPLOYMENT_STATUS, TERMINATED_EMPLOYMENT_STATUS } from '../../constants/employee.constants';
 import { Op } from 'sequelize';
 
 const COMPLETED_TASK_STATUSES = new Set(['DONE', 'COMPLETED', 'APPROVED']);
@@ -10,7 +10,7 @@ const EXCLUDED_BLOCKER_TYPES = new Set(['dependency', 'client', 'resource', 'man
 const EXIT_STATUS_TRANSITIONS: Record<string, Set<string>> = {
   pending: new Set(['in_progress', 'cancelled', 'rejected', 'interview_scheduled']),
   interview_scheduled: new Set(['interview_completed', 'in_progress', 'cancelled', 'rejected']),
-  interview_completed: new Set(['in_progress', 'cancelled', 'rejected']),
+  interview_completed: new Set(['in_progress', 'completed', 'cancelled', 'rejected']),
   rejected: new Set(['pending']),
   cancelled: new Set(['pending']),
   in_progress: new Set(['completed', 'cancelled', 'clearance_pending']),
@@ -107,7 +107,7 @@ export class HRPerformanceService {
      const employeeUserId = p.employeeUserId;
      
      const payload: any = { status };
-     if (['in_progress', 'rejected', 'cancelled'].includes(status)) {
+     if (['in_progress', 'completed', 'rejected', 'cancelled'].includes(status)) {
         payload.reviewedByUserId = options.reviewedByUserId;
         payload.reviewedAt = new Date();
      }
@@ -121,17 +121,86 @@ export class HRPerformanceService {
      }
 
      if (status === 'completed') {
+        this.assertLeaveWindowComplete(p);
+        if (!p.offboardingFormSubmittedAt) throw new Error('Employee offboarding form must be submitted before final approval.');
         await this.assertOffboardingCanComplete(businessId, p);
         const emp = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
         if (emp) await emp.update({ employmentStatus: TERMINATED_EMPLOYMENT_STATUS });
+        await db.User.update({ status: 'inactive' }, { where: { id: employeeUserId, businessId } });
+        payload.accountDisabledAt = new Date();
+        payload.accountDisabledByUserId = options.reviewedByUserId;
      } else if (status === 'in_progress') {
+        const leaveStartedAt = new Date();
+        const leaveEndsAt = new Date(leaveStartedAt);
+        leaveEndsAt.setDate(leaveEndsAt.getDate() + 30);
+        payload.leaveStartedAt = p.leaveStartedAt || leaveStartedAt;
+        payload.leaveEndsAt = p.leaveEndsAt || leaveEndsAt;
         const emp = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
-        if (emp) await emp.update({ employmentStatus: INACTIVE_EMPLOYMENT_STATUS });
+        if (emp) await emp.update({ employmentStatus: ON_LEAVE_EMPLOYMENT_STATUS });
      } else if (status === 'cancelled' && currentStatus === 'in_progress') {
         const emp = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
         if (emp) await emp.update({ employmentStatus: ACTIVE_EMPLOYMENT_STATUS });
      }
      return p.update(payload);
+  }
+
+  assertLeaveWindowComplete(exitProcess: any) {
+     const leaveEndsAt = exitProcess.leaveEndsAt ? new Date(exitProcess.leaveEndsAt) : null;
+     if (!leaveEndsAt) throw new Error('Employee must be approved to on-leave status before final offboarding approval.');
+     if (leaveEndsAt.getTime() > Date.now()) {
+        const days = Math.ceil((leaveEndsAt.getTime() - Date.now()) / 86400000);
+        throw new Error(`Final offboarding approval is available after the 30-day leave window ends (${days} day(s) remaining).`);
+     }
+  }
+
+  async getAcceptedDevicesSnapshot(businessId: string, employeeUserId: string) {
+     const devices = await db.InventoryItem.findAll({
+       where: { businessId, assignedToUserId: employeeUserId },
+       order: [['updatedAt', 'DESC']]
+     });
+     return devices.map((item: any) => ({
+       id: item.id,
+       name: item.name,
+       category: item.category,
+       assetTag: item.assetTag,
+       serialNumber: item.serialNumber,
+       condition: item.condition,
+       status: item.status,
+       acceptedAt: item.metadata?.acceptedAt || item.metadata?.employeeAcceptedAt || null,
+       acceptanceStatus: item.metadata?.acceptanceStatus || item.metadata?.employeeAcceptanceStatus || 'assigned'
+     }));
+  }
+
+  async sendOffboardingForm(businessId: string, exitId: string, actingUserId: string) {
+     const exitProcess = await db.ExitProcess.findOne({ where: { id: exitId, businessId } });
+     if (!exitProcess) throw new Error('Exit process not found.');
+     if (!['in_progress', 'interview_completed', 'clearance_pending'].includes(exitProcess.status)) throw new Error('Offboarding form can only be sent after the leave request is approved.');
+     const acceptedDevices = await this.getAcceptedDevicesSnapshot(businessId, exitProcess.employeeUserId);
+     return exitProcess.update({
+       offboardingFormSentAt: new Date(),
+       offboardingFormSentByUserId: actingUserId,
+       offboardingFormData: {
+         ...(exitProcess.offboardingFormData || {}),
+         acceptedDevices,
+         sentAt: new Date().toISOString()
+       }
+     });
+  }
+
+  async submitOffboardingForm(businessId: string, exitId: string, employeeUserId: string, data: any) {
+     const exitProcess = await db.ExitProcess.findOne({ where: { id: exitId, businessId, employeeUserId } });
+     if (!exitProcess) throw new Error('Exit process not found.');
+     if (!exitProcess.offboardingFormSentAt) throw new Error('HR must send the offboarding form before it can be submitted.');
+     const acceptedDevices = await this.getAcceptedDevicesSnapshot(businessId, employeeUserId);
+     return exitProcess.update({
+       offboardingFormSubmittedAt: new Date(),
+       offboardingFormData: {
+         ...(exitProcess.offboardingFormData || {}),
+         ...(data || {}),
+         acceptedDevices,
+         submittedAt: new Date().toISOString()
+       }
+     });
   }
 
   async assertOffboardingCanComplete(businessId: string, exitProcess: any) {
