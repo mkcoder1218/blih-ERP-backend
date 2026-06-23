@@ -209,6 +209,50 @@ export class LatenessReasonRulesService {
     return requestCount + dailyReasonCount;
   }
 
+  async countSubmittedLatenessUsesByReason(businessId: string, employeeUserId: string, reasonCode: string, anchorDate: Date, excludeRequestId?: string | null) {
+    const { startUtc, endUtc } = monthBoundsUtc(anchorDate, ADDIS_ABABA_TZ);
+    const where: any = {
+      businessId,
+      employeeUserId,
+      requestType: "lateness_notice",
+      category: normalizeCode(reasonCode),
+      status: { [Op.notIn]: ["rejected", "cancelled", "invalid"] },
+      fromAt: { [Op.gte]: startUtc, [Op.lt]: endUtc },
+    };
+    if (excludeRequestId) where.id = { [Op.ne]: excludeRequestId };
+    const requests = await db.AttendanceRequest.findAll({ where, attributes: ["fromAt"] });
+    const requestUses = new Set(
+      requests
+        .map((request: any) => request.fromAt ? localDateYmd(new Date(request.fromAt), ADDIS_ABABA_TZ) : null)
+        .filter(Boolean)
+    );
+    const dailyReasonCount = await this.countDailyReasonUsesByReason(businessId, employeeUserId, reasonCode, anchorDate);
+    return requestUses.size + dailyReasonCount;
+  }
+
+  async countSubmittedLatenessUsesGlobal(businessId: string, employeeUserId: string, anchorDate: Date, excludeRequestId?: string | null) {
+    const { startUtc, endUtc } = monthBoundsUtc(anchorDate, ADDIS_ABABA_TZ);
+    const where: any = {
+      businessId,
+      employeeUserId,
+      requestType: "lateness_notice",
+      status: { [Op.notIn]: ["rejected", "cancelled", "invalid"] },
+      fromAt: { [Op.gte]: startUtc, [Op.lt]: endUtc },
+    };
+    if (excludeRequestId) where.id = { [Op.ne]: excludeRequestId };
+    const requests = await db.AttendanceRequest.findAll({ where, attributes: ["fromAt", "category"] });
+    const requestUses = new Set(
+      requests
+        .map((request: any) => {
+          const day = request.fromAt ? localDateYmd(new Date(request.fromAt), ADDIS_ABABA_TZ) : null;
+          return day ? `${day}:${normalizeCode(request.category)}` : null;
+        })
+        .filter(Boolean)
+    );
+    const dailyReasonCount = await this.countDailyReasonUsesGlobal(businessId, employeeUserId, anchorDate);
+    return requestUses.size + dailyReasonCount;
+  }
+
   async countDailyReasonUsesByReason(businessId: string, employeeUserId: string, reasonCode: string, anchorDate: Date, excludeDailyReasonId?: string | null) {
     if (!db.AttendanceLateReason?.findAll || !db.AttendanceDailyReason?.count) return 0;
     const { startYmd, endYmd } = monthBoundsYmd(anchorDate, ADDIS_ABABA_TZ);
@@ -246,7 +290,7 @@ export class LatenessReasonRulesService {
     const rules = await this.listRules(businessId);
     const config = await this.getCreditConfig(businessId);
     const globalUsed = config.mode === "GLOBAL_POOL"
-      ? await this.countApprovedUsableGlobal(businessId, employeeUserId, anchorDate)
+      ? await this.countSubmittedLatenessUsesGlobal(businessId, employeeUserId, anchorDate)
       : 0;
     const globalRemaining = config.globalMonthlyLimit > 0 ? Math.max(0, config.globalMonthlyLimit - globalUsed) : 0;
     const balances: LatenessReasonRuleBalance[] = [];
@@ -255,7 +299,7 @@ export class LatenessReasonRulesService {
       const monthlyLimit = config.mode === "GLOBAL_POOL" ? config.globalMonthlyLimit : Number(rule.monthlyLimit || 0);
       const usedThisMonth = config.mode === "GLOBAL_POOL"
         ? globalUsed
-        : await this.countApprovedUsableByReason(businessId, employeeUserId, code, anchorDate);
+        : await this.countSubmittedLatenessUsesByReason(businessId, employeeUserId, code, anchorDate);
       const remainingThisMonth = monthlyLimit > 0 ? Math.max(0, monthlyLimit - usedThisMonth) : 0;
       const isEnabled = enabled(rule);
       const canUse = isEnabled && monthlyLimit > 0 && usedThisMonth < monthlyLimit;
