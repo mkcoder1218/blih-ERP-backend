@@ -10,6 +10,7 @@ import { AttendanceTelegramService } from "../attendanceTelegram/attendanceTeleg
 type Status = string;
 
 const REMOTE_WORKED_MINUTES = 8 * 60;
+const REASON_REQUEST_TYPES = ["lateness_notice", "not_available"];
 
 function isRemoteEmployee(employeeRecord: any) {
   return String(employeeRecord?.employmentType || "").toLowerCase().includes("remote");
@@ -87,14 +88,26 @@ export class AttendanceHrService {
           where: {
             businessId,
             employeeUserId: { [Op.in]: userIds },
-            requestType: "lateness_notice",
-            status: "approved",
+            requestType: { [Op.in]: REASON_REQUEST_TYPES },
             fromAt: { [Op.gte]: startUtc, [Op.lt]: endUtc }
           },
           attributes: ["employeeUserId"]
         })
       : [];
     const submittedReasonEmployeeIds = new Set(submittedReasonRows.map((row: any) => row.employeeUserId));
+    const leaveRows = userIds.length
+      ? await db.LeaveRequest.findAll({
+          where: {
+            businessId,
+            employeeUserId: { [Op.in]: userIds },
+            status: { [Op.in]: ["pending", "approved"] },
+            startDate: { [Op.lte]: opts.dateYmd },
+            endDate: { [Op.gte]: opts.dateYmd }
+          },
+          attributes: ["employeeUserId"]
+        })
+      : [];
+    const leaveEmployeeIds = new Set(leaveRows.map((row: any) => row.employeeUserId));
     const noReasonPenaltyGraceMinutes = Number((settings as any).lateNoReasonPenaltyGraceMinutes || 0);
 
     const rows = rosterRows.map((roster) => {
@@ -113,6 +126,14 @@ export class AttendanceHrService {
       const finalCalculation = isRemoteEmployee(er) ? applyRemoteAttendanceOverride(calculation) : calculation;
       const finalStatus: Status =
         finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
+      const hasSubmittedReason = submittedReasonEmployeeIds.has(roster.employeeId);
+      const hasLeaveRequest = leaveEmployeeIds.has(roster.employeeId);
+      const isMissedWithoutReasonOrLeave = ["MISSED", "NOT_STARTED"].includes(String(finalStatus)) && !hasSubmittedReason && !hasLeaveRequest;
+      const isLateWithoutReason =
+        Boolean(finalCalculation.isLate) &&
+        Number(finalCalculation.lateByMinutes || 0) > noReasonPenaltyGraceMinutes &&
+        !hasSubmittedReason &&
+        !hasLeaveRequest;
 
       return {
         employeeId: roster.employeeId,
@@ -141,11 +162,10 @@ export class AttendanceHrService {
         status: finalStatus,
         isLate: finalCalculation.isLate,
         lateByMinutes: finalCalculation.lateByMinutes,
-        hasSubmittedLatenessReason: submittedReasonEmployeeIds.has(roster.employeeId),
-        lateNoReasonPenaltyEligible:
-          Boolean(finalCalculation.isLate) &&
-          Number(finalCalculation.lateByMinutes || 0) > noReasonPenaltyGraceMinutes &&
-          !submittedReasonEmployeeIds.has(roster.employeeId)
+        hasSubmittedLatenessReason: hasSubmittedReason,
+        hasLeaveRequest,
+        lateNoReasonPenaltyEligible: isLateWithoutReason,
+        noReasonPenaltyMessageEligible: isLateWithoutReason || isMissedWithoutReasonOrLeave
       };
     });
 
@@ -181,8 +201,11 @@ export class AttendanceHrService {
     });
     const row = rows[0];
     if (!row) throw Object.assign(new Error("Attendance row not found for the selected employee and date"), { statusCode: 404 });
-    if (row.LatenessStatus !== "Late-NoNotice" || Number(row.MinutesLate || 0) <= 0) {
-      throw Object.assign(new Error("Penalty message can only be sent for late employees without a submitted reason"), { statusCode: 400 });
+    const canSend =
+      (row.LatenessStatus === "Late-NoNotice" && row.NoticeStatus === "None" && Number(row.MinutesLate || 0) > 0) ||
+      (row.LatenessStatus === "Absent" && row.NoticeStatus === "None" && Number(row.ApprovedLeaveDays || 0) <= 0);
+    if (!canSend) {
+      throw Object.assign(new Error("Penalty message can only be sent for late or absent employees without a reason or leave request"), { statusCode: 400 });
     }
 
     const employeeName = row.EmployeeName || "Unknown employee";
