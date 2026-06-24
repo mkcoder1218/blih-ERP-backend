@@ -1,59 +1,41 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SubscriptionController = void 0;
+exports.subscriptionAdminModels = exports.SubscriptionController = void 0;
 const subscription_service_1 = require("./subscription.service");
-const auditLog_service_1 = require("../../services/auditLog.service");
+const models_1 = require("../../models");
+const businessId = (req) => req.user.roles.includes("PLATFORM_SUPER_ADMIN") && req.query.businessId
+    ? String(req.query.businessId) : req.user.businessId;
 class SubscriptionController {
     constructor() {
         this.service = new subscription_service_1.SubscriptionService();
-        this.getSubscription = async (req, res) => {
-            // Admin can read specific businessId, normal admins only read own
-            const bId = req.query.businessId && req.user.roles.includes('SUPER_ADMIN') ? String(req.query.businessId) : req.user.businessId;
-            const sub = await this.service.getSubscription(bId);
-            res.json({ subscription: sub });
+        this.current = async (req, res) => res.json({ subscription: await this.service.getSubscription(businessId(req)) });
+        this.features = async (req, res) => res.json({ features: await this.service.getFeatures(businessId(req)) });
+        this.usage = async (req, res) => res.json({ usage: await this.service.getUsage(businessId(req)) });
+        this.invoices = async (req, res) => res.json({ invoices: await this.service.getInvoices(businessId(req)) });
+        this.plans = async (_req, res) => res.json({ plans: await models_1.db.Plan.findAll({ where: { isActive: true }, include: [{ model: models_1.db.PlanFeature, as: "features", include: [{ model: models_1.db.Feature, as: "feature" }] }], order: [["sortOrder", "ASC"]] }) });
+        this.changePlan = async (req, res) => res.json({ subscription: await this.service.changePlan(req.user.businessId, req.body.planId) });
+        this.cancel = async (req, res) => res.json({ subscription: await this.service.cancel(req.user.businessId) });
+        this.reactivate = async (req, res) => res.json({ subscription: await this.service.reactivate(req.user.businessId) });
+        this.generateInvoice = async (req, res) => res.status(201).json({ invoice: await this.service.generateInvoice(req.params.subscriptionId, req.body) });
+        this.list = (model) => async (_req, res) => res.json({ data: await model.findAll({ order: [["createdAt", "DESC"]] }) });
+        this.create = (model) => async (req, res) => res.status(201).json({ data: await model.create(req.body) });
+        this.update = (model) => async (req, res) => {
+            const row = await model.findByPk(req.params.id);
+            if (!row)
+                return res.status(404).json({ message: "Record not found." });
+            res.json({ data: await row.update(req.body) });
         };
-        this.assignSubscription = async (req, res) => {
-            // SuperAdmin Only endpoint
-            const subId = await this.service.assignSubscription(req.body.businessId, req.body.planId);
-            res.json({ message: "Subscription linked/updated." });
-        };
-        this.cancelSubscription = async (req, res) => {
-            // Assume businessId mapped from token, allow business admin to self-cancel
-            try {
-                const bId = req.user.roles.includes('SUPER_ADMIN') && req.body.businessId ? req.body.businessId : req.user.businessId;
-                const sub = await this.service.cancelSubscription(bId);
-                await auditLog_service_1.AuditLogService.log('CANCEL_SUBSCRIPTION', 'subscription', String(sub.id), null, {}, req);
-                res.json({ subscription: sub });
-            }
-            catch (e) {
-                res.status(400).json({ message: e.message });
-            }
-        };
-        this.createInvoice = async (req, res) => {
-            // Setup by SuperAdmin or billing cron
-            try {
-                const inv = await this.service.createInvoice(req.body.businessId, req.body);
-                res.json({ invoice: inv });
-            }
-            catch (e) {
-                res.status(400).json({ message: e.message });
-            }
-        };
-        this.recordPayment = async (req, res) => {
-            // Invoked by webhook or super admin
-            try {
-                const pymt = await this.service.recordPayment(req.body.businessId, req.params.invoiceId, req.body);
-                res.json({ payment: pymt });
-            }
-            catch (e) {
-                res.status(400).json({ message: e.message });
-            }
-        };
-        this.getInvoices = async (req, res) => {
-            const bId = req.user.roles.includes('SUPER_ADMIN') && req.query.businessId ? String(req.query.businessId) : req.user.businessId;
-            const invs = await this.service.getInvoices(bId);
-            res.json({ invoices: invs });
+        this.remove = (model) => async (req, res) => {
+            const row = await model.findByPk(req.params.id);
+            if (!row)
+                return res.status(404).json({ message: "Record not found." });
+            await row.destroy();
+            res.status(204).send();
         };
     }
 }
 exports.SubscriptionController = SubscriptionController;
+exports.subscriptionAdminModels = {
+    features: models_1.db.Feature, "plan-features": models_1.db.PlanFeature, subscriptions: models_1.db.Subscription,
+    usage: models_1.db.UsageRecord, invoices: models_1.db.SubscriptionInvoice, payments: models_1.db.SubscriptionPayment
+};

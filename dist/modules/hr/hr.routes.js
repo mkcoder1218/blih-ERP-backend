@@ -124,6 +124,8 @@ router.post("/exit/:id/clearance/:stepId/complete", auth_1.authRequired, (0, per
 router.post("/exit/:id/clearance/:stepId/waive", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.waiveExitClearanceStep));
 router.patch("/exit/:id/clearance/:stepId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitClearanceStep));
 router.patch("/exit/:id/status", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitStatus));
+router.post("/exit/:id/offboarding-form/send", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.sendOffboardingForm));
+router.post("/exit/:id/offboarding-form", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.submitOffboardingForm));
 router.post("/exit/:id/approve", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.approveExitRequest));
 router.post("/exit/:id/reject", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.rejectExitRequest));
 router.post("/exit/:id/disable-account", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.disableExitAccount));

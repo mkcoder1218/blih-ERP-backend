@@ -1,53 +1,38 @@
+import type { Request, Response } from "express";
+import { SubscriptionService } from "./subscription.service";
+import { db } from "../../models";
 
-import type { Request, Response } from 'express';
-import { SubscriptionService } from './subscription.service';
-import { AuditLogService } from '../../services/auditLog.service';
+const businessId = (req: Request) => req.user!.roles.includes("PLATFORM_SUPER_ADMIN") && req.query.businessId
+  ? String(req.query.businessId) : req.user!.businessId;
 
 export class SubscriptionController {
   private service = new SubscriptionService();
+  current = async (req: Request, res: Response) => res.json({ subscription: await this.service.getSubscription(businessId(req)) });
+  features = async (req: Request, res: Response) => res.json({ features: await this.service.getFeatures(businessId(req)) });
+  usage = async (req: Request, res: Response) => res.json({ usage: await this.service.getUsage(businessId(req)) });
+  invoices = async (req: Request, res: Response) => res.json({ invoices: await this.service.getInvoices(businessId(req)) });
+  plans = async (_req: Request, res: Response) => res.json({ plans: await db.Plan.findAll({ where: { isActive: true }, include: [{ model: db.PlanFeature, as: "features", include: [{ model: db.Feature, as: "feature" }] }], order: [["sortOrder", "ASC"]] }) });
+  changePlan = async (req: Request, res: Response) => res.json({ subscription: await this.service.changePlan(req.user!.businessId, req.body.planId) });
+  cancel = async (req: Request, res: Response) => res.json({ subscription: await this.service.cancel(req.user!.businessId) });
+  reactivate = async (req: Request, res: Response) => res.json({ subscription: await this.service.reactivate(req.user!.businessId) });
+  generateInvoice = async (req: Request, res: Response) => res.status(201).json({ invoice: await this.service.generateInvoice(req.params.subscriptionId, req.body) });
 
-  getSubscription = async (req: Request, res: Response) => {
-     // Admin can read specific businessId, normal admins only read own
-     const bId = req.query.businessId && req.user!.roles.includes('SUPER_ADMIN') ? String(req.query.businessId) : req.user!.businessId;
-     const sub = await this.service.getSubscription(bId);
-     res.json({ subscription: sub });
+  list = (model: any) => async (_req: Request, res: Response) => res.json({ data: await model.findAll({ order: [["createdAt", "DESC"]] }) });
+  create = (model: any) => async (req: Request, res: Response) => res.status(201).json({ data: await model.create(req.body) });
+  update = (model: any) => async (req: Request, res: Response) => {
+    const row = await model.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "Record not found." });
+    res.json({ data: await row.update(req.body) });
   };
-
-  assignSubscription = async (req: Request, res: Response) => {
-    // SuperAdmin Only endpoint
-    const subId = await this.service.assignSubscription(req.body.businessId, req.body.planId);
-    res.json({ message: "Subscription linked/updated." });
-  }
-
-  cancelSubscription = async (req: Request, res: Response) => {
-    // Assume businessId mapped from token, allow business admin to self-cancel
-    try {
-      const bId = req.user!.roles.includes('SUPER_ADMIN') && req.body.businessId ? req.body.businessId : req.user!.businessId;
-      const sub = await this.service.cancelSubscription(bId);
-      await AuditLogService.log('CANCEL_SUBSCRIPTION', 'subscription', String(sub.id), null, {}, req);
-      res.json({ subscription: sub });
-    } catch(e: any) { res.status(400).json({ message: e.message }); }
-  };
-
-  createInvoice = async (req: Request, res: Response) => {
-    // Setup by SuperAdmin or billing cron
-    try {
-      const inv = await this.service.createInvoice(req.body.businessId, req.body);
-      res.json({ invoice: inv });
-    } catch(e: any) { res.status(400).json({ message: e.message }); }
-  };
-
-  recordPayment = async (req: Request, res: Response) => {
-    // Invoked by webhook or super admin
-    try {
-      const pymt = await this.service.recordPayment(req.body.businessId, req.params.invoiceId, req.body);
-      res.json({ payment: pymt });
-    } catch(e: any) { res.status(400).json({ message: e.message }); }
-  };
-
-  getInvoices = async (req: Request, res: Response) => {
-    const bId = req.user!.roles.includes('SUPER_ADMIN') && req.query.businessId ? String(req.query.businessId) : req.user!.businessId;
-    const invs = await this.service.getInvoices(bId);
-    res.json({ invoices: invs });
+  remove = (model: any) => async (req: Request, res: Response) => {
+    const row = await model.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "Record not found." });
+    await row.destroy();
+    res.status(204).send();
   };
 }
+
+export const subscriptionAdminModels = {
+  features: db.Feature, "plan-features": db.PlanFeature, subscriptions: db.Subscription,
+  usage: db.UsageRecord, invoices: db.SubscriptionInvoice, payments: db.SubscriptionPayment
+};

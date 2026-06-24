@@ -11,7 +11,7 @@ const EXCLUDED_BLOCKER_TYPES = new Set(['dependency', 'client', 'resource', 'man
 const EXIT_STATUS_TRANSITIONS = {
     pending: new Set(['in_progress', 'cancelled', 'rejected', 'interview_scheduled']),
     interview_scheduled: new Set(['interview_completed', 'in_progress', 'cancelled', 'rejected']),
-    interview_completed: new Set(['in_progress', 'cancelled', 'rejected']),
+    interview_completed: new Set(['in_progress', 'completed', 'cancelled', 'rejected']),
     rejected: new Set(['pending']),
     cancelled: new Set(['pending']),
     in_progress: new Set(['completed', 'cancelled', 'clearance_pending']),
@@ -102,7 +102,7 @@ class HRPerformanceService {
         }
         const employeeUserId = p.employeeUserId;
         const payload = { status };
-        if (['in_progress', 'rejected', 'cancelled'].includes(status)) {
+        if (['in_progress', 'completed', 'rejected', 'cancelled'].includes(status)) {
             payload.reviewedByUserId = options.reviewedByUserId;
             payload.reviewedAt = new Date();
         }
@@ -115,15 +115,26 @@ class HRPerformanceService {
             payload.rejectionReason = options.rejectionReason ?? p.rejectionReason;
         }
         if (status === 'completed') {
+            this.assertLeaveWindowComplete(p);
+            if (!p.offboardingFormSubmittedAt)
+                throw new Error('Employee offboarding form must be submitted before final approval.');
             await this.assertOffboardingCanComplete(businessId, p);
             const emp = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
             if (emp)
                 await emp.update({ employmentStatus: employee_constants_1.TERMINATED_EMPLOYMENT_STATUS });
+            await models_1.db.User.update({ status: 'inactive' }, { where: { id: employeeUserId, businessId } });
+            payload.accountDisabledAt = new Date();
+            payload.accountDisabledByUserId = options.reviewedByUserId;
         }
         else if (status === 'in_progress') {
+            const leaveStartedAt = new Date();
+            const leaveEndsAt = new Date(leaveStartedAt);
+            leaveEndsAt.setDate(leaveEndsAt.getDate() + 30);
+            payload.leaveStartedAt = p.leaveStartedAt || leaveStartedAt;
+            payload.leaveEndsAt = p.leaveEndsAt || leaveEndsAt;
             const emp = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
             if (emp)
-                await emp.update({ employmentStatus: employee_constants_1.INACTIVE_EMPLOYMENT_STATUS });
+                await emp.update({ employmentStatus: employee_constants_1.ON_LEAVE_EMPLOYMENT_STATUS });
         }
         else if (status === 'cancelled' && currentStatus === 'in_progress') {
             const emp = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
@@ -131,6 +142,66 @@ class HRPerformanceService {
                 await emp.update({ employmentStatus: employee_constants_1.ACTIVE_EMPLOYMENT_STATUS });
         }
         return p.update(payload);
+    }
+    assertLeaveWindowComplete(exitProcess) {
+        const leaveEndsAt = exitProcess.leaveEndsAt ? new Date(exitProcess.leaveEndsAt) : null;
+        if (!leaveEndsAt)
+            throw new Error('Employee must be approved to on-leave status before final offboarding approval.');
+        if (leaveEndsAt.getTime() > Date.now()) {
+            const days = Math.ceil((leaveEndsAt.getTime() - Date.now()) / 86400000);
+            throw new Error(`Final offboarding approval is available after the 30-day leave window ends (${days} day(s) remaining).`);
+        }
+    }
+    async getAcceptedDevicesSnapshot(businessId, employeeUserId) {
+        const devices = await models_1.db.InventoryItem.findAll({
+            where: { businessId, assignedToUserId: employeeUserId },
+            order: [['updatedAt', 'DESC']]
+        });
+        return devices.map((item) => ({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            assetTag: item.assetTag,
+            serialNumber: item.serialNumber,
+            condition: item.condition,
+            status: item.status,
+            acceptedAt: item.metadata?.acceptedAt || item.metadata?.employeeAcceptedAt || null,
+            acceptanceStatus: item.metadata?.acceptanceStatus || item.metadata?.employeeAcceptanceStatus || 'assigned'
+        }));
+    }
+    async sendOffboardingForm(businessId, exitId, actingUserId) {
+        const exitProcess = await models_1.db.ExitProcess.findOne({ where: { id: exitId, businessId } });
+        if (!exitProcess)
+            throw new Error('Exit process not found.');
+        if (!['in_progress', 'interview_completed', 'clearance_pending'].includes(exitProcess.status))
+            throw new Error('Offboarding form can only be sent after the leave request is approved.');
+        const acceptedDevices = await this.getAcceptedDevicesSnapshot(businessId, exitProcess.employeeUserId);
+        return exitProcess.update({
+            offboardingFormSentAt: new Date(),
+            offboardingFormSentByUserId: actingUserId,
+            offboardingFormData: {
+                ...(exitProcess.offboardingFormData || {}),
+                acceptedDevices,
+                sentAt: new Date().toISOString()
+            }
+        });
+    }
+    async submitOffboardingForm(businessId, exitId, employeeUserId, data) {
+        const exitProcess = await models_1.db.ExitProcess.findOne({ where: { id: exitId, businessId, employeeUserId } });
+        if (!exitProcess)
+            throw new Error('Exit process not found.');
+        if (!exitProcess.offboardingFormSentAt)
+            throw new Error('HR must send the offboarding form before it can be submitted.');
+        const acceptedDevices = await this.getAcceptedDevicesSnapshot(businessId, employeeUserId);
+        return exitProcess.update({
+            offboardingFormSubmittedAt: new Date(),
+            offboardingFormData: {
+                ...(exitProcess.offboardingFormData || {}),
+                ...(data || {}),
+                acceptedDevices,
+                submittedAt: new Date().toISOString()
+            }
+        });
     }
     async assertOffboardingCanComplete(businessId, exitProcess) {
         const interviews = await models_1.db.ExitInterview.findAll({ where: { businessId, exitProcessId: exitProcess.id } });

@@ -7,6 +7,7 @@ exports.authRequired = authRequired;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const env_1 = require("../config/env");
 const models_1 = require("../models");
+const employee_constants_1 = require("../constants/employee.constants");
 function parseBearer(req) {
     const header = req.headers.authorization;
     if (!header)
@@ -37,6 +38,13 @@ async function authRequired(req, res, next) {
             return next({ statusCode: 401, message: "User deleted" });
         if (user.status !== "active")
             return next({ statusCode: 403, message: "User is not active" });
+        const employeeRecord = await models_1.db.EmployeeRecord.findOne({
+            where: { businessId: user.businessId, userId: user.id },
+            attributes: ["employmentStatus"],
+        });
+        if (employeeRecord?.employmentStatus === employee_constants_1.TERMINATED_EMPLOYMENT_STATUS) {
+            return next({ statusCode: 403, message: "Employee has left the company" });
+        }
         const roles = (user.Roles || []).map((r) => r.key);
         const permissions = new Set();
         (user.Roles || []).forEach((r) => {

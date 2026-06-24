@@ -861,7 +861,18 @@ class HRPerformanceController {
                         },
                     ],
                 });
-                (0, response_1.successResponse)(res, result);
+                if (!result)
+                    return (0, response_1.successResponse)(res, result);
+                const scheduledInterview = await models_1.db.ExitInterview.findOne({
+                    where: {
+                        businessId: req.user.businessId,
+                        exitProcessId: result.id,
+                        status: 'scheduled',
+                    },
+                    include: [{ model: models_1.db.User, as: 'interviewer', attributes: ['id', 'fullName', 'email'] }],
+                    order: [['scheduledAt', 'ASC']],
+                });
+                (0, response_1.successResponse)(res, { ...result.toJSON(), scheduledInterview: scheduledInterview ? scheduledInterview.toJSON() : null });
             }
             catch (e) {
                 (0, response_1.errorResponse)(res, e.message);
@@ -907,7 +918,7 @@ class HRPerformanceController {
         // POST /hr/exit/resign — employee submits offboarding request with rich text letter
         this.submitResignation = async (req, res) => {
             try {
-                const { effectiveDate, reason, letterHtml, noticePeriodDays, templateId, templateSnapshot, formValues } = req.body;
+                const { effectiveDate, reason, letterHtml, templateId, templateSnapshot, formValues } = req.body;
                 const businessId = req.user.businessId;
                 if (!effectiveDate) {
                     return (0, response_1.errorResponse)(res, 'effectiveDate is required', 400);
@@ -941,7 +952,7 @@ class HRPerformanceController {
                         clearanceData: {
                             ...(existing?.clearanceData || {}),
                             letterHtml: letterHtml || null,
-                            noticePeriodDays: noticePeriodDays || 30,
+                            noticePeriodDays: 30,
                             templateId: templateId || null,
                             templateSnapshot: templateSnapshot || null,
                             formValues: formValues || {},
@@ -1029,6 +1040,44 @@ class HRPerformanceController {
         this.approveExitRequest = async (req, res) => {
             req.body.status = 'in_progress';
             return this.updateExitStatus(req, res);
+        };
+        this.sendOffboardingForm = async (req, res) => {
+            try {
+                const result = await this.service.sendOffboardingForm(req.user.businessId, req.params.id, req.user.id);
+                const deviceCount = Array.isArray(result.offboardingFormData?.acceptedDevices) ? result.offboardingFormData.acceptedDevices.length : 0;
+                await notification_service_1.InternalNotifier.send({
+                    businessId: req.user.businessId,
+                    recipientUserId: result.employeeUserId,
+                    senderUserId: req.user.id,
+                    moduleKey: 'hr',
+                    type: 'offboarding_form_ready',
+                    title: 'Offboarding Form Ready',
+                    message: `HR has sent your offboarding form. Please review and submit it${deviceCount > 0 ? `, including confirmation for ${deviceCount} assigned item(s)` : ''}.`,
+                    entityType: 'ExitProcess',
+                    entityId: String(result.id),
+                    priority: 'high',
+                    metadata: {
+                        exitProcessId: result.id,
+                        offboardingFormSentAt: result.offboardingFormSentAt,
+                        acceptedDevices: result.offboardingFormData?.acceptedDevices || [],
+                    },
+                });
+                await this.logExitEvent(req, String(result.id), 'EXIT_OFFBOARDING_FORM_SENT', { employeeUserId: result.employeeUserId });
+                (0, response_1.successResponse)(res, result, 'Offboarding form sent and employee notified.');
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message, e.message === 'Exit process not found.' ? 404 : 400);
+            }
+        };
+        this.submitOffboardingForm = async (req, res) => {
+            try {
+                const result = await this.service.submitOffboardingForm(req.user.businessId, req.params.id, req.user.id, req.body || {});
+                await this.logExitEvent(req, String(result.id), 'EXIT_OFFBOARDING_FORM_SUBMITTED', { employeeUserId: result.employeeUserId });
+                (0, response_1.successResponse)(res, result, 'Offboarding form submitted.');
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message, e.message === 'Exit process not found.' ? 404 : 400);
+            }
         };
         this.rejectExitRequest = async (req, res) => {
             if (!req.body.rejectionReason && !req.body.reason)
@@ -1265,7 +1314,10 @@ class HRPerformanceController {
                         remarks: req.body.remarks ?? interview.remarks,
                     };
                     const updated = await interview.update(payload, { transaction });
-                    await models_1.db.ExitProcess.update({ status: 'interview_completed' }, { where: { id: interview.exitProcessId, businessId: req.user.businessId }, transaction });
+                    const exitProcess = await models_1.db.ExitProcess.findOne({ where: { id: interview.exitProcessId, businessId: req.user.businessId }, transaction, lock: true });
+                    if (exitProcess && !['in_progress', 'completed', 'account_disabled'].includes(String(exitProcess.status))) {
+                        await exitProcess.update({ status: 'interview_completed' }, { transaction });
+                    }
                     await this.service.completeClearanceStepByKey(req.user.businessId, interview.exitProcessId, 'exit_interview_completed', req.user.id, transaction);
                     await this.logExitEvent(req, String(interview.exitProcessId), 'EXIT_INTERVIEW_COMPLETED', { interviewId: interview.id });
                     return updated;
@@ -1284,7 +1336,37 @@ class HRPerformanceController {
                 });
                 if (!interview)
                     return (0, response_1.errorResponse)(res, 'Exit interview not found', 404);
-                (0, response_1.successResponse)(res, interview, 'Exit interview reminder sent.');
+                const exitProcess = interview.exitProcess;
+                const employeeUserId = exitProcess?.employeeUserId;
+                if (!employeeUserId)
+                    return (0, response_1.errorResponse)(res, 'Exit interview employee not found', 400);
+                const scheduledAt = interview.scheduledAt ? new Date(interview.scheduledAt) : null;
+                const dateLabel = scheduledAt ? scheduledAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'the scheduled date';
+                const timeLabel = interview.startTime || (scheduledAt ? scheduledAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'the scheduled time');
+                const placeLabel = interview.interviewType === 'in-person'
+                    ? (interview.location || 'the location HR shared')
+                    : (interview.meetingUrl || 'the meeting details HR shared');
+                await notification_service_1.InternalNotifier.send({
+                    businessId: req.user.businessId,
+                    recipientUserId: employeeUserId,
+                    senderUserId: req.user.id,
+                    moduleKey: 'hr',
+                    type: 'exit_interview_reminder',
+                    title: 'Exit Interview Reminder',
+                    message: `Reminder: your exit interview is scheduled for ${dateLabel} at ${timeLabel}. ${interview.interviewType === 'in-person' ? 'Location' : 'Meeting details'}: ${placeLabel}.`,
+                    entityType: 'ExitInterview',
+                    entityId: String(interview.id),
+                    priority: 'high',
+                    metadata: {
+                        exitProcessId: interview.exitProcessId,
+                        scheduledAt: interview.scheduledAt,
+                        startTime: interview.startTime,
+                        interviewType: interview.interviewType,
+                        location: interview.location,
+                        meetingUrl: interview.meetingUrl,
+                    },
+                });
+                (0, response_1.successResponse)(res, interview, 'Exit interview reminder notification sent.');
             }
             catch (e) {
                 (0, response_1.errorResponse)(res, e.message);

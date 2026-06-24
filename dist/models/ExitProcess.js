@@ -12,6 +12,12 @@ exports.default = (sequelize, dataTypes) => {
         status: { type: dataTypes.STRING(50), defaultValue: 'pending' }, // pending, in_progress, completed, cancelled
         reviewedByUserId: { type: dataTypes.UUID, allowNull: true },
         reviewedAt: { type: dataTypes.DATE, allowNull: true },
+        leaveStartedAt: { type: dataTypes.DATE, allowNull: true },
+        leaveEndsAt: { type: dataTypes.DATE, allowNull: true },
+        offboardingFormSentAt: { type: dataTypes.DATE, allowNull: true },
+        offboardingFormSentByUserId: { type: dataTypes.UUID, allowNull: true },
+        offboardingFormSubmittedAt: { type: dataTypes.DATE, allowNull: true },
+        offboardingFormData: { type: dataTypes.JSONB, defaultValue: {} },
         approvalNote: { type: dataTypes.TEXT, allowNull: true },
         rejectionReason: { type: dataTypes.TEXT, allowNull: true },
         accountDisabledAt: { type: dataTypes.DATE, allowNull: true },
@@ -34,6 +40,7 @@ exports.default = (sequelize, dataTypes) => {
             models.ExitProcess.belongsTo(models.User, { foreignKey: "employeeUserId", as: "employee" });
             models.ExitProcess.belongsTo(models.User, { foreignKey: "initiatedByUserId", as: "initiator" });
             models.ExitProcess.belongsTo(models.User, { foreignKey: "reviewedByUserId", as: "reviewer" });
+            models.ExitProcess.belongsTo(models.User, { foreignKey: "offboardingFormSentByUserId", as: "offboardingFormSender" });
             models.ExitProcess.belongsTo(models.User, { foreignKey: "accountDisabledByUserId", as: "accountDisabledBy" });
         }
     };

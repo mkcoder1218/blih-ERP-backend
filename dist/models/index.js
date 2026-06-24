@@ -86,6 +86,9 @@ const Subscription_1 = __importDefault(require("./Subscription"));
 const SubscriptionInvoice_1 = __importDefault(require("./SubscriptionInvoice"));
 const SubscriptionPayment_1 = __importDefault(require("./SubscriptionPayment"));
 const UsageLimit_1 = __importDefault(require("./UsageLimit"));
+const Feature_1 = __importDefault(require("./Feature"));
+const PlanFeature_1 = __importDefault(require("./PlanFeature"));
+const UsageRecord_1 = __importDefault(require("./UsageRecord"));
 const SupportAccessLog_1 = __importDefault(require("./SupportAccessLog"));
 const AdminImpersonationSession_1 = __importDefault(require("./AdminImpersonationSession"));
 const SystemHealthLog_1 = __importDefault(require("./SystemHealthLog"));
@@ -127,6 +130,7 @@ const PromotionRequest_1 = __importDefault(require("./PromotionRequest"));
 const HREvent_1 = __importDefault(require("./HREvent"));
 const Policy_1 = __importDefault(require("./Policy"));
 const PolicyAcceptance_1 = __importDefault(require("./PolicyAcceptance"));
+const InventoryItem_1 = __importDefault(require("./InventoryItem"));
 const TrustedDevice_1 = __importDefault(require("./TrustedDevice"));
 const TelegramBotSetting_1 = __importDefault(require("./TelegramBotSetting"));
 const TelegramAccountLink_1 = __importDefault(require("./TelegramAccountLink"));
@@ -223,6 +227,9 @@ exports.db = {
     SubscriptionInvoice: (0, SubscriptionInvoice_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     SubscriptionPayment: (0, SubscriptionPayment_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     UsageLimit: (0, UsageLimit_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Feature: (0, Feature_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PlanFeature: (0, PlanFeature_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    UsageRecord: (0, UsageRecord_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     SupportAccessLog: (0, SupportAccessLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     AdminImpersonationSession: (0, AdminImpersonationSession_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     SystemHealthLog: (0, SystemHealthLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -255,6 +262,7 @@ exports.db = {
     HREvent: (0, HREvent_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Policy: (0, Policy_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     PolicyAcceptance: (0, PolicyAcceptance_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    InventoryItem: (0, InventoryItem_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     TrustedDevice: (0, TrustedDevice_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     TelegramBotSetting: (0, TelegramBotSetting_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     TelegramAccountLink: (0, TelegramAccountLink_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),

@@ -86,6 +86,7 @@ const leave_routes_1 = require("./modules/leave/leave.routes");
 const policy_routes_1 = require("./modules/policy/policy.routes");
 const devices_routes_1 = require("./modules/devices/devices.routes");
 const attendanceTelegram_routes_1 = require("./modules/attendanceTelegram/attendanceTelegram.routes");
+const inventory_routes_1 = require("./modules/inventory/inventory.routes");
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const swagger_1 = require("./config/swagger");
 const app = (0, express_1.default)();
@@ -180,6 +181,7 @@ apiRouter.use("/attendance-requests", attendanceRequests_routes_1.attendanceRequ
 apiRouter.use("/overtime-requests", overtime_routes_1.overtimeRoutes);
 apiRouter.use("/leave-requests", leave_routes_1.leaveRoutes);
 apiRouter.use("/policies", policy_routes_1.policyRoutes);
+apiRouter.use("/inventory", inventory_routes_1.inventoryRoutes);
 app.use(`/api/${env_1.env.apiVersion}`, apiRouter);
 // Health stays out of versioning
 app.get('/health', (req, res) => res.json({ status: 'UP' }));

@@ -7,6 +7,7 @@ const models_1 = require("../../models");
 const offerLetterRenderer_1 = require("../../utils/offerLetterRenderer");
 const offerLetterPdfGenerator_1 = require("../../utils/offerLetterPdfGenerator");
 const offerLetterMailer_1 = require("../../utils/offerLetterMailer");
+const sequelize_1 = require("sequelize");
 const employee_constants_1 = require("../../constants/employee.constants");
 const bulkEmployeeValidation_service_1 = require("./bulkEmployeeValidation.service");
 class HRController {
@@ -49,9 +50,17 @@ class HRController {
                 const limit = Number(req.query.limit || 20);
                 const offset = Number(req.query.offset || 0);
                 const departmentId = req.query.departmentId;
+                const employmentType = req.query.employmentType;
+                const employmentStatus = req.query.employmentStatus;
                 const q = { businessId: req.user.businessId };
                 if (departmentId)
                     q.departmentId = departmentId;
+                if (employmentType)
+                    q.employmentType = employmentType;
+                if (employmentStatus)
+                    q.employmentStatus = employmentStatus;
+                else
+                    q.employmentStatus = { [sequelize_1.Op.ne]: 'terminated' };
                 const result = await this.service.listRecords(q, limit, offset);
                 const rowsWithFilteredSalaries = result.rows.map((r) => {
                     const j = r.toJSON();
@@ -168,6 +177,12 @@ class HRController {
                             recordUpdates.managerUserId = profile.reportingTo || null;
                         if (profile.employmentType !== undefined)
                             recordUpdates.employmentType = profile.employmentType ? this.normalizeEmploymentType(profile.employmentType, rec.employmentType || employee_constants_1.DEFAULT_EMPLOYMENT_TYPE) : null;
+                        if (profile.employmentCategory !== undefined)
+                            recordUpdates.employmentCategory = this.normalizeEmploymentCategory(profile.employmentCategory);
+                        if (profile.assignedStartTime !== undefined)
+                            recordUpdates.assignedStartTime = this.normalizeAssignedStartTime(profile.assignedStartTime, rec.assignedStartTime || "09:00");
+                        if (profile.scheduledWorkDays !== undefined)
+                            recordUpdates.scheduledWorkDays = this.normalizeScheduledWorkDays(profile.scheduledWorkDays, rec.scheduledWorkDays || [1, 2, 3, 4, 5]);
                         if (profile.employmentStatus !== undefined)
                             recordUpdates.employmentStatus = this.normalizeEmploymentStatus(profile.employmentStatus, rec.employmentStatus || employee_constants_1.DEFAULT_EMPLOYMENT_STATUS);
                         if (profile.startDate !== undefined)
@@ -210,6 +225,12 @@ class HRController {
                             countryOfBirth: profile.countryOfBirth !== undefined ? profile.countryOfBirth : rec.metadata?.countryOfBirth,
                             additionalPhone: profile.additionalPhone !== undefined ? profile.additionalPhone : rec.metadata?.additionalPhone,
                             branch: profile.branch !== undefined ? profile.branch : rec.metadata?.branch,
+                            internshipProgram: profile.internshipProgram !== undefined ? profile.internshipProgram : rec.metadata?.internship?.program,
+                            internshipInstitution: profile.internshipInstitution !== undefined ? profile.internshipInstitution : rec.metadata?.internship?.institution,
+                            internshipMentorUserId: profile.internshipMentorUserId !== undefined ? profile.internshipMentorUserId : rec.metadata?.internship?.mentorUserId,
+                            internshipExpectedEndDate: profile.internshipExpectedEndDate !== undefined ? profile.internshipExpectedEndDate : rec.metadata?.internship?.expectedEndDate,
+                            internshipStatus: profile.internshipStatus !== undefined ? profile.internshipStatus : rec.metadata?.internship?.status,
+                            internshipStipendType: profile.internshipStipendType !== undefined ? profile.internshipStipendType : rec.metadata?.internship?.stipendType,
                             bankDetails: profile.bankDetails !== undefined ? profile.bankDetails : rec.metadata?.bankDetails,
                             assetsAndCredentials: profile.assetsAndCredentials !== undefined ? profile.assetsAndCredentials : rec.metadata?.assetsAndCredentials,
                             additionalNotes: profile.additionalNotes !== undefined ? profile.additionalNotes : rec.metadata?.additionalNotes,
@@ -354,6 +375,9 @@ class HRController {
                     positionId: profile.positionId || null,
                     managerUserId: profile.reportingTo || null,
                     employmentType: this.normalizeEmploymentType(profile?.employmentType, employee_constants_1.DEFAULT_EMPLOYMENT_TYPE),
+                    employmentCategory: this.normalizeEmploymentCategory(profile?.employmentCategory),
+                    assignedStartTime: this.normalizeAssignedStartTime(profile?.assignedStartTime),
+                    scheduledWorkDays: this.normalizeScheduledWorkDays(profile?.scheduledWorkDays),
                     employmentStatus: this.normalizeEmploymentStatus(profile?.employmentStatus, employee_constants_1.DEFAULT_EMPLOYMENT_STATUS),
                     hireDate: profile.startDate || new Date(),
                     contractStartDate: profile.contractStartDate || profile.startDate || null,
@@ -664,6 +688,18 @@ class HRController {
                 const role = await models_1.db.Role.findOne({ where: { key: roleKey.toUpperCase(), businessId: null } });
                 if (role)
                     await user.setRoles([role]).catch(() => null);
+                if (settings.onboardingId) {
+                    const onboarding = await models_1.db.CandidateOnboarding.findOne({ where: { onboardingId: settings.onboardingId, businessId } });
+                    if (onboarding) {
+                        await onboarding.update({ status: 'COMPLETED' });
+                        await models_1.db.EmployeeRecord.update({ employmentStatus: 'active' }, { where: { userId: user.id, businessId } });
+                        await models_1.db.InventoryItem.update({
+                            status: 'ASSIGNED',
+                            assignedToUserId: user.id,
+                            reservedForOnboardingId: null,
+                        }, { where: { businessId, reservedForOnboardingId: onboarding.id } });
+                    }
+                }
                 // Send approval email (non-fatal)
                 const business = await models_1.db.Business.findByPk(businessId, { attributes: ['name'] });
                 sendApprovalEmail({ toEmail: user.email, toName: user.fullName, businessName: business?.name || '' }).catch(() => null);
@@ -734,6 +770,19 @@ class HRController {
         const value = (input ?? "").toString().trim();
         return employee_constants_1.EMPLOYMENT_TYPES.includes(value) ? value : fallback;
     }
+    normalizeEmploymentCategory(input) {
+        const value = (input ?? "").toString().trim();
+        return value === "Managerial" || value === "Non-Managerial" ? value : null;
+    }
+    normalizeAssignedStartTime(input, fallback = "09:00") {
+        const value = (input ?? "").toString().trim();
+        return value === "08:00" || value === "08:30" || value === "09:00" ? value : fallback;
+    }
+    normalizeScheduledWorkDays(input, fallback = [1, 2, 3, 4, 5]) {
+        const raw = Array.isArray(input) ? input : fallback;
+        const days = Array.from(new Set(raw.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 7))).sort((a, b) => a - b);
+        return days.length ? days : fallback;
+    }
     buildSalaryInfo(current, profile) {
         return {
             ...(current || {}),
@@ -760,6 +809,15 @@ class HRController {
             countryOfBirth: profile?.countryOfBirth ?? current?.countryOfBirth ?? null,
             additionalPhone: profile?.additionalPhone ?? current?.additionalPhone ?? null,
             branch: profile?.branch ?? current?.branch ?? null,
+            internship: {
+                ...((current || {}).internship || {}),
+                program: profile?.internshipProgram ?? current?.internship?.program ?? null,
+                institution: profile?.internshipInstitution ?? current?.internship?.institution ?? null,
+                mentorUserId: profile?.internshipMentorUserId ?? current?.internship?.mentorUserId ?? null,
+                expectedEndDate: profile?.internshipExpectedEndDate ?? current?.internship?.expectedEndDate ?? null,
+                status: profile?.internshipStatus ?? current?.internship?.status ?? null,
+                stipendType: profile?.internshipStipendType ?? current?.internship?.stipendType ?? null,
+            },
             bankDetails: profile?.bankDetails ?? current?.bankDetails ?? [],
             assetsAndCredentials: profile?.assetsAndCredentials ?? current?.assetsAndCredentials ?? [],
             additionalNotes: profile?.additionalNotes ?? current?.additionalNotes ?? null,

@@ -1,23 +1,21 @@
-
-import type { Request, Response, NextFunction } from 'express';
-import { SubscriptionService } from '../modules/subscription/subscription.service';
+import type { Request, Response, NextFunction } from "express";
+import { SubscriptionService } from "../modules/subscription/subscription.service";
 
 export const requireActiveSubscription = async (req: Request, res: Response, next: NextFunction) => {
-  if (!req.user || !req.user.businessId) return res.status(401).json({ message: 'Unauthorized' });
-  const isActive = await SubscriptionService.isActive(req.user.businessId);
-  if (!isActive) {
-     return res.status(403).json({ message: 'Subscription is suspended, cancelled, or expired. Please renew.' });
+  if (!req.user?.businessId) return res.status(401).json({ message: "Unauthorized" });
+  if (!await SubscriptionService.isActive(req.user.businessId)) {
+    return res.status(403).json({ message: "An active subscription is required." });
   }
   next();
 };
 
-export const requireUsageLimit = (limitKey: string) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user || !req.user.businessId) return res.status(401).json({ message: 'Unauthorized' });
-    const isUnderLimit = await SubscriptionService.checkLimit(req.user.businessId, limitKey);
-    if (!isUnderLimit) {
-      return res.status(402).json({ message: `Limit reached for metric: ${limitKey}. Please upgrade your plan.` });
-    }
-    next();
-  };
+export const requireFeature = (featureKey: string, quantity = 1) => async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user?.businessId) return res.status(401).json({ message: "Unauthorized" });
+  const allowed = await new SubscriptionService().canUseFeature(req.user.businessId, featureKey, quantity);
+  if (!allowed) {
+    return res.status(403).json({ message: "This feature is not available on your current plan. Please upgrade your subscription." });
+  }
+  next();
 };
+
+export const requireUsageLimit = (featureKey: string) => requireFeature(featureKey);

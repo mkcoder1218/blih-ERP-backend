@@ -5,153 +5,25 @@ const express_1 = require("express");
 const auth_1 = require("../../middlewares/auth");
 const role_1 = require("../../middlewares/role");
 const asyncHandler_1 = require("../../utils/asyncHandler");
+const validate_1 = require("../../middlewares/validate");
 const subscription_controller_1 = require("./subscription.controller");
+const subscription_validator_1 = require("../../validators/subscription.validator");
 const router = (0, express_1.Router)();
-const controller = new subscription_controller_1.SubscriptionController();
-// Business Admin Operations
-/**
- * @openapi
- * /api/v1/subscription:
- *   get:
- *     tags: [subscription]
- *     summary: GET index
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/', auth_1.authRequired, (0, role_1.requireRole)('SUPER_ADMIN', 'BUSINESS_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.getSubscription));
-/**
- * @openapi
- * /api/v1/subscription/invoices:
- *   get:
- *     tags: [subscription]
- *     summary: GET /invoices
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/invoices', auth_1.authRequired, (0, role_1.requireRole)('SUPER_ADMIN', 'BUSINESS_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.getInvoices));
-/**
- * @openapi
- * /api/v1/subscription/cancel:
- *   post:
- *     tags: [subscription]
- *     summary: POST /cancel
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/cancel', auth_1.authRequired, (0, role_1.requireRole)('SUPER_ADMIN', 'BUSINESS_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.cancelSubscription));
-// Super Admin / System Operations
-/**
- * @openapi
- * /api/v1/subscription/assign:
- *   post:
- *     tags: [subscription]
- *     summary: POST /assign
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/assign', auth_1.authRequired, (0, role_1.requireRole)('SUPER_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.assignSubscription));
-/**
- * @openapi
- * /api/v1/subscription/invoices:
- *   post:
- *     tags: [subscription]
- *     summary: POST /invoices
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/invoices', auth_1.authRequired, (0, role_1.requireRole)('SUPER_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.createInvoice));
-/**
- * @openapi
- * /api/v1/subscription/invoices/{invoiceId}/payments:
- *   post:
- *     tags: [subscription]
- *     summary: POST /invoices/:invoiceId/payments
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: invoiceId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/invoices/:invoiceId/payments', auth_1.authRequired, (0, role_1.requireRole)('SUPER_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.recordPayment));
+const c = new subscription_controller_1.SubscriptionController();
+router.use(auth_1.authRequired);
+router.get(["/", "/current"], (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(c.current));
+router.get("/features", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(c.features));
+router.get("/plans", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(c.plans));
+router.get("/usage", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(c.usage));
+router.get("/invoices", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN", "BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(c.invoices));
+router.post("/change-plan", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, validate_1.validate)(subscription_validator_1.changePlanSchema), (0, asyncHandler_1.asyncHandler)(c.changePlan));
+router.post("/cancel", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(c.cancel));
+router.post("/reactivate", (0, role_1.requireRole)("BUSINESS_ADMIN"), (0, asyncHandler_1.asyncHandler)(c.reactivate));
+router.post("/:subscriptionId/generate-invoice", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, validate_1.validate)(subscription_validator_1.invoiceSchema), (0, asyncHandler_1.asyncHandler)(c.generateInvoice));
+for (const [path, model] of Object.entries(subscription_controller_1.subscriptionAdminModels)) {
+    router.get(`/admin/${path}`, (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, asyncHandler_1.asyncHandler)(c.list(model)));
+    router.post(`/admin/${path}`, (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, validate_1.validate)(subscription_validator_1.adminSchemas[path]), (0, asyncHandler_1.asyncHandler)(c.create(model)));
+    router.patch(`/admin/${path}/:id`, (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, validate_1.validate)(subscription_validator_1.adminSchemas[path].fork(Object.keys(subscription_validator_1.adminSchemas[path].describe().keys), s => s.optional()).min(1)), (0, asyncHandler_1.asyncHandler)(c.update(model)));
+    router.delete(`/admin/${path}/:id`, (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, asyncHandler_1.asyncHandler)(c.remove(model)));
+}
 exports.subscriptionRoutes = router;

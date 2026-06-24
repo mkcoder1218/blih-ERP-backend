@@ -33,6 +33,7 @@ exports.publicRegisterSchema = joi_1.default.object({
     nationality: joi_1.default.string().max(100).allow(null, '').optional(),
     requestedRoleKey: joi_1.default.string().max(50).allow(null, '').optional(),
     employmentType: joi_1.default.string().max(50).allow(null, '').optional(),
+    internPaymentType: joi_1.default.string().valid('paid', 'unpaid').allow(null, '').optional(),
     hireDate: joi_1.default.string().allow(null, '').optional(),
     departmentId: joi_1.default.string().uuid().allow(null, '').optional(),
     positionId: joi_1.default.string().uuid().allow(null, '').optional(),
@@ -41,6 +42,9 @@ exports.publicRegisterSchema = joi_1.default.object({
     emergencyRelationship: joi_1.default.string().max(100).allow(null, '').optional(),
     bankName: joi_1.default.string().max(200).allow(null, '').optional(),
     bankAccount: joi_1.default.string().max(100).allow(null, '').optional(),
+    onboardingId: joi_1.default.string().guid({ version: ['uuidv4'] }).allow(null, '').optional(),
+    resourceAcknowledgements: joi_1.default.string().allow(null, '').optional(),
+    policyAcknowledgements: joi_1.default.string().allow(null, '').optional(),
 });
 exports.loginSchema = joi_1.default.object({
     email: joi_1.default.string().trim().lowercase().email({ tlds: { allow: false } }).max(320).required(),

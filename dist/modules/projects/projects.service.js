@@ -5,6 +5,7 @@ const models_1 = require("../../models");
 const notification_service_1 = require("../notification/notification.service");
 const projectCode_1 = require("./projectCode");
 const sequelize_1 = require("sequelize");
+const clientPortal_service_1 = require("../clientPortal/clientPortal.service");
 const PROJECT_STATUS_TRANSITIONS = {
     DRAFT: ["PLANNED", "CANCELLED", "ARCHIVED"],
     PLANNED: ["ACTIVE", "ON_HOLD", "CANCELLED", "ARCHIVED"],
@@ -207,6 +208,9 @@ function sanitizeCommentBody(body) {
         .trim();
 }
 class ProjectsService {
+    constructor() {
+        this.clientPortal = new clientPortal_service_1.ClientPortalService();
+    }
     async provisionForms(businessId) {
         const templates = exports.PROJECT_WORKFLOW_FORMS.map((form) => ({ key: form.key, title: `${form.name} Form` }));
         for (const t of templates) {
@@ -225,13 +229,25 @@ class ProjectsService {
             await this.ensureEmployee(businessId, data.ownerEmployeeId);
         if (data.managerEmployeeId)
             await this.ensureEmployee(businessId, data.managerEmployeeId);
+        const clientId = await this.resolveProjectClient(businessId, data);
         const project = await models_1.db.Project.create({
             ...data,
             code,
             businessId,
+            clientId,
             status: normalizeProjectStatus(data.status) || "DRAFT",
             priority: data.priority || "NORMAL"
         });
+        if (data.clientPortalUser && clientId) {
+            const portalUser = await this.clientPortal.createPortalUser(businessId, { ...data.clientPortalUser, clientId });
+            const portalMetadata = portalUser.metadata || {};
+            project.dataValues.clientPortalUser = {
+                id: portalUser.id,
+                email: portalUser.email,
+                fullName: portalUser.fullName,
+                temporaryPassword: portalMetadata.temporaryPassword || data.clientPortalUser.password || null
+            };
+        }
         await this.ensureOwnerManagerMembers(businessId, project);
         return project;
     }
@@ -411,7 +427,23 @@ class ProjectsService {
             await this.ensureEmployee(businessId, data.ownerEmployeeId);
         if (data.managerEmployeeId)
             await this.ensureEmployee(businessId, data.managerEmployeeId);
-        await project.update(data);
+        const nextClientId = data.clientId || data.newClient ? await this.resolveProjectClient(businessId, { ...data, projectManagerUserId: data.projectManagerUserId || project.projectManagerUserId }) : data.clientId;
+        const updateData = { ...data };
+        delete updateData.newClient;
+        delete updateData.clientPortalUser;
+        if (data.clientId !== undefined || data.newClient)
+            updateData.clientId = nextClientId || null;
+        await project.update(updateData);
+        if (data.clientPortalUser && (project.clientId || nextClientId)) {
+            const portalUser = await this.clientPortal.createPortalUser(businessId, { ...data.clientPortalUser, clientId: nextClientId || project.clientId });
+            const portalMetadata = portalUser.metadata || {};
+            project.dataValues.clientPortalUser = {
+                id: portalUser.id,
+                email: portalUser.email,
+                fullName: portalUser.fullName,
+                temporaryPassword: portalMetadata.temporaryPassword || data.clientPortalUser.password || null
+            };
+        }
         await this.ensureOwnerManagerMembers(businessId, project);
         return { before, project };
     }
@@ -1102,6 +1134,30 @@ class ProjectsService {
             throw new Error("Employee not found");
         return employee;
     }
+    async resolveProjectClient(businessId, data) {
+        if (data.clientId) {
+            const client = await models_1.db.Client.findOne({ where: { id: data.clientId, businessId } });
+            if (!client)
+                throw new Error("Client not found");
+            return client.id;
+        }
+        if (!data.newClient)
+            return null;
+        const companyName = String(data.newClient.companyName || "").trim();
+        if (!companyName)
+            throw new Error("Client company name is required");
+        const client = await models_1.db.Client.create({
+            businessId,
+            accountManagerUserId: data.newClient.accountManagerUserId || data.projectManagerUserId || null,
+            companyName,
+            contactName: data.newClient.contactName || null,
+            email: data.newClient.email || null,
+            phone: data.newClient.phone || null,
+            industry: data.newClient.industry || null,
+            status: "active"
+        });
+        return client.id;
+    }
     async ensureEmployeeForUser(businessId, userId) {
         const employee = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId } });
         if (!employee)
@@ -1134,6 +1190,7 @@ class ProjectsService {
         return [
             { model: models_1.db.EmployeeRecord, as: "owner", include: [{ model: models_1.db.User, as: "user", attributes: ["id", "fullName", "email"] }] },
             { model: models_1.db.EmployeeRecord, as: "manager", include: [{ model: models_1.db.User, as: "user", attributes: ["id", "fullName", "email"] }] },
+            { model: models_1.db.Client, attributes: ["id", "companyName", "contactName", "email", "phone"] },
             { model: models_1.db.ProjectMember, as: "members", include: [{ model: models_1.db.EmployeeRecord, as: "employee", include: [{ model: models_1.db.User, as: "user", attributes: ["id", "fullName", "email"] }] }] }
         ];
     }

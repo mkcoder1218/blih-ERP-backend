@@ -81,6 +81,9 @@ import defineSubscription from "./Subscription";
 import defineSubscriptionInvoice from "./SubscriptionInvoice";
 import defineSubscriptionPayment from "./SubscriptionPayment";
 import defineUsageLimit from "./UsageLimit";
+import defineFeature from "./Feature";
+import definePlanFeature from "./PlanFeature";
+import defineUsageRecord from "./UsageRecord";
 import defineSupportAccessLog from "./SupportAccessLog";
 import defineAdminImpersonationSession from "./AdminImpersonationSession";
 import defineSystemHealthLog from "./SystemHealthLog";
@@ -220,6 +223,9 @@ export type DB = {
   SubscriptionInvoice: any;
   SubscriptionPayment: any;
   UsageLimit: any;
+  Feature: any;
+  PlanFeature: any;
+  UsageRecord: any;
   SupportAccessLog: any;
   AdminImpersonationSession: any;
   SystemHealthLog: any;
@@ -351,6 +357,9 @@ export const db: DB = {
   SubscriptionInvoice: defineSubscriptionInvoice(sequelize, DataTypes),
   SubscriptionPayment: defineSubscriptionPayment(sequelize, DataTypes),
   UsageLimit: defineUsageLimit(sequelize, DataTypes),
+  Feature: defineFeature(sequelize, DataTypes),
+  PlanFeature: definePlanFeature(sequelize, DataTypes),
+  UsageRecord: defineUsageRecord(sequelize, DataTypes),
   SupportAccessLog: defineSupportAccessLog(sequelize, DataTypes),
   AdminImpersonationSession: defineAdminImpersonationSession(sequelize, DataTypes),
   SystemHealthLog: defineSystemHealthLog(sequelize, DataTypes),

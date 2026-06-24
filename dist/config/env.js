@@ -31,6 +31,7 @@ exports.env = {
     jobWorkerEnabled: toBool(process.env.JOB_WORKER_ENABLED, false),
     jobTimezone: process.env.JOB_TIMEZONE || "UTC",
     guestApiKey: process.env.GUEST_API_KEY,
+    policiesApiBaseUrl: process.env.POLICIES_API_BASE_URL,
     nodeEnv: process.env.NODE_ENV || "development",
     port: Number(process.env.PORT || 4000),
     jwtAccessSecret: requireEnv("JWT_ACCESS_SECRET"),

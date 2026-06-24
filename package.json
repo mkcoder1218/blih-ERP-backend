@@ -11,6 +11,7 @@
     "test": "jest",
     "seed:project-tasks": "ts-node src/scripts/seedProjectTasks.ts",
     "seed:onboarding-candidates": "ts-node src/scripts/seedOnboardingCandidates.ts",
+    "seed:active-posting-applicants": "ts-node src/scripts/seedActivePostingApplicants.ts",
     "backfill:yesterday-lunch": "node dist/scripts/backfillYesterdayLunchBreaks.js",
     "sync:attendance-corrections": "node -e \"console.error('Disabled: broad attendance correction sync is unsafe for mixed manual correction data.'); process.exit(1)\"",
     "db:migrate": "sequelize-cli db:migrate",

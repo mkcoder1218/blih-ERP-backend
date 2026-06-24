@@ -14,6 +14,7 @@ const normalizeEmail_1 = require("../../utils/normalizeEmail");
 const sequelize_1 = require("sequelize");
 const profileImageUpload_1 = require("../../middlewares/profileImageUpload");
 const file_service_1 = require("../file/file.service");
+const employee_constants_1 = require("../../constants/employee.constants");
 class AuthController {
     constructor() {
         this.fileService = new file_service_1.FileService();
@@ -132,6 +133,13 @@ class AuthController {
                 return next({ statusCode: 403, message: "User is deleted" });
             if (user.status !== "active")
                 return next({ statusCode: 403, message: "User is not active" });
+            const loginEmployeeRecord = await models_1.db.EmployeeRecord.findOne({
+                where: { businessId: user.businessId, userId: user.id },
+                attributes: ["employmentStatus"],
+            });
+            if (loginEmployeeRecord?.employmentStatus === employee_constants_1.TERMINATED_EMPLOYMENT_STATUS) {
+                return next({ statusCode: 403, message: "Employee has left the company" });
+            }
             const okPass = await bcrypt_1.default.compare(password, user.password);
             if (!okPass)
                 return next({ statusCode: 401, message: "Invalid credentials" });
@@ -154,10 +162,18 @@ class AuthController {
                 where: { businessId: user.businessId, status: "active" },
                 attributes: ["moduleKey", "moduleName", "status", "enabledAt"]
             });
+            const employeeRecord = await models_1.db.EmployeeRecord.findOne({
+                where: { businessId: user.businessId, userId: user.id },
+                attributes: ["employmentType", "employmentStatus"],
+            });
             const roles = (fullUser.Roles || []).map((r) => r.key);
             const permissionsSet = new Set();
             (fullUser.Roles || []).forEach((r) => (r.Permissions || []).forEach((p) => permissionsSet.add(p.key)));
             ["attendance.self", "profiles.self", "performance.self", "project.self", "project.task"].forEach((key) => permissionsSet.add(key));
+            const portalUser = await models_1.db.ClientPortalUser.findOne({
+                where: { businessId: user.businessId, userId: user.id, status: "active" },
+                attributes: ["id", "clientId", "fullName", "email"]
+            });
             return (0, apiResponse_1.ok)(res, {
                 accessToken: token,
                 refreshToken,
@@ -168,12 +184,15 @@ class AuthController {
                     email: fullUser.email,
                     phone: fullUser.phone,
                     status: fullUser.status,
+                    employmentType: employeeRecord?.employmentType || null,
+                    employmentStatus: employeeRecord?.employmentStatus || null,
                     isPlatformSuperAdmin: Boolean(fullUser.isPlatformSuperAdmin) || roles.includes("PLATFORM_SUPER_ADMIN"),
                     lastLoginAt: fullUser.lastLoginAt
                 },
                 business: fullUser.Business || null,
                 roles,
                 permissions: Array.from(permissionsSet),
+                portalUser: portalUser ? { id: portalUser.id, clientId: portalUser.clientId, fullName: portalUser.fullName, email: portalUser.email } : null,
                 enabledModules
             }, "Logged in");
         };
@@ -212,7 +231,7 @@ class AuthController {
                 }),
                 models_1.db.EmployeeRecord.findOne({
                     where: { businessId: user.businessId, userId: user.id },
-                    attributes: ["departmentId", "positionId"],
+                    attributes: ["departmentId", "positionId", "employmentType", "employmentStatus"],
                     include: [
                         { model: models_1.db.Department, as: "department", attributes: ["id", "name"] },
                         { model: models_1.db.Position, as: "position", attributes: ["id", "title"] },
@@ -225,6 +244,10 @@ class AuthController {
             ["attendance.self", "profiles.self", "performance.self", "project.self", "project.task"].forEach((key) => permissionsSet.add(key));
             const department = profile?.department || employeeRecord?.department || null;
             const position = profile?.position || employeeRecord?.position || null;
+            const portalUser = await models_1.db.ClientPortalUser.findOne({
+                where: { businessId: user.businessId, userId: user.id, status: "active" },
+                attributes: ["id", "clientId", "fullName", "email"]
+            });
             return (0, apiResponse_1.ok)(res, {
                 user: {
                     id: user.id,
@@ -233,6 +256,8 @@ class AuthController {
                     email: user.email,
                     phone: user.phone,
                     status: user.status,
+                    employmentType: employeeRecord?.employmentType || null,
+                    employmentStatus: employeeRecord?.employmentStatus || null,
                     isPlatformSuperAdmin: Boolean(user.isPlatformSuperAdmin) || roles.includes("PLATFORM_SUPER_ADMIN"),
                     lastLoginAt: user.lastLoginAt
                 },
@@ -243,6 +268,7 @@ class AuthController {
                 business: user.Business || null,
                 roles,
                 permissions: Array.from(permissionsSet),
+                portalUser: portalUser ? { id: portalUser.id, clientId: portalUser.clientId, fullName: portalUser.fullName, email: portalUser.email } : null,
                 enabledModules
             });
         };
@@ -270,17 +296,45 @@ class AuthController {
                 // Personal info
                 dateOfBirth, nationalId, address, city, country, zipCode, gender, maritalStatus, nationality, 
                 // Work info
-                departmentId, positionId, hireDate, employmentType, requestedRoleKey, 
+                departmentId, positionId, hireDate, employmentType, internPaymentType, requestedRoleKey, 
                 // Emergency contact
                 emergencyName, emergencyPhone, emergencyRelationship, 
                 // Bank / optional
-                bankName, bankAccount, } = req.body;
-                const normalizedEmail = (0, normalizeEmail_1.normalizeEmail)(email);
+                bankName, bankAccount, onboardingId, resourceAcknowledgements, policyAcknowledgements, } = req.body;
+                const isIntern = employmentType === 'intern';
+                const askInternPaymentType = internPaymentType === 'paid' || internPaymentType === 'unpaid';
+                const normalizedInternPaymentType = isIntern && internPaymentType === 'paid' ? 'paid' : 'unpaid';
+                const bankDetails = (!isIntern || (askInternPaymentType && normalizedInternPaymentType === 'paid')) && (bankName || bankAccount)
+                    ? [{ bankName: bankName || 'Awash Bank', accountNumber: bankAccount || null }]
+                    : [];
                 // 1. Resolve business by slug
                 const business = await models_1.db.Business.findOne({ where: { slug: businessSlug } });
                 if (!business)
                     return next({ statusCode: 404, message: "Registration link not found" });
                 const businessId = business.id;
+                const onboarding = onboardingId
+                    ? await models_1.db.CandidateOnboarding.findOne({ where: { onboardingId, businessId } })
+                    : null;
+                if (onboardingId && !onboarding) {
+                    return next({ statusCode: 404, message: "Onboarding invite not found" });
+                }
+                const onboardingMeta = onboarding?.metadata || {};
+                const submittedEmail = (0, normalizeEmail_1.normalizeEmail)(onboardingMeta.assignedEmail || email);
+                const isOnboardingRegistration = Boolean(onboarding);
+                const parseJson = (value) => {
+                    if (!value)
+                        return {};
+                    if (typeof value === "object")
+                        return value;
+                    try {
+                        return JSON.parse(String(value));
+                    }
+                    catch {
+                        return {};
+                    }
+                };
+                const parsedResourceAcknowledgements = parseJson(resourceAcknowledgements);
+                const parsedPolicyAcknowledgements = parseJson(policyAcknowledgements);
                 // 2. Load public-registration settings — order by updatedAt DESC so the most
                 //    recently saved value wins (guards against any surviving duplicate rows)
                 const latestSetting = async (key) => models_1.db.BusinessSetting.findOne({
@@ -294,16 +348,16 @@ class AuthController {
                     latestSetting('auto_approve_registration'),
                 ]);
                 const enabled = enabledSetting?.value === true || enabledSetting?.value?.enabled === true;
-                if (!enabled)
+                if (!enabled && !isOnboardingRegistration)
                     return next({ statusCode: 403, message: "Self-registration is not currently enabled for this company" });
                 // 3. Check time window
                 const now = new Date();
-                if (fromSetting?.value) {
+                if (!isOnboardingRegistration && fromSetting?.value) {
                     const from = new Date(fromSetting.value);
                     if (now < from)
                         return next({ statusCode: 403, message: "Registration window has not opened yet" });
                 }
-                if (untilSetting?.value) {
+                if (!isOnboardingRegistration && untilSetting?.value) {
                     const until = new Date(untilSetting.value);
                     if (now > until)
                         return next({ statusCode: 403, message: "Registration window has closed" });
@@ -314,11 +368,11 @@ class AuthController {
                     return next({ statusCode: 403, message: "Cannot self-register with this role" });
                 }
                 // 5. Check duplicate
-                const existing = await models_1.db.User.findOne({ where: { businessId, email: normalizedEmail } });
+                const existing = await models_1.db.User.findOne({ where: { businessId, email: submittedEmail } });
                 if (existing)
                     return next({ statusCode: 409, message: "An account with this email already exists" });
                 // 6. Create user
-                const autoApprove = autoSetting?.value === true || autoSetting?.value?.enabled === true;
+                const autoApprove = (autoSetting?.value === true || autoSetting?.value?.enabled === true) && !onboarding;
                 const hashed = await bcrypt_1.default.hash(password, env_1.env.bcryptSaltRounds);
                 // Generate a unique registration token for the resubmit link
                 const crypto = require('crypto');
@@ -326,7 +380,7 @@ class AuthController {
                 const user = await models_1.db.User.create({
                     businessId,
                     fullName,
-                    email: normalizedEmail,
+                    email: submittedEmail,
                     password: hashed,
                     phone: phone || null,
                     status: autoApprove ? 'active' : 'pending',
@@ -395,14 +449,14 @@ class AuthController {
                     userId: user.id,
                     departmentId: departmentId || null,
                     positionId: positionId || null,
-                    workEmail: normalizedEmail,
+                    workEmail: submittedEmail,
                     workPhone: phone || null,
                     employmentType: employmentType || null,
                     joinedAt: hireDate ? new Date(hireDate) : null,
                     status: autoApprove ? 'active' : 'pending',
                     settings: {
                         fullName,
-                        email: normalizedEmail,
+                        email: submittedEmail,
                         phone: phone || null,
                         address: address || null,
                         city: city || null,
@@ -414,6 +468,14 @@ class AuthController {
                         dateOfBirth: dateOfBirth || null,
                         selfRegistered: true,
                         requestedRoleKey: requestedRoleKey || null,
+                        internPaymentType: isIntern ? normalizedInternPaymentType : null,
+                        onboardingId: onboarding?.onboardingId || null,
+                        offerId: onboarding?.offerId || null,
+                        assignedEmail: onboardingMeta.assignedEmail || null,
+                        requiredPolicies: onboarding?.requiredPolicies || [],
+                        resourceResponses: parsedResourceAcknowledgements,
+                        policyAcknowledgements: parsedPolicyAcknowledgements,
+                        inventoryItems: onboarding?.resources || [],
                     },
                 });
                 // 8. Create EmployeeRecord with full info
@@ -424,7 +486,7 @@ class AuthController {
                     departmentId: departmentId || null,
                     positionId: positionId || null,
                     employmentType: employmentType || 'full_time',
-                    employmentStatus: 'active',
+                    employmentStatus: onboarding ? 'onboarding' : 'active',
                     hireDate: hireDate || new Date().toISOString().slice(0, 10),
                     salaryInfo: {},
                     emergencyContact: emergencyContact ?? {},
@@ -441,11 +503,55 @@ class AuthController {
                         gender: gender || null,
                         maritalStatus: maritalStatus || null,
                         nationality: nationality || null,
-                        bankDetails: (bankName || bankAccount) ? [{ bankName: bankName || null, accountNumber: bankAccount || null }] : [],
+                        bankDetails,
+                        internship: isIntern ? { stipendType: normalizedInternPaymentType } : undefined,
                         selfRegistered: true,
                         requestedRoleKey: requestedRoleKey || null,
+                        onboardingId: onboarding?.onboardingId || null,
+                        offerId: onboarding?.offerId || null,
+                        resourceAcknowledgements: parsedResourceAcknowledgements,
+                        policyAcknowledgements: parsedPolicyAcknowledgements,
                     },
                 }).catch(() => null); // Non-fatal if EmployeeRecord creation fails (e.g. missing required fields)
+                if (onboarding) {
+                    await onboarding.update({
+                        status: 'SUBMITTED_FOR_REVIEW',
+                        candidateData: {
+                            ...(onboarding.candidateData || {}),
+                            personal_info: {
+                                ...((onboarding.candidateData || {}).personal_info || {}),
+                                email: submittedEmail,
+                                phone: phone || null,
+                                firstName: fullName?.split(' ')?.[0] || fullName,
+                                lastName: fullName?.split(' ')?.slice(1).join(' ') || '',
+                                dateOfBirth: dateOfBirth || null,
+                                gender: gender || null,
+                                maritalStatus: maritalStatus || null,
+                                nationality: nationality || null,
+                                address: address || null,
+                                city: city || null,
+                                country: country || null,
+                                zipCode: zipCode || null,
+                            },
+                            emergency_contact: {
+                                name: emergencyName || null,
+                                phone: emergencyPhone || null,
+                                relationship: emergencyRelationship || null,
+                            },
+                            payroll: {
+                                bankName: bankName || null,
+                                bankAccount: bankAccount || null,
+                            },
+                            policies: parsedPolicyAcknowledgements,
+                        },
+                        resourceResponses: (onboarding.resources || []).map((resource, index) => ({
+                            resourceIndex: index,
+                            status: parsedResourceAcknowledgements[index] ? "ACCEPTED" : "PENDING",
+                            resourceName: resource.resourceName || resource.name || null,
+                        })),
+                        progress: 100,
+                    });
+                }
                 // 9. Assign requested role if specified and auto-approve is on
                 if (requestedRoleKey && autoApprove) {
                     const role = await models_1.db.Role.findOne({
@@ -467,7 +573,9 @@ class AuthController {
                 return (0, apiResponse_1.ok)(res, {
                     autoApproved: false,
                     userId: user.id,
-                    message: 'Your account has been created and is pending approval by HR. You will be notified once activated.',
+                    message: onboarding
+                        ? 'Your onboarding registration has been submitted and is pending approval by HR.'
+                        : 'Your account has been created and is pending approval by HR. You will be notified once activated.',
                 }, 'Registration submitted.', 201);
             }
             catch (e) {
@@ -570,10 +678,16 @@ class AuthController {
         this.publicResubmit = async (req, res, next) => {
             try {
                 const { token } = req.params;
-                const { businessSlug, fullName, email, password, phone, dateOfBirth, gender, maritalStatus, nationality, address, city, country, zipCode, requestedRoleKey, employmentType, hireDate, departmentId, positionId, emergencyName, emergencyPhone, emergencyRelationship, bankName, bankAccount, } = req.body;
+                const { businessSlug, fullName, email, password, phone, dateOfBirth, gender, maritalStatus, nationality, address, city, country, zipCode, requestedRoleKey, employmentType, internPaymentType, hireDate, departmentId, positionId, emergencyName, emergencyPhone, emergencyRelationship, bankName, bankAccount, } = req.body;
                 const business = await models_1.db.Business.findOne({ where: { slug: businessSlug }, attributes: ['id'] });
                 if (!business)
                     return next({ statusCode: 404, message: 'Business not found' });
+                const isIntern = employmentType === 'intern';
+                const askInternPaymentType = internPaymentType === 'paid' || internPaymentType === 'unpaid';
+                const normalizedInternPaymentType = isIntern && internPaymentType === 'paid' ? 'paid' : 'unpaid';
+                const bankDetails = (!isIntern || (askInternPaymentType && normalizedInternPaymentType === 'paid')) && (bankName || bankAccount)
+                    ? [{ bankName: bankName || 'Awash Bank', accountNumber: bankAccount || null }]
+                    : [];
                 const user = await models_1.db.User.findOne({
                     where: { businessId: business.id, registrationToken: token, status: 'rejected' },
                 });
@@ -666,6 +780,7 @@ class AuthController {
                         nationality: nationality || null,
                         dateOfBirth: dateOfBirth || null,
                         requestedRoleKey: requestedRoleKey || null,
+                        internPaymentType: isIntern ? normalizedInternPaymentType : null,
                         resubmitted: true,
                     },
                 });
@@ -700,7 +815,8 @@ class AuthController {
                             gender: gender || prevMeta.gender,
                             maritalStatus: maritalStatus || prevMeta.maritalStatus,
                             nationality: nationality || prevMeta.nationality,
-                            bankDetails: (bankName || bankAccount) ? [{ bankName: bankName || null, accountNumber: bankAccount || null }] : prevMeta.bankDetails || [],
+                            bankDetails: isIntern ? bankDetails : (bankDetails.length ? bankDetails : prevMeta.bankDetails || []),
+                            internship: isIntern ? { ...(prevMeta.internship || {}), stipendType: normalizedInternPaymentType } : prevMeta.internship,
                             requestedRoleKey: requestedRoleKey || prevMeta.requestedRoleKey,
                             resubmitted: true,
                         },
@@ -865,16 +981,18 @@ class AuthController {
                 if (!business)
                     return next({ statusCode: 404, message: 'Not found' });
                 const businessId = business.id;
-                const [enabledS, fromS, untilS, autoS] = await Promise.all([
+                const [enabledS, fromS, untilS, autoS, askInternPaymentS] = await Promise.all([
                     models_1.db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_enabled' } }),
                     models_1.db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_open_from' } }),
                     models_1.db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_open_until' } }),
                     models_1.db.BusinessSetting.findOne({ where: { businessId, key: 'auto_approve_registration' } }),
+                    models_1.db.BusinessSetting.findOne({ where: { businessId, key: 'public_registration_ask_intern_payment_type' } }),
                 ]);
                 const enabled = enabledS?.value === true || enabledS?.value?.enabled === true;
                 const openFrom = fromS?.value ?? null;
                 const openUntil = untilS?.value ?? null;
                 const autoApprove = autoS?.value === true || autoS?.value?.enabled === true;
+                const askInternPaymentType = askInternPaymentS?.value !== false;
                 const now = new Date();
                 let isOpen = enabled;
                 if (enabled && openFrom && now < new Date(openFrom))
@@ -889,6 +1007,7 @@ class AuthController {
                     openFrom,
                     openUntil,
                     autoApprove,
+                    askInternPaymentType,
                 });
             }
             catch (e) {
