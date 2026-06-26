@@ -1,5 +1,6 @@
 import { db } from "../models";
 import { TemplateService } from "../modules/moduleTemplate/template.service";
+import { seedEthiopianLeaveTemplatesForAllBusinesses } from "../modules/leave/seed/ethiopianLeaveTemplates.seed";
 
 export const SYSTEM_ROLES = {
   PLATFORM_SUPER_ADMIN: { name: "Platform Super Admin", key: "PLATFORM_SUPER_ADMIN" },
@@ -117,4 +118,6 @@ export async function seedDefaults() {
   // Pre-seed core template maps (HR, CRM, etc.)
   const tplSvc = new TemplateService();
   await tplSvc.seedGlobalTemplates();
+
+  await seedEthiopianLeaveTemplatesForAllBusinesses();
 }

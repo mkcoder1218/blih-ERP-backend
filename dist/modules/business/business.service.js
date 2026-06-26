@@ -6,6 +6,7 @@ const slugify_1 = require("../../utils/slugify");
 const template_service_1 = require("../moduleTemplate/template.service");
 const models_1 = require("../../models");
 const Role_1 = require("../../models/Role");
+const ethiopianLeaveTemplates_seed_1 = require("../leave/seed/ethiopianLeaveTemplates.seed");
 class BusinessService {
     constructor() {
         this.templateService = new template_service_1.TemplateService();
@@ -75,6 +76,7 @@ class BusinessService {
                 }
             }
         }
+        await (0, ethiopianLeaveTemplates_seed_1.seedEthiopianLeaveTemplatesForBusiness)(business.id);
         return business;
     }
     listAll() {

@@ -4,6 +4,7 @@ exports.DEFAULT_PLANS = exports.BASE_PERMISSIONS = exports.SYSTEM_ROLES = void 0
 exports.seedDefaults = seedDefaults;
 const models_1 = require("../models");
 const template_service_1 = require("../modules/moduleTemplate/template.service");
+const ethiopianLeaveTemplates_seed_1 = require("../modules/leave/seed/ethiopianLeaveTemplates.seed");
 exports.SYSTEM_ROLES = {
     PLATFORM_SUPER_ADMIN: { name: "Platform Super Admin", key: "PLATFORM_SUPER_ADMIN" },
     BUSINESS_ADMIN: { name: "Business Admin", key: "BUSINESS_ADMIN" },
@@ -101,4 +102,5 @@ async function seedDefaults() {
     // Pre-seed core template maps (HR, CRM, etc.)
     const tplSvc = new template_service_1.TemplateService();
     await tplSvc.seedGlobalTemplates();
+    await (0, ethiopianLeaveTemplates_seed_1.seedEthiopianLeaveTemplatesForAllBusinesses)();
 }

@@ -3,6 +3,7 @@ import { slugify } from "../../utils/slugify";
 import { TemplateService } from "../moduleTemplate/template.service";
 import { db } from "../../models";
 import { roleDomainForKey } from "../../models/Role";
+import { seedEthiopianLeaveTemplatesForBusiness } from "../leave/seed/ethiopianLeaveTemplates.seed";
 
 export class BusinessService {
   private templateService = new TemplateService();
@@ -80,6 +81,9 @@ export class BusinessService {
         }
       }
     }
+
+    await seedEthiopianLeaveTemplatesForBusiness(business.id);
+
     return business;
   }
 
