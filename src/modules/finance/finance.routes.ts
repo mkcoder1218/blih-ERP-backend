@@ -148,6 +148,11 @@ router.get(
   requireAnyPermission("salary_employee_read", "finance.manage"),
   asyncHandler(controller.listEmployeeSalaries)
 );
+router.get(
+  "/employee-salaries/export",
+  requireAnyPermission("salary_employee_read", "finance.manage"),
+  asyncHandler(controller.exportEmployeeSalaries)
+);
 router.post(
   "/payroll-links",
   requireAnyPermission("finance.manage", "payroll.run", "salary_employee_read"),

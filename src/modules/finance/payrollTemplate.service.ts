@@ -138,7 +138,8 @@ export class PayrollTemplateService {
 
   async listEmployeeSalaries(businessId: string, query: any = {}) {
     const page = Math.max(Number(query.page || 1), 1);
-    const limit = Math.min(Math.max(Number(query.limit || 10), 1), 100);
+    const maxLimit = String(query.exportAll || "").toLowerCase() === "true" ? 5000 : 100;
+    const limit = Math.min(Math.max(Number(query.limit || 10), 1), maxLimit);
     const offset = (page - 1) * limit;
     const q = String(query.q || "").trim();
     const departmentId = String(query.departmentId || "");
@@ -153,19 +154,18 @@ export class PayrollTemplateService {
     if (departmentId) where.departmentId = departmentId;
     if (employmentStatus) where.employmentStatus = employmentStatus;
 
-    const userWhere = q
-      ? {
-          [Op.or]: [
-            { fullName: { [Op.iLike]: `%${q}%` } },
-            { email: { [Op.iLike]: `%${q}%` } },
-          ],
-        }
-      : undefined;
+    const userWhere: any = { status: "active" };
+    if (q) {
+      userWhere[Op.or] = [
+        { fullName: { [Op.iLike]: `%${q}%` } },
+        { email: { [Op.iLike]: `%${q}%` } },
+      ];
+    }
 
     const records = await db.EmployeeRecord.findAll({
       where,
       include: [
-        { model: db.User, as: "user", attributes: ["id", "fullName", "email"], where: userWhere, required: Boolean(q) },
+        { model: db.User, as: "user", attributes: ["id", "fullName", "email"], where: userWhere, required: true },
         { model: db.Department, as: "department", attributes: ["id", "name"] },
         { model: db.Position, as: "position", attributes: ["id", "title"] },
       ],

@@ -262,6 +262,35 @@ export class FinanceController {
     } catch (e: any) { errorResponse(res, e.message); }
   };
 
+  exportEmployeeSalaries = async (req: Request, res: Response) => {
+    try {
+      const data = await this.payrollTplSvc.listEmployeeSalaries(req.user!.businessId, {
+        ...req.query,
+        page: 1,
+        limit: 5000,
+        exportAll: "true",
+      });
+      const rows = data.rows.map((row: any) => ({
+        employee: row.name,
+        email: row.email,
+        department: row.department?.name || "Unassigned",
+        position: row.position?.title || row.employmentType || "Employee",
+        employmentStatus: row.employmentStatus,
+        payrollSetup: row.payrollStatus === "linked" ? "Configured" : "Needs setup",
+        template: row.templateName || "",
+        currency: row.currency,
+        baseSalary: row.baseSalary,
+        grossPay: row.grossPay,
+        totalDeductions: row.totalDeductions,
+        netPay: row.netPay,
+      }));
+      const csv = this.toCsv(rows);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", 'attachment; filename="employee-salaries.csv"');
+      res.status(200).send(csv);
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
   linkEmployeeToTemplate = async (req: Request, res: Response) => {
     try {
       const link = await this.payrollTplSvc.linkEmployee(req.user!.businessId, req.user!.id, req.body);
