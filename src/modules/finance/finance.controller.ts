@@ -299,6 +299,14 @@ export class FinanceController {
     } catch (e: any) { errorResponse(res, e.message); }
   };
 
+  bulkLinkEmployeesToTemplate = async (req: Request, res: Response) => {
+    try {
+      const result = await this.payrollTplSvc.bulkLinkEmployees(req.user!.businessId, req.user!.id, req.body);
+      await AuditLogService.log('BULK_LINK_EMPLOYEE_PAYROLL', 'finance_payroll', String(req.body.templateId), null, result, req);
+      successResponse(res, result, `${result.linkedCount} employees linked to payroll template`, 201);
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
   unlinkEmployee = async (req: Request, res: Response) => {
     try {
       await this.payrollTplSvc.unlinkEmployee(req.user!.businessId, req.params.userId);

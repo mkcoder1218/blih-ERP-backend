@@ -301,6 +301,30 @@ export class PayrollTemplateService {
   }
 
   // ── Unlink (move back to pending) ───────────────────────────────────────────
+  async bulkLinkEmployees(businessId: string, actorUserId: string, data: {
+    employeeUserIds: string[];
+    templateId: string;
+  }) {
+    const employeeUserIds = Array.from(new Set((data.employeeUserIds || []).filter(Boolean)));
+    if (!data.templateId) throw new Error("Payroll template is required");
+    if (!employeeUserIds.length) throw new Error("Select at least one employee");
+
+    await this.getTemplate(businessId, data.templateId);
+    const results: any[] = [];
+    for (const employeeUserId of employeeUserIds) {
+      const link = await this.linkEmployee(businessId, actorUserId, {
+        employeeUserId,
+        templateId: data.templateId,
+      });
+      results.push(link);
+    }
+
+    return {
+      linkedCount: results.length,
+      employeeUserIds,
+    };
+  }
+
   async unlinkEmployee(businessId: string, employeeUserId: string) {
     const link = await db.EmployeePayrollLink.findOne({ where: { businessId, employeeUserId } });
     if (!link) throw new Error("No payroll link found for this employee");

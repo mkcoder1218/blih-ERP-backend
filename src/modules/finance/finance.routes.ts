@@ -158,6 +158,11 @@ router.post(
   requireAnyPermission("finance.manage", "payroll.run", "salary_employee_read"),
   asyncHandler(controller.linkEmployeeToTemplate)
 );
+router.post(
+  "/payroll-links/bulk",
+  requireAnyPermission("finance.manage", "payroll.run", "salary_employee_read"),
+  asyncHandler(controller.bulkLinkEmployeesToTemplate)
+);
 router.delete(
   "/payroll-links/:userId",
   requireAnyPermission("finance.manage"),
