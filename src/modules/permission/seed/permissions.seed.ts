@@ -62,6 +62,7 @@ export const SYSTEM_PERMISSIONS = [
   // ── Finance & Operations ─────────────────────────────────────────────────────
   { module: "finance", action: "read",   key: "finance.read",  description: "View financial reports and workforce finance dashboard" },
   { module: "finance", action: "manage", key: "finance.manage",description: "Process invoices, approve expenses, and manage budgets" },
+  { module: "finance", action: "salary_employee_read", key: "salary_employee_read", description: "View and recalculate employee salary records" },
   // Self-service: employee sees only their own payslip, salary, and benefits
   { module: "finance", action: "mine",   key: "finance.mine",  description: "View own salary, payslips, and submit expense claims" },
   { module: "payroll", action: "read",   key: "payroll.read",  description: "View payroll history and salary data" },

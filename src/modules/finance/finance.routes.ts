@@ -143,9 +143,14 @@ router.get(
   requireAnyPermission("finance.read", "finance.manage", "payroll.read", "payroll.run"),
   asyncHandler(controller.getPayrollDashboard)
 );
+router.get(
+  "/employee-salaries",
+  requireAnyPermission("salary_employee_read", "finance.manage"),
+  asyncHandler(controller.listEmployeeSalaries)
+);
 router.post(
   "/payroll-links",
-  requireAnyPermission("finance.manage", "payroll.run"),
+  requireAnyPermission("finance.manage", "payroll.run", "salary_employee_read"),
   asyncHandler(controller.linkEmployeeToTemplate)
 );
 router.delete(

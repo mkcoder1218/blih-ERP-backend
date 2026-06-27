@@ -243,6 +243,25 @@ export class FinanceController {
     } catch (e: any) { errorResponse(res, e.message); }
   };
 
+  listEmployeeSalaries = async (req: Request, res: Response) => {
+    try {
+      const data = await this.payrollTplSvc.listEmployeeSalaries(req.user!.businessId, req.query);
+      res.status(200).json({
+        success: true,
+        message: "Employee salaries loaded",
+        data: data.rows,
+        meta: {
+          total: data.count,
+          page: data.page,
+          limit: data.limit,
+          totalPages: data.totalPages,
+          totals: data.totals,
+          requestId: (res as any).locals.requestId,
+        },
+      });
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
   linkEmployeeToTemplate = async (req: Request, res: Response) => {
     try {
       const link = await this.payrollTplSvc.linkEmployee(req.user!.businessId, req.user!.id, req.body);

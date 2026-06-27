@@ -136,6 +136,123 @@ export class PayrollTemplateService {
     });
   }
 
+  async listEmployeeSalaries(businessId: string, query: any = {}) {
+    const page = Math.max(Number(query.page || 1), 1);
+    const limit = Math.min(Math.max(Number(query.limit || 10), 1), 100);
+    const offset = (page - 1) * limit;
+    const q = String(query.q || "").trim();
+    const departmentId = String(query.departmentId || "");
+    const employmentStatus = String(query.employmentStatus || "");
+    const payrollStatus = String(query.payrollStatus || "");
+    const templateId = String(query.templateId || "");
+
+    const where: any = {
+      businessId,
+      employmentStatus: { [Op.ne]: TERMINATED_EMPLOYMENT_STATUS },
+    };
+    if (departmentId) where.departmentId = departmentId;
+    if (employmentStatus) where.employmentStatus = employmentStatus;
+
+    const userWhere = q
+      ? {
+          [Op.or]: [
+            { fullName: { [Op.iLike]: `%${q}%` } },
+            { email: { [Op.iLike]: `%${q}%` } },
+          ],
+        }
+      : undefined;
+
+    const records = await db.EmployeeRecord.findAll({
+      where,
+      include: [
+        { model: db.User, as: "user", attributes: ["id", "fullName", "email"], where: userWhere, required: Boolean(q) },
+        { model: db.Department, as: "department", attributes: ["id", "name"] },
+        { model: db.Position, as: "position", attributes: ["id", "title"] },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const userIds = records.map((employee: any) => employee.userId);
+    const links = userIds.length
+      ? await db.EmployeePayrollLink.findAll({
+          where: {
+            businessId,
+            employeeUserId: { [Op.in]: userIds },
+            ...(templateId ? { templateId } : {}),
+          },
+          include: [{ model: db.PayrollTemplate, as: "template", attributes: ["id", "name", "currency"] }],
+        })
+      : [];
+    const linkByUserId = new Map(links.map((link: any) => [link.employeeUserId, link]));
+
+    let rows = records.map((employee: any) => {
+      const link: any = linkByUserId.get(employee.userId);
+      const salaryInfo = employee.salaryInfo || {};
+      const baseSalary = link ? this.m(link.baseSalary) : this.m(salaryInfo.baseSalary ?? salaryInfo.monthlySalary ?? salaryInfo.salary);
+      return {
+        id: employee.id,
+        userId: employee.userId,
+        employeeCode: employee.employeeCode,
+        name: employee.user?.fullName || "Unknown",
+        email: employee.user?.email || "",
+        department: employee.department ? { id: employee.department.id, name: employee.department.name } : null,
+        position: employee.position ? { id: employee.position.id, title: employee.position.title } : null,
+        employmentType: employee.employmentType,
+        employmentStatus: employee.employmentStatus,
+        hireDate: employee.hireDate,
+        salaryInfo,
+        payrollStatus: link ? "linked" : "pending",
+        templateId: link?.templateId || null,
+        templateName: link?.template?.name || null,
+        currency: link?.currency || salaryInfo.currency || salaryInfo.salaryCurrency || "ETB",
+        baseSalary,
+        baseSalaryOverride: link?.baseSalaryOverride ?? null,
+        housingAllowance: this.m(link?.housingAllowance),
+        transportAllowance: this.m(link?.transportAllowance),
+        mealAllowance: this.m(link?.mealAllowance),
+        otherAllowance: this.m(link?.otherAllowance),
+        grossPay: this.m(link?.grossPay),
+        taxDeduction: this.m(link?.taxDeduction),
+        pensionDeduction: this.m(link?.pensionDeduction),
+        healthDeduction: this.m(link?.healthDeduction),
+        loanDeduction: this.m(link?.loanDeduction),
+        otherDeduction: this.m(link?.otherDeduction),
+        totalDeductions: this.m(link?.totalDeductions),
+        netPay: this.m(link?.netPay),
+        linkedAt: link?.linkedAt || null,
+      };
+    });
+
+    if (payrollStatus === "linked" || payrollStatus === "pending") {
+      rows = rows.filter((row: any) => row.payrollStatus === payrollStatus);
+    }
+    if (templateId) {
+      rows = rows.filter((row: any) => row.templateId === templateId);
+    }
+
+    const count = rows.length;
+    const pagedRows = rows.slice(offset, offset + limit);
+    const totals = rows.reduce(
+      (acc: any, row: any) => {
+        acc.baseSalary += row.baseSalary;
+        acc.grossPay += row.grossPay;
+        acc.netPay += row.netPay;
+        if (row.payrollStatus === "linked") acc.linked += 1;
+        return acc;
+      },
+      { baseSalary: 0, grossPay: 0, netPay: 0, linked: 0 }
+    );
+
+    return {
+      rows: pagedRows,
+      count,
+      page,
+      limit,
+      totalPages: Math.ceil(count / limit),
+      totals,
+    };
+  }
+
   // ── Link an employee to a template + calculate ──────────────────────────────
   async linkEmployee(businessId: string, actorUserId: string, data: {
     employeeUserId: string;
