@@ -2,10 +2,63 @@ import { db } from "../../models";
 import { Op } from "sequelize";
 import { TERMINATED_EMPLOYMENT_STATUS } from "../../constants/employee.constants";
 
+const ETHIOPIAN_TAX_POLICY = {
+  version: "ethiopian_proclamation_410_2017_allowance_caps",
+  transportMonthlyCap: 2200,
+  perDiemMonthlyCap: 2200,
+  perDiemDailyCap: 225,
+  allowanceSalaryPctCap: 25,
+  fringeTaxSalaryPctCap: 10,
+};
+
+function moneyValue(v: any) {
+  return Number(v ?? 0);
+}
+
+function percentage(base: number, rate: any) {
+  return rate != null ? base * (moneyValue(rate) / 100) : 0;
+}
+
+function incomeTaxBracket(taxableIncome: number) {
+  let rate = 0;
+  let deduction = 0;
+  if (taxableIncome >= 2001 && taxableIncome <= 4000) {
+    rate = 0.15;
+    deduction = 300;
+  } else if (taxableIncome >= 4001 && taxableIncome <= 7000) {
+    rate = 0.20;
+    deduction = 500;
+  } else if (taxableIncome >= 7001 && taxableIncome <= 10000) {
+    rate = 0.25;
+    deduction = 850;
+  } else if (taxableIncome >= 10001 && taxableIncome <= 14000) {
+    rate = 0.30;
+    deduction = 1350;
+  } else if (taxableIncome > 14000) {
+    rate = 0.35;
+    deduction = 2050;
+  }
+
+  return {
+    rate,
+    deduction,
+    tax: Math.max(taxableIncome * rate - deduction, 0),
+  };
+}
+
+function splitCappedAllowance(amount: number, cap: number) {
+  const exempt = Math.min(Math.max(amount, 0), Math.max(cap, 0));
+  return {
+    amount,
+    exempt,
+    taxable: Math.max(amount - exempt, 0),
+  };
+}
+
 // ─── Calculation helper ───────────────────────────────────────────────────────
 export function calculatePayroll(baseSalary: number, tpl: any) {
-  const m = (v: any) => Number(v ?? 0);
-  const pct = (base: number, rate: any) => (rate != null ? base * (m(rate) / 100) : 0);
+  const m = moneyValue;
+  const pct = percentage;
 
   const housing   = pct(baseSalary, tpl.housingAllowancePct);
   const transport = pct(baseSalary, tpl.transportAllowancePct);
@@ -35,6 +88,102 @@ export function calculatePayroll(baseSalary: number, tpl: any) {
     otherDeduction: otherD,
     totalDeductions,
     netPay,
+  };
+}
+
+export function calculateEthiopianPayroll(baseSalary: number, tpl: any) {
+  const m = moneyValue;
+  const pct = percentage;
+
+  const housing   = pct(baseSalary, tpl.housingAllowancePct);
+  const transport = pct(baseSalary, tpl.transportAllowancePct);
+  const meal      = pct(baseSalary, tpl.mealAllowancePct);
+  const other     = pct(baseSalary, tpl.otherAllowancePct);
+  const grossPay  = baseSalary + housing + transport + meal + other;
+
+  const salaryPctCap = baseSalary * (ETHIOPIAN_TAX_POLICY.allowanceSalaryPctCap / 100);
+  const transportCap = Math.min(ETHIOPIAN_TAX_POLICY.transportMonthlyCap, salaryPctCap);
+  const perDiemCap = Math.min(ETHIOPIAN_TAX_POLICY.perDiemMonthlyCap, salaryPctCap);
+  const transportTax = splitCappedAllowance(transport, transportCap);
+  const perDiemTax = splitCappedAllowance(meal, perDiemCap);
+  const housingTaxable = housing;
+  const fringeTaxable = other;
+  const taxableIncomeBeforeFringe = baseSalary + housingTaxable + transportTax.taxable + perDiemTax.taxable;
+  const taxableIncome = taxableIncomeBeforeFringe + fringeTaxable;
+  const baseTax = incomeTaxBracket(taxableIncomeBeforeFringe);
+  const fullTax = incomeTaxBracket(taxableIncome);
+  const fringeTaxCap = baseSalary * (ETHIOPIAN_TAX_POLICY.fringeTaxSalaryPctCap / 100);
+  const fringeTax = Math.min(Math.max(fullTax.tax - baseTax.tax, 0), fringeTaxCap);
+  const tax = baseTax.tax + fringeTax;
+  const pension = pct(grossPay, tpl.pensionPct);
+  const health  = pct(grossPay, tpl.healthPct);
+  const loan    = m(tpl.loanRepaymentFlat);
+  const otherD  = m(tpl.otherDeductionFlat);
+  const totalDeductions = tax + pension + health + loan + otherD;
+  const netPay = Math.max(grossPay - totalDeductions, 0);
+
+  return {
+    baseSalary,
+    housingAllowance: housing,
+    transportAllowance: transport,
+    mealAllowance: meal,
+    otherAllowance: other,
+    grossPay,
+    taxDeduction: tax,
+    pensionDeduction: pension,
+    healthDeduction: health,
+    loanDeduction: loan,
+    otherDeduction: otherD,
+    totalDeductions,
+    netPay,
+    taxMeta: {
+      mode: "ethiopian_proclamation",
+      policyVersion: ETHIOPIAN_TAX_POLICY.version,
+      taxableIncome,
+      taxableIncomeBeforeFringe,
+      rate: fullTax.rate,
+      deduction: fullTax.deduction,
+      incomeTaxBeforeFringe: baseTax.tax,
+      fringeTax,
+      fringeTaxCap,
+      allowanceBreakdown: {
+        baseSalary: { amount: baseSalary, exempt: 0, taxable: baseSalary, treatment: "fully_taxable" },
+        transport: {
+          ...transportTax,
+          cap: transportCap,
+          treatment: "partially_exempt",
+          rule: "Exempt up to the lower of ETB 2,200 per month or 25% of base salary.",
+        },
+        perDiem: {
+          ...perDiemTax,
+          cap: perDiemCap,
+          dailyCap: ETHIOPIAN_TAX_POLICY.perDiemDailyCap,
+          treatment: "partially_exempt",
+          rule: "Monthly exemption uses the lower of ETB 2,200 per month or 25% of base salary. Daily travel-day cap support needs a per-diem days field.",
+        },
+        medical: {
+          amount: 0,
+          exempt: 0,
+          taxable: 0,
+          treatment: "generally_exempt_when_documented",
+          rule: "Medical treatment or insurance is generally exempt when supported by documentation.",
+        },
+        housing: {
+          amount: housing,
+          exempt: 0,
+          taxable: housingTaxable,
+          treatment: "fully_taxable",
+        },
+        fringeBenefits: {
+          amount: other,
+          exempt: 0,
+          taxable: fringeTaxable,
+          treatment: "taxable_with_tax_cap",
+          taxCap: fringeTaxCap,
+          rule: "Tax payable on combined fringe benefits is capped at 10% of base salary.",
+        },
+      },
+    },
   };
 }
 
@@ -75,7 +224,11 @@ export class PayrollTemplateService {
     const links = await db.EmployeePayrollLink.findAll({ where: { businessId, templateId: id } });
     for (const link of links) {
       const computed = calculatePayroll(this.m(link.baseSalaryOverride || link.baseSalary), tpl);
-      await link.update({ ...computed, currency: tpl.currency });
+      await link.update({
+        ...computed,
+        currency: tpl.currency,
+        metadata: { ...(link.metadata || {}), tax: null },
+      });
     }
     return tpl.reload();
   }
@@ -219,6 +372,7 @@ export class PayrollTemplateService {
         otherDeduction: this.m(link?.otherDeduction),
         totalDeductions: this.m(link?.totalDeductions),
         netPay: this.m(link?.netPay),
+        taxMeta: link?.metadata?.tax || null,
         linkedAt: link?.linkedAt || null,
       };
     });
@@ -284,6 +438,7 @@ export class PayrollTemplateService {
         currency: tpl.currency,
         linkedByUserId: actorUserId,
         linkedAt: new Date(),
+        metadata: { ...(existing.metadata || {}), tax: null },
       });
       return existing.reload({ include: [{ model: db.PayrollTemplate, as: "template" }] });
     }
@@ -325,6 +480,80 @@ export class PayrollTemplateService {
     };
   }
 
+  async updateEmployeeBaseSalaryWithEthiopianTax(businessId: string, actorUserId: string, employeeUserId: string, baseSalary: number) {
+    if (!Number.isFinite(baseSalary) || baseSalary < 0) throw new Error("Base salary must be a positive number");
+
+    const employee = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
+    if (!employee) throw new Error("Employee not found");
+
+    await employee.update({
+      salaryInfo: {
+        ...(employee.salaryInfo || {}),
+        baseSalary,
+        taxMode: "ethiopian_proclamation",
+      },
+    });
+
+    const link = await db.EmployeePayrollLink.findOne({
+      where: { businessId, employeeUserId },
+      include: [{ model: db.PayrollTemplate, as: "template" }],
+    });
+
+    if (!link) {
+      return { employeeUserId, linked: false, baseSalary };
+    }
+
+    const tpl = link.template || await this.getTemplate(businessId, link.templateId);
+    const computed = calculateEthiopianPayroll(baseSalary, tpl);
+    const { taxMeta, ...payroll } = computed;
+    await link.update({
+      baseSalaryOverride: baseSalary,
+      ...payroll,
+      currency: tpl.currency,
+      linkedByUserId: actorUserId,
+      linkedAt: new Date(),
+      metadata: {
+        ...(link.metadata || {}),
+        tax: taxMeta,
+      },
+    });
+
+    return {
+      employeeUserId,
+      linked: true,
+      ...payroll,
+      currency: tpl.currency,
+      tax: taxMeta,
+    };
+  }
+
+  async syncEthiopianTax(businessId: string, actorUserId: string, query: any = {}) {
+    const data = await this.listEmployeeSalaries(businessId, {
+      ...query,
+      page: 1,
+      limit: 5000,
+      exportAll: "true",
+    });
+    const linkedRows = data.rows.filter((row: any) => row.payrollStatus === "linked");
+    const results: any[] = [];
+
+    for (const row of linkedRows) {
+      const result = await this.updateEmployeeBaseSalaryWithEthiopianTax(
+        businessId,
+        actorUserId,
+        row.userId,
+        this.m(row.baseSalary)
+      );
+      results.push(result);
+    }
+
+    return {
+      syncedCount: results.length,
+      skippedNeedsSetup: data.rows.length - linkedRows.length,
+      totalMatched: data.rows.length,
+    };
+  }
+
   async unlinkEmployee(businessId: string, employeeUserId: string) {
     const link = await db.EmployeePayrollLink.findOne({ where: { businessId, employeeUserId } });
     if (!link) throw new Error("No payroll link found for this employee");
@@ -359,6 +588,7 @@ export class PayrollTemplateService {
       otherDeduction: this.m(link.otherDeduction),
       totalDeductions: this.m(link.totalDeductions),
       netPay: this.m(link.netPay),
+      taxMeta: link.metadata?.tax || null,
       currency: link.currency,
       status: link.status,
       linkedAt: link.linkedAt,

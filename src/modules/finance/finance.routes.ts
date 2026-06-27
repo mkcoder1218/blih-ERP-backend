@@ -154,6 +154,16 @@ router.get(
   asyncHandler(controller.exportEmployeeSalaries)
 );
 router.post(
+  "/employee-salaries/sync-ethiopian-tax",
+  requireAnyPermission("salary_employee_read", "finance.manage"),
+  asyncHandler(controller.syncEthiopianTax)
+);
+router.patch(
+  "/employee-salaries/:userId/base-salary",
+  requireAnyPermission("salary_employee_read", "finance.manage"),
+  asyncHandler(controller.updateEmployeeBaseSalary)
+);
+router.post(
   "/payroll-links",
   requireAnyPermission("finance.manage", "payroll.run", "salary_employee_read"),
   asyncHandler(controller.linkEmployeeToTemplate)

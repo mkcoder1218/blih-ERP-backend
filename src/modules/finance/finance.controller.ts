@@ -281,6 +281,8 @@ export class FinanceController {
         currency: row.currency,
         baseSalary: row.baseSalary,
         grossPay: row.grossPay,
+        taxableIncome: row.taxMeta?.taxableIncome ?? "",
+        taxMode: row.taxMeta?.mode ?? "",
         totalDeductions: row.totalDeductions,
         netPay: row.netPay,
       }));
@@ -288,6 +290,28 @@ export class FinanceController {
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", 'attachment; filename="employee-salaries.csv"');
       res.status(200).send(csv);
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
+  updateEmployeeBaseSalary = async (req: Request, res: Response) => {
+    try {
+      const baseSalary = Number(req.body?.baseSalary);
+      const result = await this.payrollTplSvc.updateEmployeeBaseSalaryWithEthiopianTax(
+        req.user!.businessId,
+        req.user!.id,
+        req.params.userId,
+        baseSalary
+      );
+      await AuditLogService.log('UPDATE_EMPLOYEE_BASE_SALARY', 'finance_salary', req.params.userId, null, result, req);
+      successResponse(res, result, 'Employee base salary updated');
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
+  syncEthiopianTax = async (req: Request, res: Response) => {
+    try {
+      const result = await this.payrollTplSvc.syncEthiopianTax(req.user!.businessId, req.user!.id, req.body || {});
+      await AuditLogService.log('SYNC_ETHIOPIAN_SALARY_TAX', 'finance_salary', 'ethiopian_proclamation', null, result, req);
+      successResponse(res, result, `${result.syncedCount} employee salary records synced`);
     } catch (e: any) { errorResponse(res, e.message); }
   };
 
