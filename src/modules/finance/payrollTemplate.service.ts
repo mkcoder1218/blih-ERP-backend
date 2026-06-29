@@ -238,6 +238,42 @@ export class PayrollTemplateService {
     return calculatePayroll(baseSalary, tpl);
   }
 
+  private salaryInfoForBase(salaryInfo: any = {}, baseSalary: number) {
+    const existingBaseSalary = this.m(salaryInfo.baseSalary ?? salaryInfo.monthlySalary ?? salaryInfo.salary);
+    const existingPensionableSalary = salaryInfo.pensionableSalary != null ? this.m(salaryInfo.pensionableSalary) : null;
+    const pensionableSalary = existingPensionableSalary != null && existingPensionableSalary !== existingBaseSalary
+      ? existingPensionableSalary
+      : baseSalary;
+    return {
+      ...salaryInfo,
+      baseSalary,
+      pensionableSalary,
+    };
+  }
+
+  private resolvePayrollFromNetSalary(targetNetSalary: number, tpl: any, salaryInfo: any = {}, forceEthiopian = false) {
+    if (!Number.isFinite(targetNetSalary) || targetNetSalary <= 0) throw new Error("Net salary must be a positive number");
+
+    let lower = 0;
+    let upper = Math.max(targetNetSalary * 2, 1000);
+    let upperComputed = this.computePayroll(upper, tpl, this.salaryInfoForBase(salaryInfo, upper), forceEthiopian);
+
+    while (upperComputed.netPay < targetNetSalary && upper < 1_000_000_000) {
+      upper *= 2;
+      upperComputed = this.computePayroll(upper, tpl, this.salaryInfoForBase(salaryInfo, upper), forceEthiopian);
+    }
+
+    for (let i = 0; i < 80; i += 1) {
+      const mid = (lower + upper) / 2;
+      const computed = this.computePayroll(mid, tpl, this.salaryInfoForBase(salaryInfo, mid), forceEthiopian);
+      if (computed.netPay < targetNetSalary) lower = mid;
+      else upper = mid;
+    }
+
+    const baseSalary = Math.round(upper * 100) / 100;
+    return this.computePayroll(baseSalary, tpl, this.salaryInfoForBase(salaryInfo, baseSalary), forceEthiopian);
+  }
+
   private maskBankAccount(value: any) {
     const raw = String(value || "").trim();
     if (!raw) return "";
@@ -298,32 +334,50 @@ export class PayrollTemplateService {
   }
 
   async setupAutomaticEthiopianPayroll(businessId: string, actorUserId: string | null, employeeUserId: string, financialInfo: any) {
-    const baseSalary = this.m(financialInfo?.baseSalary ?? financialInfo?.monthlySalary ?? financialInfo?.salary);
-    if (!Number.isFinite(baseSalary) || baseSalary <= 0) throw new Error("Base salary is required");
-
+    const data = financialInfo || {};
     const employee = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
     if (!employee) throw new Error("Employee not found");
+
+    const tpl = await this.getAutomaticEthiopianTemplate(businessId, actorUserId);
+    const rawBaseSalary = data.baseSalary ?? data.monthlySalary ?? data.salary;
+    const targetNetSalary = this.m(data.netSalary ?? data.targetNetSalary ?? data.targetNetPay ?? data.netPay);
+    const provisionalSalaryInfo = {
+      ...(employee.salaryInfo || {}),
+      currency: data.currency || employee.salaryInfo?.currency || "ETB",
+      transportAllowance: this.m(data.transportAllowance),
+      housingAllowance: this.m(data.housingAllowance),
+      mealAllowance: this.m(data.mealAllowance),
+      otherAllowance: this.m(data.otherAllowance),
+      employeePensionRate: this.m(data.employeePensionRate ?? ETHIOPIAN_TAX_POLICY.employeePensionRate),
+      employerPensionRate: this.m(data.employerPensionRate ?? ETHIOPIAN_TAX_POLICY.employerPensionRate),
+    };
+    const computedFromNet = targetNetSalary > 0 && (rawBaseSalary == null || rawBaseSalary === "")
+      ? this.resolvePayrollFromNetSalary(targetNetSalary, tpl, provisionalSalaryInfo, true)
+      : null;
+    const baseSalary = computedFromNet?.baseSalary ?? this.m(rawBaseSalary);
+    if (!Number.isFinite(baseSalary) || baseSalary <= 0) throw new Error("Base salary or net salary is required");
 
     const salaryInfo = {
       ...(employee.salaryInfo || {}),
       baseSalary,
-      pensionableSalary: this.m(financialInfo.pensionableSalary ?? baseSalary),
-      currency: financialInfo.currency || employee.salaryInfo?.currency || "ETB",
+      pensionableSalary: this.m(data.pensionableSalary ?? baseSalary),
+      currency: data.currency || employee.salaryInfo?.currency || "ETB",
       taxMode: "ethiopian_proclamation",
-      transportAllowance: this.m(financialInfo.transportAllowance),
-      housingAllowance: this.m(financialInfo.housingAllowance),
-      mealAllowance: this.m(financialInfo.mealAllowance),
-      otherAllowance: this.m(financialInfo.otherAllowance),
-      employeePensionRate: this.m(financialInfo.employeePensionRate ?? ETHIOPIAN_TAX_POLICY.employeePensionRate),
-      employerPensionRate: this.m(financialInfo.employerPensionRate ?? ETHIOPIAN_TAX_POLICY.employerPensionRate),
-      bankAccount: financialInfo.bankAccount || employee.salaryInfo?.bankAccount || null,
-      tin: financialInfo.tin || employee.salaryInfo?.tin || null,
-      remarks: financialInfo.remarks || employee.salaryInfo?.remarks || null,
-      paymentStatus: financialInfo.paymentStatus || employee.salaryInfo?.paymentStatus || "Pending",
+      transportAllowance: this.m(data.transportAllowance),
+      housingAllowance: this.m(data.housingAllowance),
+      mealAllowance: this.m(data.mealAllowance),
+      otherAllowance: this.m(data.otherAllowance),
+      employeePensionRate: this.m(data.employeePensionRate ?? ETHIOPIAN_TAX_POLICY.employeePensionRate),
+      employerPensionRate: this.m(data.employerPensionRate ?? ETHIOPIAN_TAX_POLICY.employerPensionRate),
+      bankAccount: data.bankAccount || employee.salaryInfo?.bankAccount || null,
+      tin: data.tin || employee.salaryInfo?.tin || null,
+      remarks: data.remarks || employee.salaryInfo?.remarks || null,
+      paymentStatus: data.paymentStatus || employee.salaryInfo?.paymentStatus || "Pending",
+      salaryInputMode: targetNetSalary > 0 && (rawBaseSalary == null || rawBaseSalary === "") ? "net" : "base",
+      targetNetSalary: targetNetSalary > 0 ? targetNetSalary : null,
     };
     await employee.update({ salaryInfo });
 
-    const tpl = await this.getAutomaticEthiopianTemplate(businessId, actorUserId);
     return this.linkEmployee(businessId, actorUserId, {
       employeeUserId,
       templateId: tpl.id,
@@ -616,6 +670,7 @@ export class PayrollTemplateService {
     employeeUserId: string;
     templateId: string;
     baseSalaryOverride?: number;
+    netSalaryOverride?: number;
     calculationMode?: "ethiopian" | "template";
   }) {
     const employee = await db.EmployeeRecord.findOne({
@@ -624,11 +679,17 @@ export class PayrollTemplateService {
     if (!employee) throw new Error("Employee not found");
 
     const tpl = await this.getTemplate(businessId, data.templateId);
-    const baseSalary = data.baseSalaryOverride != null
+    const forceEthiopian = data.calculationMode === "ethiopian";
+    const baseSalaryFromInput = data.baseSalaryOverride != null
       ? data.baseSalaryOverride
       : this.m(employee.salaryInfo?.baseSalary ?? employee.salaryInfo?.monthlySalary ?? employee.salaryInfo?.salary);
+    const targetNetSalary = this.m(data.netSalaryOverride);
+    const computedFromNet = targetNetSalary > 0 && data.baseSalaryOverride == null
+      ? this.resolvePayrollFromNetSalary(targetNetSalary, tpl, employee.salaryInfo || {}, forceEthiopian)
+      : null;
+    const baseSalary = computedFromNet?.baseSalary ?? baseSalaryFromInput;
 
-    const computed = this.computePayroll(baseSalary, tpl, employee.salaryInfo || {}, data.calculationMode === "ethiopian");
+    const computed = computedFromNet ?? this.computePayroll(baseSalary, tpl, employee.salaryInfo || {}, forceEthiopian);
     const { taxMeta, payroll } = this.splitComputed(computed);
 
     // Upsert — employee may already have a link (reassignment)
@@ -639,12 +700,17 @@ export class PayrollTemplateService {
     if (existing) {
       await existing.update({
         templateId: data.templateId,
-        baseSalaryOverride: data.baseSalaryOverride ?? null,
+        baseSalaryOverride: baseSalary,
         ...payroll,
         currency: tpl.currency,
         linkedByUserId: actorUserId,
         linkedAt: new Date(),
-        metadata: { ...(existing.metadata || {}), tax: taxMeta || null },
+        metadata: {
+          ...(existing.metadata || {}),
+          tax: taxMeta || null,
+          salaryInputMode: targetNetSalary > 0 && data.baseSalaryOverride == null ? "net" : "base",
+          targetNetSalary: targetNetSalary > 0 ? targetNetSalary : null,
+        },
       });
       return existing.reload({ include: [{ model: db.PayrollTemplate, as: "template" }] });
     }
@@ -653,12 +719,16 @@ export class PayrollTemplateService {
       businessId,
       employeeUserId: data.employeeUserId,
       templateId: data.templateId,
-      baseSalaryOverride: data.baseSalaryOverride ?? null,
+      baseSalaryOverride: baseSalary,
       ...payroll,
       currency: tpl.currency,
       linkedByUserId: actorUserId,
       linkedAt: new Date(),
-      metadata: { tax: taxMeta || null },
+      metadata: {
+        tax: taxMeta || null,
+        salaryInputMode: targetNetSalary > 0 && data.baseSalaryOverride == null ? "net" : "base",
+        targetNetSalary: targetNetSalary > 0 ? targetNetSalary : null,
+      },
     });
   }
 
@@ -687,17 +757,34 @@ export class PayrollTemplateService {
     };
   }
 
-  async updateEmployeeBaseSalaryWithEthiopianTax(businessId: string, actorUserId: string, employeeUserId: string, baseSalary: number) {
-    if (!Number.isFinite(baseSalary) || baseSalary < 0) throw new Error("Base salary must be a positive number");
-
+  async updateEmployeeBaseSalaryWithEthiopianTax(businessId: string, actorUserId: string, employeeUserId: string, salaryInput: any) {
     const employee = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
     if (!employee) throw new Error("Employee not found");
+
+    const data = typeof salaryInput === "number" ? { baseSalary: salaryInput } : (salaryInput || {});
+    const rawBaseSalary = data.baseSalary ?? data.monthlySalary ?? data.salary;
+    const targetNetSalary = this.m(data.netSalary ?? data.targetNetSalary ?? data.targetNetPay ?? data.netPay);
+    let baseSalary = this.m(rawBaseSalary);
+
+    if ((rawBaseSalary == null || rawBaseSalary === "") && targetNetSalary > 0) {
+      const existingLink = await db.EmployeePayrollLink.findOne({
+        where: { businessId, employeeUserId },
+        include: [{ model: db.PayrollTemplate, as: "template" }],
+      });
+      const tpl = existingLink?.template || await this.getAutomaticEthiopianTemplate(businessId, actorUserId);
+      const computed = this.resolvePayrollFromNetSalary(targetNetSalary, tpl, employee.salaryInfo || {}, true);
+      baseSalary = computed.baseSalary;
+    }
+
+    if (!Number.isFinite(baseSalary) || baseSalary <= 0) throw new Error("Base salary or net salary must be a positive number");
 
     await employee.update({
       salaryInfo: {
         ...(employee.salaryInfo || {}),
         baseSalary,
         taxMode: "ethiopian_proclamation",
+        salaryInputMode: targetNetSalary > 0 && (rawBaseSalary == null || rawBaseSalary === "") ? "net" : "base",
+        targetNetSalary: targetNetSalary > 0 ? targetNetSalary : null,
       },
     });
 

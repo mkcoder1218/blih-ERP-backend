@@ -67,13 +67,18 @@ export class HRController {
 
    private normalizeApprovalFinancialInfo(input: any) {
      const data = input || {};
-     const baseSalary = Number(data.baseSalary ?? data.monthlySalary ?? data.salary);
-     if (!Number.isFinite(baseSalary) || baseSalary <= 0) throw new Error("Base salary is required before approval");
-     const pensionableSalary = Number(data.pensionableSalary ?? baseSalary);
-     if (!Number.isFinite(pensionableSalary) || pensionableSalary < 0) throw new Error("Pensionable salary must be valid");
+     const hasBaseSalary = data.baseSalary != null || data.monthlySalary != null || data.salary != null;
+     const baseSalary = hasBaseSalary ? Number(data.baseSalary ?? data.monthlySalary ?? data.salary) : null;
+     const netSalary = Number(data.netSalary ?? data.targetNetSalary ?? data.targetNetPay ?? data.netPay ?? 0);
+     if ((baseSalary == null || !Number.isFinite(baseSalary) || baseSalary <= 0) && (!Number.isFinite(netSalary) || netSalary <= 0)) {
+       throw new Error("Base salary or net salary is required before approval");
+     }
+     const pensionableSalary = Number(data.pensionableSalary ?? baseSalary ?? 0);
+     if (data.pensionableSalary != null && (!Number.isFinite(pensionableSalary) || pensionableSalary < 0)) throw new Error("Pensionable salary must be valid");
      return {
-       baseSalary,
-       pensionableSalary,
+       ...(baseSalary != null ? { baseSalary } : {}),
+       ...(Number.isFinite(netSalary) && netSalary > 0 ? { netSalary } : {}),
+       ...(data.pensionableSalary != null ? { pensionableSalary } : {}),
        currency: data.currency || "ETB",
        transportAllowance: Number(data.transportAllowance ?? 0),
        housingAllowance: Number(data.housingAllowance ?? 0),
@@ -96,6 +101,16 @@ export class HRController {
        bankName: primaryBank?.bankName ?? metadata.bankName ?? null,
        bankAccount: salaryInfo.bankAccount ?? primaryBank?.accountNumber ?? metadata.bankAccountNumber ?? null,
        tin: salaryInfo.tin ?? metadata.tin ?? metadata.taxIdentificationNumber ?? null,
+       salaryInputMode: salaryInfo.salaryInputMode ?? null,
+       baseSalary: salaryInfo.baseSalary ?? null,
+       netSalary: salaryInfo.targetNetSalary ?? salaryInfo.netSalary ?? null,
+       transportAllowance: salaryInfo.transportAllowance ?? null,
+       housingAllowance: salaryInfo.housingAllowance ?? null,
+       mealAllowance: salaryInfo.mealAllowance ?? null,
+       otherAllowance: salaryInfo.otherAllowance ?? null,
+       employeePensionRate: salaryInfo.employeePensionRate ?? null,
+       employerPensionRate: salaryInfo.employerPensionRate ?? null,
+       remarks: salaryInfo.remarks ?? null,
      };
    }
 

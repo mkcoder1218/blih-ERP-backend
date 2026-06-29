@@ -313,12 +313,11 @@ export class FinanceController {
 
   updateEmployeeBaseSalary = async (req: Request, res: Response) => {
     try {
-      const baseSalary = Number(req.body?.baseSalary);
       const result = await this.payrollTplSvc.updateEmployeeBaseSalaryWithEthiopianTax(
         req.user!.businessId,
         req.user!.id,
         req.params.userId,
-        baseSalary
+        req.body || {}
       );
       await AuditLogService.log('UPDATE_EMPLOYEE_BASE_SALARY', 'finance_salary', req.params.userId, null, result, req);
       successResponse(res, result, 'Employee base salary updated');

@@ -25,6 +25,25 @@ function seedBankDetails(index: number) {
   };
 }
 
+function seedSalaryInfo(index: number, offset: number, bank: { accountNumber: string }) {
+  return {
+    salaryInputMode: "net",
+    targetNetSalary: 15000 + offset * 2500,
+    currency: "ETB",
+    taxMode: "ethiopian_proclamation",
+    transportAllowance: 500,
+    housingAllowance: 0,
+    mealAllowance: 0,
+    otherAllowance: 0,
+    employeePensionRate: 7,
+    employerPensionRate: 11,
+    bankAccount: bank.accountNumber,
+    tin: `TIN-PEND-${index}`,
+    paymentStatus: "Pending",
+    remarks: "Seeded with target net salary for approval testing.",
+  };
+}
+
 async function getSeedBusiness() {
   const businessId = process.env.PENDING_REGISTRATION_SEED_BUSINESS_ID;
   if (businessId) {
@@ -82,6 +101,7 @@ async function run() {
     const fullName = `Pending Finance Test ${number}`;
     const phone = `+2519${String(number).padStart(8, "0").slice(-8)}`;
     const bank = seedBankDetails(number);
+    const seededSalaryInfo = seedSalaryInfo(number, offset, bank);
 
     const [user, userCreated] = await db.User.findOrCreate({
       where: { businessId, email },
@@ -147,7 +167,7 @@ async function run() {
         employmentType: "full_time",
         employmentStatus: "pending",
         hireDate: addDays(new Date(), 7 + offset),
-        salaryInfo: {},
+        salaryInfo: seededSalaryInfo,
         emergencyContact: {
           firstName: "Seed",
           lastName: "Contact",
@@ -172,7 +192,10 @@ async function run() {
       employmentType: "full_time",
       employmentStatus: "pending",
       hireDate: addDays(new Date(), 7 + offset),
-      salaryInfo: {},
+      salaryInfo: {
+        ...(record.salaryInfo || {}),
+        ...seededSalaryInfo,
+      },
       metadata: {
         ...(record.metadata || {}),
         seedBatch: SEED_BATCH,
