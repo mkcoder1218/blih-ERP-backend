@@ -277,21 +277,36 @@ export class PayrollTemplateService {
     };
   }
 
+  private salaryInfoWithoutAllowances(salaryInfo: any = {}) {
+    return {
+      ...salaryInfo,
+      transportAllowance: 0,
+      perDiemAllowance: 0,
+      perDiemDays: 0,
+      medicalBenefit: 0,
+      telecomAllowance: 0,
+      housingAllowance: 0,
+      mealAllowance: 0,
+      otherAllowance: 0,
+    };
+  }
+
   private resolvePayrollFromNetSalary(targetNetSalary: number, tpl: any, salaryInfo: any = {}, forceEthiopian = false) {
     if (!Number.isFinite(targetNetSalary) || targetNetSalary <= 0) throw new Error("Net salary must be a positive number");
 
+    const baseOnlySalaryInfo = this.salaryInfoWithoutAllowances(salaryInfo);
     let lower = 0;
     let upper = Math.max(targetNetSalary * 2, 1000);
-    let upperComputed = this.computePayroll(upper, tpl, this.salaryInfoForBase(salaryInfo, upper), forceEthiopian);
+    let upperComputed = this.computePayroll(upper, tpl, this.salaryInfoForBase(baseOnlySalaryInfo, upper), forceEthiopian);
 
     while (upperComputed.netPay < targetNetSalary && upper < 1_000_000_000) {
       upper *= 2;
-      upperComputed = this.computePayroll(upper, tpl, this.salaryInfoForBase(salaryInfo, upper), forceEthiopian);
+      upperComputed = this.computePayroll(upper, tpl, this.salaryInfoForBase(baseOnlySalaryInfo, upper), forceEthiopian);
     }
 
     for (let i = 0; i < 80; i += 1) {
       const mid = (lower + upper) / 2;
-      const computed = this.computePayroll(mid, tpl, this.salaryInfoForBase(salaryInfo, mid), forceEthiopian);
+      const computed = this.computePayroll(mid, tpl, this.salaryInfoForBase(baseOnlySalaryInfo, mid), forceEthiopian);
       if (computed.netPay < targetNetSalary) lower = mid;
       else upper = mid;
     }
@@ -604,6 +619,9 @@ export class PayrollTemplateService {
       const link: any = linkByUserId.get(employee.userId);
       const salaryInfo = employee.salaryInfo || {};
       const baseSalary = link ? this.m(link.baseSalary) : this.m(salaryInfo.baseSalary ?? salaryInfo.monthlySalary ?? salaryInfo.salary);
+      const targetNetSalary = link?.metadata?.targetNetSalary ?? salaryInfo.targetNetSalary ?? null;
+      const salaryInputMode = link?.metadata?.salaryInputMode ?? salaryInfo.salaryInputMode ?? null;
+      const computedNetPay = this.m(link?.netPay);
       return {
         id: employee.id,
         userId: employee.userId,
@@ -625,8 +643,14 @@ export class PayrollTemplateService {
         currency: link?.currency || salaryInfo.currency || salaryInfo.salaryCurrency || "ETB",
         baseSalary,
         baseSalaryOverride: link?.baseSalaryOverride ?? null,
+        targetNetSalary,
+        salaryInputMode,
         housingAllowance: this.m(link?.housingAllowance),
         transportAllowance: this.m(link?.transportAllowance),
+        perDiemAllowance: this.m(link?.metadata?.tax?.allowanceBreakdown?.perDiem?.amount ?? salaryInfo.perDiemAllowance),
+        perDiemDays: this.m(link?.metadata?.tax?.allowanceBreakdown?.perDiem?.days ?? salaryInfo.perDiemDays),
+        medicalBenefit: this.m(link?.metadata?.tax?.allowanceBreakdown?.medical?.amount ?? salaryInfo.medicalBenefit),
+        telecomAllowance: this.m(link?.metadata?.tax?.allowanceBreakdown?.telecom?.amount ?? salaryInfo.telecomAllowance),
         mealAllowance: this.m(link?.mealAllowance),
         otherAllowance: this.m(link?.otherAllowance),
         grossPay: this.m(link?.grossPay),
@@ -636,7 +660,8 @@ export class PayrollTemplateService {
         loanDeduction: this.m(link?.loanDeduction),
         otherDeduction: this.m(link?.otherDeduction),
         totalDeductions: this.m(link?.totalDeductions),
-        netPay: this.m(link?.netPay),
+        netPay: salaryInputMode === "net" && this.m(targetNetSalary) > 0 ? this.m(targetNetSalary) : computedNetPay,
+        computedNetPay,
         taxMeta: link?.metadata?.tax || null,
         taxableAmount: this.m(link?.metadata?.tax?.taxableIncome),
         employeePensionContribution: this.m(link?.pensionDeduction),
@@ -697,6 +722,17 @@ export class PayrollTemplateService {
     templateId: string;
     baseSalaryOverride?: number;
     netSalaryOverride?: number;
+    pensionableSalary?: number;
+    transportAllowance?: number;
+    perDiemAllowance?: number;
+    perDiemDays?: number;
+    medicalBenefit?: number;
+    telecomAllowance?: number;
+    housingAllowance?: number;
+    mealAllowance?: number;
+    otherAllowance?: number;
+    employeePensionRate?: number;
+    employerPensionRate?: number;
     calculationMode?: "ethiopian" | "template";
   }) {
     const employee = await db.EmployeeRecord.findOne({
@@ -710,13 +746,37 @@ export class PayrollTemplateService {
       ? data.baseSalaryOverride
       : this.m(employee.salaryInfo?.baseSalary ?? employee.salaryInfo?.monthlySalary ?? employee.salaryInfo?.salary);
     const targetNetSalary = this.m(data.netSalaryOverride);
+    const salaryInfoForCalculation = {
+      ...(employee.salaryInfo || {}),
+      ...(data.pensionableSalary != null ? { pensionableSalary: this.m(data.pensionableSalary) } : {}),
+      ...(data.transportAllowance != null ? { transportAllowance: this.m(data.transportAllowance) } : {}),
+      ...(data.perDiemAllowance != null ? { perDiemAllowance: this.m(data.perDiemAllowance) } : {}),
+      ...(data.perDiemDays != null ? { perDiemDays: this.m(data.perDiemDays) } : {}),
+      ...(data.medicalBenefit != null ? { medicalBenefit: this.m(data.medicalBenefit) } : {}),
+      ...(data.telecomAllowance != null ? { telecomAllowance: this.m(data.telecomAllowance) } : {}),
+      ...(data.housingAllowance != null ? { housingAllowance: this.m(data.housingAllowance) } : {}),
+      ...(data.mealAllowance != null ? { mealAllowance: this.m(data.mealAllowance) } : {}),
+      ...(data.otherAllowance != null ? { otherAllowance: this.m(data.otherAllowance) } : {}),
+      ...(data.employeePensionRate != null ? { employeePensionRate: this.m(data.employeePensionRate) } : {}),
+      ...(data.employerPensionRate != null ? { employerPensionRate: this.m(data.employerPensionRate) } : {}),
+    };
     const computedFromNet = targetNetSalary > 0 && data.baseSalaryOverride == null
-      ? this.resolvePayrollFromNetSalary(targetNetSalary, tpl, employee.salaryInfo || {}, forceEthiopian)
+      ? this.resolvePayrollFromNetSalary(targetNetSalary, tpl, salaryInfoForCalculation, forceEthiopian)
       : null;
     const baseSalary = computedFromNet?.baseSalary ?? baseSalaryFromInput;
 
-    const computed = computedFromNet ?? this.computePayroll(baseSalary, tpl, employee.salaryInfo || {}, forceEthiopian);
+    const computed = computedFromNet ?? this.computePayroll(baseSalary, tpl, this.salaryInfoForBase(salaryInfoForCalculation, baseSalary), forceEthiopian);
     const { taxMeta, payroll } = this.splitComputed(computed);
+    const salaryInputMode = targetNetSalary > 0 && data.baseSalaryOverride == null ? "net" : "base";
+    const nextSalaryInfo = {
+      ...salaryInfoForCalculation,
+      baseSalary,
+      taxMode: forceEthiopian || this.isEthiopianTemplate(tpl) ? "ethiopian_proclamation" : salaryInfoForCalculation.taxMode,
+      salaryInputMode,
+      targetNetSalary: targetNetSalary > 0 ? targetNetSalary : null,
+    };
+
+    await employee.update({ salaryInfo: nextSalaryInfo });
 
     // Upsert — employee may already have a link (reassignment)
     const existing = await db.EmployeePayrollLink.findOne({
@@ -734,7 +794,7 @@ export class PayrollTemplateService {
         metadata: {
           ...(existing.metadata || {}),
           tax: taxMeta || null,
-          salaryInputMode: targetNetSalary > 0 && data.baseSalaryOverride == null ? "net" : "base",
+          salaryInputMode,
           targetNetSalary: targetNetSalary > 0 ? targetNetSalary : null,
         },
       });
@@ -752,7 +812,7 @@ export class PayrollTemplateService {
       linkedAt: new Date(),
       metadata: {
         tax: taxMeta || null,
-        salaryInputMode: targetNetSalary > 0 && data.baseSalaryOverride == null ? "net" : "base",
+        salaryInputMode,
         targetNetSalary: targetNetSalary > 0 ? targetNetSalary : null,
       },
     });
