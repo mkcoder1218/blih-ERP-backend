@@ -9,6 +9,8 @@ const ETHIOPIAN_TAX_POLICY = {
   perDiemDailyCap: 225,
   allowanceSalaryPctCap: 25,
   fringeTaxSalaryPctCap: 10,
+  employeePensionRate: 7,
+  employerPensionRate: 11,
 };
 
 function moneyValue(v: any) {
@@ -91,14 +93,15 @@ export function calculatePayroll(baseSalary: number, tpl: any) {
   };
 }
 
-export function calculateEthiopianPayroll(baseSalary: number, tpl: any) {
+export function calculateEthiopianPayroll(baseSalary: number, tpl: any = {}, options: any = {}) {
   const m = moneyValue;
   const pct = percentage;
 
-  const housing   = pct(baseSalary, tpl.housingAllowancePct);
-  const transport = pct(baseSalary, tpl.transportAllowancePct);
-  const meal      = pct(baseSalary, tpl.mealAllowancePct);
-  const other     = pct(baseSalary, tpl.otherAllowancePct);
+  const metadata = tpl?.metadata || {};
+  const housing   = options.housingAllowance != null ? m(options.housingAllowance) : pct(baseSalary, tpl.housingAllowancePct);
+  const transport = options.transportAllowance != null ? m(options.transportAllowance) : pct(baseSalary, tpl.transportAllowancePct);
+  const meal      = options.mealAllowance != null ? m(options.mealAllowance) : pct(baseSalary, tpl.mealAllowancePct);
+  const other     = options.otherAllowance != null ? m(options.otherAllowance) : pct(baseSalary, tpl.otherAllowancePct);
   const grossPay  = baseSalary + housing + transport + meal + other;
 
   const salaryPctCap = baseSalary * (ETHIOPIAN_TAX_POLICY.allowanceSalaryPctCap / 100);
@@ -115,12 +118,17 @@ export function calculateEthiopianPayroll(baseSalary: number, tpl: any) {
   const fringeTaxCap = baseSalary * (ETHIOPIAN_TAX_POLICY.fringeTaxSalaryPctCap / 100);
   const fringeTax = Math.min(Math.max(fullTax.tax - baseTax.tax, 0), fringeTaxCap);
   const tax = baseTax.tax + fringeTax;
-  const pension = pct(grossPay, tpl.pensionPct);
+  const pensionableSalary = options.pensionableSalary != null ? m(options.pensionableSalary) : baseSalary;
+  const employeePensionRate = options.employeePensionRate != null ? m(options.employeePensionRate) : m(metadata.employeePensionRate ?? ETHIOPIAN_TAX_POLICY.employeePensionRate);
+  const employerPensionRate = options.employerPensionRate != null ? m(options.employerPensionRate) : m(metadata.employerPensionRate ?? ETHIOPIAN_TAX_POLICY.employerPensionRate);
+  const pension = pensionableSalary * (employeePensionRate / 100);
+  const employerPensionContribution = pensionableSalary * (employerPensionRate / 100);
   const health  = pct(grossPay, tpl.healthPct);
   const loan    = m(tpl.loanRepaymentFlat);
   const otherD  = m(tpl.otherDeductionFlat);
   const totalDeductions = tax + pension + health + loan + otherD;
   const netPay = Math.max(grossPay - totalDeductions, 0);
+  const totalCostToCompany = grossPay + employerPensionContribution;
 
   return {
     baseSalary,
@@ -146,6 +154,12 @@ export function calculateEthiopianPayroll(baseSalary: number, tpl: any) {
       incomeTaxBeforeFringe: baseTax.tax,
       fringeTax,
       fringeTaxCap,
+      pensionableSalary,
+      employeePensionRate,
+      employerPensionRate,
+      employeePensionContribution: pension,
+      employerPensionContribution,
+      totalCostToCompany,
       allowanceBreakdown: {
         baseSalary: { amount: baseSalary, exempt: 0, taxable: baseSalary, treatment: "fully_taxable" },
         transport: {
@@ -191,7 +205,65 @@ export function calculateEthiopianPayroll(baseSalary: number, tpl: any) {
 export class PayrollTemplateService {
   private m(v: any) { return Number(v ?? 0); }
 
-  private async getDefaultTemplateForSync(businessId: string, templateId?: string) {
+  private salaryBase(employee: any) {
+    return this.m(employee?.salaryInfo?.baseSalary ?? employee?.salaryInfo?.monthlySalary ?? employee?.salaryInfo?.salary);
+  }
+
+  private financialOptionsFromSalaryInfo(salaryInfo: any = {}) {
+    return {
+      pensionableSalary: salaryInfo.pensionableSalary ?? salaryInfo.baseSalary,
+      transportAllowance: salaryInfo.transportAllowance,
+      housingAllowance: salaryInfo.housingAllowance,
+      mealAllowance: salaryInfo.mealAllowance,
+      otherAllowance: salaryInfo.otherAllowance,
+      employeePensionRate: salaryInfo.employeePensionRate,
+      employerPensionRate: salaryInfo.employerPensionRate,
+    };
+  }
+
+  private isEthiopianTemplate(tpl: any) {
+    const metadata = tpl?.metadata || {};
+    return Boolean(tpl?.isDefault || metadata.systemEthiopianDefault || metadata.taxMode === "ethiopian_proclamation");
+  }
+
+  private splitComputed(computed: any) {
+    const { taxMeta, ...payroll } = computed;
+    return { taxMeta, payroll };
+  }
+
+  private computePayroll(baseSalary: number, tpl: any, salaryInfo: any = {}, forceEthiopian = false) {
+    if (forceEthiopian || this.isEthiopianTemplate(tpl)) {
+      return calculateEthiopianPayroll(baseSalary, tpl, this.financialOptionsFromSalaryInfo(salaryInfo));
+    }
+    return calculatePayroll(baseSalary, tpl);
+  }
+
+  private maskBankAccount(value: any) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    return raw.length <= 4 ? raw : `${"*".repeat(Math.max(raw.length - 4, 0))}${raw.slice(-4)}`;
+  }
+
+  private async updateLinkWithEthiopianPayroll(link: any, employee: any, actorUserId: string | null) {
+    const tpl = link.template || await this.getTemplate(employee.businessId, link.templateId);
+    const salaryInfo = employee.salaryInfo || {};
+    const baseSalary = this.m(link.baseSalaryOverride ?? salaryInfo.baseSalary ?? salaryInfo.monthlySalary ?? salaryInfo.salary);
+    const computed = calculateEthiopianPayroll(baseSalary, tpl, this.financialOptionsFromSalaryInfo(salaryInfo));
+    const { taxMeta, payroll } = this.splitComputed(computed);
+    await link.update({
+      ...payroll,
+      currency: tpl.currency || salaryInfo.currency || "ETB",
+      linkedByUserId: actorUserId ?? link.linkedByUserId,
+      linkedAt: link.linkedAt || new Date(),
+      metadata: {
+        ...(link.metadata || {}),
+        tax: taxMeta,
+      },
+    });
+    return link.reload({ include: [{ model: db.PayrollTemplate, as: "template" }] });
+  }
+
+  private async getAutomaticEthiopianTemplate(businessId: string, actorUserId?: string | null, templateId?: string) {
     if (templateId) {
       return this.getTemplate(businessId, templateId);
     }
@@ -206,11 +278,58 @@ export class PayrollTemplateService {
       where: { businessId, status: "active" },
       order: [["createdAt", "DESC"]],
     });
-    if (!fallbackTemplate) {
-      throw new Error("Create an active payroll template before syncing Ethiopian tax");
-    }
+    if (fallbackTemplate) return fallbackTemplate;
 
-    return fallbackTemplate;
+    return db.PayrollTemplate.create({
+      businessId,
+      name: "Ethiopian Statutory Default",
+      description: "Default Ethiopian statutory payroll calculation with PAYE and pension.",
+      currency: "ETB",
+      isDefault: true,
+      status: "active",
+      createdByUserId: actorUserId || null,
+      metadata: {
+        systemEthiopianDefault: true,
+        taxMode: "ethiopian_proclamation",
+        employeePensionRate: ETHIOPIAN_TAX_POLICY.employeePensionRate,
+        employerPensionRate: ETHIOPIAN_TAX_POLICY.employerPensionRate,
+      },
+    });
+  }
+
+  async setupAutomaticEthiopianPayroll(businessId: string, actorUserId: string | null, employeeUserId: string, financialInfo: any) {
+    const baseSalary = this.m(financialInfo?.baseSalary ?? financialInfo?.monthlySalary ?? financialInfo?.salary);
+    if (!Number.isFinite(baseSalary) || baseSalary <= 0) throw new Error("Base salary is required");
+
+    const employee = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
+    if (!employee) throw new Error("Employee not found");
+
+    const salaryInfo = {
+      ...(employee.salaryInfo || {}),
+      baseSalary,
+      pensionableSalary: this.m(financialInfo.pensionableSalary ?? baseSalary),
+      currency: financialInfo.currency || employee.salaryInfo?.currency || "ETB",
+      taxMode: "ethiopian_proclamation",
+      transportAllowance: this.m(financialInfo.transportAllowance),
+      housingAllowance: this.m(financialInfo.housingAllowance),
+      mealAllowance: this.m(financialInfo.mealAllowance),
+      otherAllowance: this.m(financialInfo.otherAllowance),
+      employeePensionRate: this.m(financialInfo.employeePensionRate ?? ETHIOPIAN_TAX_POLICY.employeePensionRate),
+      employerPensionRate: this.m(financialInfo.employerPensionRate ?? ETHIOPIAN_TAX_POLICY.employerPensionRate),
+      bankAccount: financialInfo.bankAccount || employee.salaryInfo?.bankAccount || null,
+      tin: financialInfo.tin || employee.salaryInfo?.tin || null,
+      remarks: financialInfo.remarks || employee.salaryInfo?.remarks || null,
+      paymentStatus: financialInfo.paymentStatus || employee.salaryInfo?.paymentStatus || "Pending",
+    };
+    await employee.update({ salaryInfo });
+
+    const tpl = await this.getAutomaticEthiopianTemplate(businessId, actorUserId);
+    return this.linkEmployee(businessId, actorUserId, {
+      employeeUserId,
+      templateId: tpl.id,
+      baseSalaryOverride: baseSalary,
+      calculationMode: "ethiopian",
+    });
   }
 
   // ── Templates CRUD ─────────────────────────────────────────────────────────
@@ -243,13 +362,18 @@ export class PayrollTemplateService {
     await tpl.update(data);
 
     // Recalculate all links that use this template
-    const links = await db.EmployeePayrollLink.findAll({ where: { businessId, templateId: id } });
+    const links = await db.EmployeePayrollLink.findAll({
+      where: { businessId, templateId: id },
+      include: [{ model: db.PayrollTemplate, as: "template" }],
+    });
     for (const link of links) {
-      const computed = calculatePayroll(this.m(link.baseSalaryOverride || link.baseSalary), tpl);
+      const employee = await db.EmployeeRecord.findOne({ where: { businessId, userId: link.employeeUserId } });
+      const computed = this.computePayroll(this.m(link.baseSalaryOverride || link.baseSalary), tpl, employee?.salaryInfo || {});
+      const { taxMeta, payroll } = this.splitComputed(computed);
       await link.update({
-        ...computed,
+        ...payroll,
         currency: tpl.currency,
-        metadata: { ...(link.metadata || {}), tax: null },
+        metadata: { ...(link.metadata || {}), tax: taxMeta || null },
       });
     }
     return tpl.reload();
@@ -348,17 +472,53 @@ export class PayrollTemplateService {
     });
 
     const userIds = records.map((employee: any) => employee.userId);
-    const links = userIds.length
+    let links = userIds.length
       ? await db.EmployeePayrollLink.findAll({
           where: {
             businessId,
             employeeUserId: { [Op.in]: userIds },
             ...(templateId ? { templateId } : {}),
           },
-          include: [{ model: db.PayrollTemplate, as: "template", attributes: ["id", "name", "currency"] }],
+          include: [
+            { model: db.PayrollTemplate, as: "template", attributes: ["id", "name", "currency", "isDefault", "metadata"] },
+            { model: db.User, as: "linkedBy", attributes: ["id", "fullName", "email"] },
+          ],
         })
       : [];
-    const linkByUserId = new Map(links.map((link: any) => [link.employeeUserId, link]));
+    let linkByUserId = new Map(links.map((link: any) => [link.employeeUserId, link]));
+
+    if (!templateId) {
+      for (const employee of records) {
+        const salaryInfo = employee.salaryInfo || {};
+        const baseSalary = this.salaryBase(employee);
+        if (!linkByUserId.has(employee.userId) && baseSalary > 0) {
+          const tpl = await this.getAutomaticEthiopianTemplate(businessId, null);
+          await this.linkEmployee(businessId, null, {
+            employeeUserId: employee.userId,
+            templateId: tpl.id,
+            baseSalaryOverride: baseSalary,
+            calculationMode: "ethiopian",
+          });
+        } else {
+          const link: any = linkByUserId.get(employee.userId);
+          const taxMode = link?.metadata?.tax?.mode || salaryInfo.taxMode;
+          if (link && (taxMode === "ethiopian_proclamation" || this.isEthiopianTemplate(link.template))) {
+            await this.updateLinkWithEthiopianPayroll(link, employee, null);
+          }
+        }
+      }
+
+      links = userIds.length
+        ? await db.EmployeePayrollLink.findAll({
+            where: { businessId, employeeUserId: { [Op.in]: userIds } },
+            include: [
+              { model: db.PayrollTemplate, as: "template", attributes: ["id", "name", "currency", "isDefault", "metadata"] },
+              { model: db.User, as: "linkedBy", attributes: ["id", "fullName", "email"] },
+            ],
+          })
+        : [];
+      linkByUserId = new Map(links.map((link: any) => [link.employeeUserId, link]));
+    }
 
     let rows = records.map((employee: any) => {
       const link: any = linkByUserId.get(employee.userId);
@@ -379,6 +539,9 @@ export class PayrollTemplateService {
         payrollStatus: link ? "linked" : "pending",
         templateId: link?.templateId || null,
         templateName: link?.template?.name || null,
+        tin: salaryInfo.tin || employee.metadata?.tin || employee.metadata?.taxIdentificationNumber || "",
+        payPeriod: query.payPeriod || salaryInfo.payPeriod || new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+        paymentDate: salaryInfo.paymentDate || null,
         currency: link?.currency || salaryInfo.currency || salaryInfo.salaryCurrency || "ETB",
         baseSalary,
         baseSalaryOverride: link?.baseSalaryOverride ?? null,
@@ -395,6 +558,22 @@ export class PayrollTemplateService {
         totalDeductions: this.m(link?.totalDeductions),
         netPay: this.m(link?.netPay),
         taxMeta: link?.metadata?.tax || null,
+        taxableAmount: this.m(link?.metadata?.tax?.taxableIncome),
+        employeePensionContribution: this.m(link?.pensionDeduction),
+        employerPensionContribution: this.m(link?.metadata?.tax?.employerPensionContribution),
+        totalCostToCompany: this.m(link?.metadata?.tax?.totalCostToCompany || (link ? this.m(link.grossPay) + this.m(link?.metadata?.tax?.employerPensionContribution) : 0)),
+        bankAccount: salaryInfo.bankAccount || employee.metadata?.bankAccountNumber || employee.metadata?.bankDetails?.[0]?.accountNumber || "",
+        bankAccountMasked: this.maskBankAccount(salaryInfo.bankAccount || employee.metadata?.bankAccountNumber || employee.metadata?.bankDetails?.[0]?.accountNumber),
+        paymentStatus: salaryInfo.paymentStatus || "Pending",
+        remarks: salaryInfo.remarks || "",
+        overtimePay: this.m(salaryInfo.overtimePay),
+        bonusIncentive: this.m(salaryInfo.bonusIncentive),
+        arrearsAdjustments: this.m(salaryInfo.arrearsAdjustments),
+        workingDaysInPeriod: salaryInfo.workingDaysInPeriod ?? "",
+        daysPaid: salaryInfo.daysPaid ?? "",
+        generatedBy: link?.linkedBy?.fullName || "",
+        approvedBy: salaryInfo.approvedBy || "",
+        lastUpdated: link?.updatedAt || employee.updatedAt || null,
         linkedAt: link?.linkedAt || null,
       };
     });
@@ -413,10 +592,13 @@ export class PayrollTemplateService {
         acc.baseSalary += row.baseSalary;
         acc.grossPay += row.grossPay;
         acc.netPay += row.netPay;
+        acc.totalDeductions += row.totalDeductions;
+        acc.employerPensionContribution += row.employerPensionContribution;
+        acc.totalCostToCompany += row.totalCostToCompany;
         if (row.payrollStatus === "linked") acc.linked += 1;
         return acc;
       },
-      { baseSalary: 0, grossPay: 0, netPay: 0, linked: 0 }
+      { baseSalary: 0, grossPay: 0, netPay: 0, totalDeductions: 0, employerPensionContribution: 0, totalCostToCompany: 0, linked: 0 }
     );
 
     return {
@@ -430,10 +612,11 @@ export class PayrollTemplateService {
   }
 
   // ── Link an employee to a template + calculate ──────────────────────────────
-  async linkEmployee(businessId: string, actorUserId: string, data: {
+  async linkEmployee(businessId: string, actorUserId: string | null, data: {
     employeeUserId: string;
     templateId: string;
     baseSalaryOverride?: number;
+    calculationMode?: "ethiopian" | "template";
   }) {
     const employee = await db.EmployeeRecord.findOne({
       where: { businessId, userId: data.employeeUserId },
@@ -445,7 +628,8 @@ export class PayrollTemplateService {
       ? data.baseSalaryOverride
       : this.m(employee.salaryInfo?.baseSalary ?? employee.salaryInfo?.monthlySalary ?? employee.salaryInfo?.salary);
 
-    const computed = calculatePayroll(baseSalary, tpl);
+    const computed = this.computePayroll(baseSalary, tpl, employee.salaryInfo || {}, data.calculationMode === "ethiopian");
+    const { taxMeta, payroll } = this.splitComputed(computed);
 
     // Upsert — employee may already have a link (reassignment)
     const existing = await db.EmployeePayrollLink.findOne({
@@ -456,11 +640,11 @@ export class PayrollTemplateService {
       await existing.update({
         templateId: data.templateId,
         baseSalaryOverride: data.baseSalaryOverride ?? null,
-        ...computed,
+        ...payroll,
         currency: tpl.currency,
         linkedByUserId: actorUserId,
         linkedAt: new Date(),
-        metadata: { ...(existing.metadata || {}), tax: null },
+        metadata: { ...(existing.metadata || {}), tax: taxMeta || null },
       });
       return existing.reload({ include: [{ model: db.PayrollTemplate, as: "template" }] });
     }
@@ -470,10 +654,11 @@ export class PayrollTemplateService {
       employeeUserId: data.employeeUserId,
       templateId: data.templateId,
       baseSalaryOverride: data.baseSalaryOverride ?? null,
-      ...computed,
+      ...payroll,
       currency: tpl.currency,
       linkedByUserId: actorUserId,
       linkedAt: new Date(),
+      metadata: { tax: taxMeta || null },
     });
   }
 
@@ -522,30 +707,24 @@ export class PayrollTemplateService {
     });
 
     if (!link) {
-      return { employeeUserId, linked: false, baseSalary };
+      const tpl = await this.getAutomaticEthiopianTemplate(businessId, actorUserId);
+      const created = await this.linkEmployee(businessId, actorUserId, {
+        employeeUserId,
+        templateId: tpl.id,
+        baseSalaryOverride: baseSalary,
+        calculationMode: "ethiopian",
+      });
+      return { employeeUserId, linked: true, baseSalary, created: true, link: created };
     }
 
-    const tpl = link.template || await this.getTemplate(businessId, link.templateId);
-    const computed = calculateEthiopianPayroll(baseSalary, tpl);
-    const { taxMeta, ...payroll } = computed;
-    await link.update({
-      baseSalaryOverride: baseSalary,
-      ...payroll,
-      currency: tpl.currency,
-      linkedByUserId: actorUserId,
-      linkedAt: new Date(),
-      metadata: {
-        ...(link.metadata || {}),
-        tax: taxMeta,
-      },
-    });
+    const updated = await this.updateLinkWithEthiopianPayroll(link, employee, actorUserId);
 
     return {
       employeeUserId,
       linked: true,
-      ...payroll,
-      currency: tpl.currency,
-      tax: taxMeta,
+      baseSalary,
+      currency: updated.currency,
+      tax: updated.metadata?.tax,
     };
   }
 
@@ -558,7 +737,7 @@ export class PayrollTemplateService {
     });
     const pendingRows = data.rows.filter((row: any) => row.payrollStatus !== "linked");
     const templateForPending = pendingRows.length
-      ? await this.getDefaultTemplateForSync(businessId, query.templateId ? String(query.templateId) : undefined)
+      ? await this.getAutomaticEthiopianTemplate(businessId, actorUserId, query.templateId ? String(query.templateId) : undefined)
       : null;
     const results: any[] = [];
     let autoLinkedCount = 0;

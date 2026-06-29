@@ -46,7 +46,7 @@ export class FinanceService {
   }
 
   async getWorkforceDashboard(businessId: string, query: any = {}) {
-    const [employees, perf, budgets, expenses, payrollRecords, salaryRequests, reallocations, benefits, enrollments, notifications, auditLogs] = await Promise.all([
+    const [employees, perf, budgets, expenses, payrollRecords, payrollLinks, salaryRequests, reallocations, benefits, enrollments, notifications, auditLogs] = await Promise.all([
       this.employees(businessId),
       this.performanceMap(businessId),
       db.Budget.findAll({ where: { businessId }, include: [{ model: db.Department, attributes: ['id', 'name'] }] }),
@@ -66,6 +66,12 @@ export class FinanceService {
         ],
         order: [['periodEnd', 'DESC']]
       }),
+      db.EmployeePayrollLink.findAll({
+        where: { businessId },
+        include: [
+          { model: db.PayrollTemplate, as: 'template', attributes: ['id', 'name', 'currency'] }
+        ]
+      }),
       db.SalaryAdjustmentRequest.findAll({
         where: { businessId },
         include: [
@@ -82,8 +88,11 @@ export class FinanceService {
       db.AuditLog.findAll({ where: { businessId, entityType: { [Op.in]: ['finance_salary', 'finance_payroll', 'finance_expense', 'finance_budget', 'finance_benefit'] } }, order: [['createdAt', 'DESC']], limit: 20 })
     ]);
 
+    const payrollLinkByUserId = new Map(payrollLinks.map((link: any) => [link.employeeUserId, link]));
     const employeeRows = employees.map((employee: any) => {
       const annualSalary = this.salaryFromRecord(employee);
+      const payrollLink: any = payrollLinkByUserId.get(employee.userId);
+      const taxMeta = payrollLink?.metadata?.tax || {};
       return {
         id: employee.id,
         userId: employee.userId,
@@ -96,12 +105,33 @@ export class FinanceService {
         performance: perf.get(employee.userId) ?? null,
         hireDate: employee.hireDate,
         employmentType: employee.employmentType,
-        salaryInfo: employee.salaryInfo || {}
+        salaryInfo: employee.salaryInfo || {},
+        payroll: payrollLink ? {
+          templateName: payrollLink.template?.name || 'Payroll Template',
+          grossPay: this.money(payrollLink.grossPay),
+          totalDeductions: this.money(payrollLink.totalDeductions),
+          netPay: this.money(payrollLink.netPay),
+          employeePensionContribution: this.money(payrollLink.pensionDeduction),
+          employerPensionContribution: this.money(taxMeta.employerPensionContribution),
+          totalCostToCompany: this.money(taxMeta.totalCostToCompany || (this.money(payrollLink.grossPay) + this.money(taxMeta.employerPensionContribution))),
+          currency: payrollLink.currency,
+        } : null
       };
     });
 
     const salaryTotal = employeeRows.reduce((sum, row) => sum + row.salary, 0);
     const avgSalary = employeeRows.length ? salaryTotal / employeeRows.length : 0;
+    const payrollCostAnalytics = payrollLinks.reduce((acc: any, link: any) => {
+      const taxMeta = link.metadata?.tax || {};
+      const employerPension = this.money(taxMeta.employerPensionContribution);
+      const totalCostToCompany = this.money(taxMeta.totalCostToCompany || (this.money(link.grossPay) + employerPension));
+      acc.grossPayroll += this.money(link.grossPay);
+      acc.employeeDeductions += this.money(link.totalDeductions);
+      acc.employeePension += this.money(link.pensionDeduction);
+      acc.employerPension += employerPension;
+      acc.totalCostToCompany += totalCostToCompany;
+      return acc;
+    }, { grossPayroll: 0, employeeDeductions: 0, employeePension: 0, employerPension: 0, totalCostToCompany: 0 });
     const activePayroll = payrollRecords.length ? payrollRecords : employeeRows.map((row) => {
       const monthlyGross = row.salary / 12;
       const pension = monthlyGross * 0.06;
@@ -209,6 +239,14 @@ export class FinanceService {
         totals: {
           avgSalary,
           totalPayroll: salaryTotal,
+          grossPayroll: payrollCostAnalytics.grossPayroll,
+          employeeDeductions: payrollCostAnalytics.employeeDeductions,
+          employeePension: payrollCostAnalytics.employeePension,
+          employerPension: payrollCostAnalytics.employerPension,
+          totalCostToCompany: payrollCostAnalytics.totalCostToCompany,
+          currentMonthOtherExpenses: currentMonthExpenses.reduce((sum: number, expense: any) => sum + this.money(expense.amount), 0),
+          totalCompanyOutflow: payrollCostAnalytics.totalCostToCompany + currentMonthExpenses.reduce((sum: number, expense: any) => sum + this.money(expense.amount), 0),
+          payrollCostLoadPercent: payrollCostAnalytics.grossPayroll ? ((payrollCostAnalytics.totalCostToCompany - payrollCostAnalytics.grossPayroll) / payrollCostAnalytics.grossPayroll) * 100 : 0,
           pendingRequests: pendingSalary.length,
           avgIncreasePercent: pendingSalary.length ? pendingSalary.reduce((sum: number, r: any) => sum + ((this.money(r.requestedSalary) - this.money(r.currentSalary)) / Math.max(this.money(r.currentSalary), 1)) * 100, 0) / pendingSalary.length : 0
         },

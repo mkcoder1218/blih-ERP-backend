@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest",
     "seed:project-tasks": "ts-node src/scripts/seedProjectTasks.ts",
+    "seed:pending-registrations": "ts-node src/scripts/seedPendingRegistrations.ts",
     "seed:onboarding-candidates": "ts-node src/scripts/seedOnboardingCandidates.ts",
     "seed:active-posting-applicants": "ts-node src/scripts/seedActivePostingApplicants.ts",
     "backfill:yesterday-lunch": "node dist/scripts/backfillYesterdayLunchBreaks.js",

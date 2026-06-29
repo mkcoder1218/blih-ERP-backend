@@ -7,6 +7,7 @@ import { renderOfferLetter } from '../../utils/offerLetterRenderer';
 import { generateOfferLetterPdf } from '../../utils/offerLetterPdfGenerator';
 import { sendOfferLetterEmail } from '../../utils/offerLetterMailer';
 import { Op } from 'sequelize';
+import { PayrollTemplateService } from '../finance/payrollTemplate.service';
 import {
   DEFAULT_EMPLOYMENT_STATUS,
   DEFAULT_EMPLOYMENT_TYPE,
@@ -20,6 +21,7 @@ import { BulkEmployeeValidationService } from './bulkEmployeeValidation.service'
 export class HRController {
    private service = new HRService();
    private bulkValidationService = new BulkEmployeeValidationService();
+   private payrollTemplateService = new PayrollTemplateService();
 
    private normalizeSystemRoleKey(input: unknown): string {
      const raw = (input ?? "EMPLOYEE").toString().trim().toUpperCase();
@@ -60,6 +62,40 @@ export class HRController {
        ...(current || {}),
        baseSalary: profile?.monthlySalary ?? current?.baseSalary ?? null,
        currency: profile?.salaryCurrency || current?.currency || "ETB",
+     };
+   }
+
+   private normalizeApprovalFinancialInfo(input: any) {
+     const data = input || {};
+     const baseSalary = Number(data.baseSalary ?? data.monthlySalary ?? data.salary);
+     if (!Number.isFinite(baseSalary) || baseSalary <= 0) throw new Error("Base salary is required before approval");
+     const pensionableSalary = Number(data.pensionableSalary ?? baseSalary);
+     if (!Number.isFinite(pensionableSalary) || pensionableSalary < 0) throw new Error("Pensionable salary must be valid");
+     return {
+       baseSalary,
+       pensionableSalary,
+       currency: data.currency || "ETB",
+       transportAllowance: Number(data.transportAllowance ?? 0),
+       housingAllowance: Number(data.housingAllowance ?? 0),
+       mealAllowance: Number(data.mealAllowance ?? 0),
+       otherAllowance: Number(data.otherAllowance ?? 0),
+       employeePensionRate: Number(data.employeePensionRate ?? 7),
+       employerPensionRate: Number(data.employerPensionRate ?? 11),
+       bankAccount: data.bankAccount || null,
+       tin: data.tin || null,
+       paymentStatus: data.paymentStatus || "Pending",
+       remarks: data.remarks || null,
+     };
+   }
+
+   private pendingRegistrationFinancialInfo(employeeRecord: any) {
+     const salaryInfo = employeeRecord?.salaryInfo ?? {};
+     const metadata = employeeRecord?.metadata ?? {};
+     const primaryBank = Array.isArray(metadata.bankDetails) ? metadata.bankDetails[0] : null;
+     return {
+       bankName: primaryBank?.bankName ?? metadata.bankName ?? null,
+       bankAccount: salaryInfo.bankAccount ?? primaryBank?.accountNumber ?? metadata.bankAccountNumber ?? null,
+       tin: salaryInfo.tin ?? metadata.tin ?? metadata.taxIdentificationNumber ?? null,
      };
    }
 
@@ -706,9 +742,16 @@ export class HRController {
                 offset,
             });
 
+            const employeeRecords = await db.EmployeeRecord.findAll({
+                where: { businessId, userId: { [Op.in]: rows.map((u: any) => u.id) } },
+                attributes: ['userId', 'salaryInfo', 'metadata'],
+            });
+            const employeeRecordByUserId = new Map(employeeRecords.map((record: any) => [record.userId, record]));
+
             const items = rows.map((u: any) => {
                 const profile  = u.BusinessUserProfile;
                 const settings = profile?.settings ?? {};
+                const employeeRecord = employeeRecordByUserId.get(u.id);
                 return {
                     id:               u.id,
                     fullName:         u.fullName,
@@ -723,6 +766,7 @@ export class HRController {
                     hireDate:         profile?.joinedAt         || null,
                     department:       profile?.department       || null,
                     position:         profile?.position         || null,
+                    financial:         this.pendingRegistrationFinancialInfo(employeeRecord),
                     personal: {
                         dateOfBirth:   settings.dateOfBirth   || null,
                         gender:        settings.gender        || null,
@@ -764,7 +808,7 @@ export class HRController {
                 }, {
                     model: db.EmployeeRecord,
                     // User hasMany EmployeeRecord — Sequelize uses the plural alias
-                    attributes: ['id', 'metadata', 'emergencyContact', 'departmentId', 'positionId', 'employmentType', 'hireDate'],
+                    attributes: ['id', 'metadata', 'salaryInfo', 'emergencyContact', 'departmentId', 'positionId', 'employmentType', 'hireDate'],
                     required: false,
                     limit: 1,
                     order: [['createdAt', 'DESC']],
@@ -778,7 +822,12 @@ export class HRController {
             const empRecord = (plain.EmployeeRecords ?? [])[0] ?? null;
 
             successResponse(res, {
-                user: { ...plain, EmployeeRecord: empRecord, EmployeeRecords: undefined },
+                user: {
+                    ...plain,
+                    EmployeeRecord: empRecord,
+                    EmployeeRecords: undefined,
+                    financial: this.pendingRegistrationFinancialInfo(empRecord),
+                },
             });
         } catch (e: any) {
             errorResponse(res, e.message);
@@ -799,6 +848,17 @@ export class HRController {
                 where: { id: req.params.userId, businessId, status: { [Op.in]: ['pending', 'rejected'] } },
             });
             if (!user) return errorResponse(res, 'Not found', 404);
+            if (req.body?.financialConfirmation !== true) {
+                return errorResponse(res, 'Confirm the financial information before approval', 400);
+            }
+            let financialInfo: any;
+            try {
+                financialInfo = this.normalizeApprovalFinancialInfo(req.body?.financialInfo);
+            } catch (validationError: any) {
+                return errorResponse(res, validationError.message, 400);
+            }
+            const employeeRecord = await db.EmployeeRecord.findOne({ where: { businessId, userId: user.id } });
+            if (!employeeRecord) return errorResponse(res, 'Employee record is required before approval', 400);
 
             await user.update({
                 status:          'active',
@@ -839,11 +899,18 @@ export class HRController {
                 }
             }
 
+            const payroll = await this.payrollTemplateService.setupAutomaticEthiopianPayroll(
+                businessId,
+                req.user!.id,
+                user.id,
+                financialInfo,
+            );
+
             // Send approval email (non-fatal)
             const business = await db.Business.findByPk(businessId, { attributes: ['name'] });
             sendApprovalEmail({ toEmail: user.email, toName: user.fullName, businessName: business?.name || '' }).catch(() => null);
 
-            successResponse(res, { approved: true, userId: user.id });
+            successResponse(res, { approved: true, userId: user.id, payroll });
         } catch (e: any) {
             errorResponse(res, e.message);
         }
