@@ -101,17 +101,23 @@ export function calculateEthiopianPayroll(baseSalary: number, tpl: any = {}, opt
   const housing   = options.housingAllowance != null ? m(options.housingAllowance) : pct(baseSalary, tpl.housingAllowancePct);
   const transport = options.transportAllowance != null ? m(options.transportAllowance) : pct(baseSalary, tpl.transportAllowancePct);
   const meal      = options.mealAllowance != null ? m(options.mealAllowance) : pct(baseSalary, tpl.mealAllowancePct);
+  const perDiem   = options.perDiemAllowance != null ? m(options.perDiemAllowance) : 0;
+  const perDiemDays = m(options.perDiemDays);
+  const medical   = options.medicalBenefit != null ? m(options.medicalBenefit) : 0;
+  const telecom   = options.telecomAllowance != null ? m(options.telecomAllowance) : 0;
   const other     = options.otherAllowance != null ? m(options.otherAllowance) : pct(baseSalary, tpl.otherAllowancePct);
-  const grossPay  = baseSalary + housing + transport + meal + other;
+  const grossPay  = baseSalary + housing + transport + meal + perDiem + medical + telecom + other;
 
   const salaryPctCap = baseSalary * (ETHIOPIAN_TAX_POLICY.allowanceSalaryPctCap / 100);
   const transportCap = Math.min(ETHIOPIAN_TAX_POLICY.transportMonthlyCap, salaryPctCap);
-  const perDiemCap = Math.min(ETHIOPIAN_TAX_POLICY.perDiemMonthlyCap, salaryPctCap);
+  const perDiemDailyCap = Math.max(ETHIOPIAN_TAX_POLICY.perDiemDailyCap, baseSalary * 0.04) * Math.max(perDiemDays, 0);
+  const perDiemCap = Math.min(ETHIOPIAN_TAX_POLICY.perDiemMonthlyCap, salaryPctCap, perDiemDays > 0 ? perDiemDailyCap : ETHIOPIAN_TAX_POLICY.perDiemMonthlyCap);
   const transportTax = splitCappedAllowance(transport, transportCap);
-  const perDiemTax = splitCappedAllowance(meal, perDiemCap);
+  const perDiemTax = splitCappedAllowance(perDiem, perDiemCap);
   const housingTaxable = housing;
-  const fringeTaxable = other;
-  const taxableIncomeBeforeFringe = baseSalary + housingTaxable + transportTax.taxable + perDiemTax.taxable;
+  const mealTaxable = meal;
+  const fringeTaxable = telecom + other;
+  const taxableIncomeBeforeFringe = baseSalary + housingTaxable + mealTaxable + transportTax.taxable + perDiemTax.taxable;
   const taxableIncome = taxableIncomeBeforeFringe + fringeTaxable;
   const baseTax = incomeTaxBracket(taxableIncomeBeforeFringe);
   const fullTax = incomeTaxBracket(taxableIncome);
@@ -134,6 +140,9 @@ export function calculateEthiopianPayroll(baseSalary: number, tpl: any = {}, opt
     baseSalary,
     housingAllowance: housing,
     transportAllowance: transport,
+    perDiemAllowance: perDiem,
+    medicalBenefit: medical,
+    telecomAllowance: telecom,
     mealAllowance: meal,
     otherAllowance: other,
     grossPay,
@@ -173,11 +182,12 @@ export function calculateEthiopianPayroll(baseSalary: number, tpl: any = {}, opt
           cap: perDiemCap,
           dailyCap: ETHIOPIAN_TAX_POLICY.perDiemDailyCap,
           treatment: "partially_exempt",
-          rule: "Monthly exemption uses the lower of ETB 2,200 per month or 25% of base salary. Daily travel-day cap support needs a per-diem days field.",
+          days: perDiemDays,
+          rule: "Exempt up to ETB 225/day or 4% of monthly salary per travel day, subject to ETB 2,200/month and 25% salary caps.",
         },
         medical: {
-          amount: 0,
-          exempt: 0,
+          amount: medical,
+          exempt: medical,
           taxable: 0,
           treatment: "generally_exempt_when_documented",
           rule: "Medical treatment or insurance is generally exempt when supported by documentation.",
@@ -188,8 +198,20 @@ export function calculateEthiopianPayroll(baseSalary: number, tpl: any = {}, opt
           taxable: housingTaxable,
           treatment: "fully_taxable",
         },
+        meal: {
+          amount: meal,
+          exempt: 0,
+          taxable: mealTaxable,
+          treatment: "fully_taxable",
+        },
+        telecom: {
+          amount: telecom,
+          exempt: 0,
+          taxable: telecom,
+          treatment: "usually_taxable_fringe_benefit",
+        },
         fringeBenefits: {
-          amount: other,
+          amount: fringeTaxable,
           exempt: 0,
           taxable: fringeTaxable,
           treatment: "taxable_with_tax_cap",
@@ -213,6 +235,10 @@ export class PayrollTemplateService {
     return {
       pensionableSalary: salaryInfo.pensionableSalary ?? salaryInfo.baseSalary,
       transportAllowance: salaryInfo.transportAllowance,
+      perDiemAllowance: salaryInfo.perDiemAllowance,
+      perDiemDays: salaryInfo.perDiemDays,
+      medicalBenefit: salaryInfo.medicalBenefit,
+      telecomAllowance: salaryInfo.telecomAllowance,
       housingAllowance: salaryInfo.housingAllowance,
       mealAllowance: salaryInfo.mealAllowance,
       otherAllowance: salaryInfo.otherAllowance,
