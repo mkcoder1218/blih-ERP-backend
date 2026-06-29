@@ -191,6 +191,28 @@ export function calculateEthiopianPayroll(baseSalary: number, tpl: any) {
 export class PayrollTemplateService {
   private m(v: any) { return Number(v ?? 0); }
 
+  private async getDefaultTemplateForSync(businessId: string, templateId?: string) {
+    if (templateId) {
+      return this.getTemplate(businessId, templateId);
+    }
+
+    const defaultTemplate = await db.PayrollTemplate.findOne({
+      where: { businessId, status: "active", isDefault: true },
+      order: [["createdAt", "DESC"]],
+    });
+    if (defaultTemplate) return defaultTemplate;
+
+    const fallbackTemplate = await db.PayrollTemplate.findOne({
+      where: { businessId, status: "active" },
+      order: [["createdAt", "DESC"]],
+    });
+    if (!fallbackTemplate) {
+      throw new Error("Create an active payroll template before syncing Ethiopian tax");
+    }
+
+    return fallbackTemplate;
+  }
+
   // ── Templates CRUD ─────────────────────────────────────────────────────────
   async listTemplates(businessId: string) {
     return db.PayrollTemplate.findAll({
@@ -534,10 +556,22 @@ export class PayrollTemplateService {
       limit: 5000,
       exportAll: "true",
     });
-    const linkedRows = data.rows.filter((row: any) => row.payrollStatus === "linked");
+    const pendingRows = data.rows.filter((row: any) => row.payrollStatus !== "linked");
+    const templateForPending = pendingRows.length
+      ? await this.getDefaultTemplateForSync(businessId, query.templateId ? String(query.templateId) : undefined)
+      : null;
     const results: any[] = [];
+    let autoLinkedCount = 0;
 
-    for (const row of linkedRows) {
+    for (const row of data.rows) {
+      if (row.payrollStatus !== "linked") {
+        await this.linkEmployee(businessId, actorUserId, {
+          employeeUserId: row.userId,
+          templateId: templateForPending.id,
+        });
+        autoLinkedCount += 1;
+      }
+
       const result = await this.updateEmployeeBaseSalaryWithEthiopianTax(
         businessId,
         actorUserId,
@@ -549,8 +583,12 @@ export class PayrollTemplateService {
 
     return {
       syncedCount: results.length,
-      skippedNeedsSetup: data.rows.length - linkedRows.length,
+      autoLinkedCount,
+      skippedNeedsSetup: 0,
       totalMatched: data.rows.length,
+      templateUsedForAutoLink: templateForPending
+        ? { id: templateForPending.id, name: templateForPending.name }
+        : null,
     };
   }
 
