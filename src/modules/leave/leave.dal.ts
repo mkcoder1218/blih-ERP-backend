@@ -12,7 +12,13 @@ const includeUsers = [
 ];
 
 const includeTemplate = [
-  { model: db.LeaveTemplate, as: "template", attributes: ["id", "name", "leaveType", "hasAmount", "totalDays", "isActive", "requiresEvidence", "evidenceInstructions"], required: false },
+  {
+    model: db.LeaveTemplate,
+    as: "template",
+    attributes: ["id", "name", "leaveType", "hasAmount", "totalDays", "isActive", "isVisibleForRequest", "isDeprecated", "requiresEvidence", "evidenceInstructions"],
+    required: false,
+    paranoid: false,
+  },
 ];
 
 // ── Templates ────────────────────────────────────────────────────────────────
@@ -20,7 +26,10 @@ const includeTemplate = [
 export class LeaveTemplateDAL {
   list(businessId: string, onlyActive?: boolean) {
     const where: any = { businessId };
-    if (onlyActive) where.isActive = true;
+    if (onlyActive) {
+      where.isActive = true;
+      where.isVisibleForRequest = true;
+    }
     return db.LeaveTemplate.findAll({ where, order: [["createdAt", "DESC"]] });
   }
 

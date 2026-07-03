@@ -947,4 +947,75 @@ async function ensureNewModelsSchema() {
       await qi.changeColumn("hr_events", "color", { type: DataTypes.STRING(100), allowNull: true } as any);
     } catch { /* already correct width or table just created */ }
   }
+
+  // ── UserCalendarEvent ───────────────────────────────────────────────────────
+  if (!await tableExists("user_calendar_events")) {
+    await qi.createTable("user_calendar_events", {
+      id:                 { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      businessId:         { type: DataTypes.UUID, allowNull: false },
+      employeeUserId:     { type: DataTypes.UUID, allowNull: false },
+      title:              { type: DataTypes.STRING(255), allowNull: false },
+      description:        { type: DataTypes.TEXT, allowNull: true },
+      location:           { type: DataTypes.STRING(255), allowNull: true },
+      startAt:            { type: DataTypes.DATE, allowNull: false },
+      endAt:              { type: DataTypes.DATE, allowNull: false },
+      allDay:             { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      itemType:           { type: DataTypes.STRING(30), allowNull: false, defaultValue: "EVENT" },
+      availabilityStatus: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "AVAILABLE" },
+      projectId:          { type: DataTypes.UUID, allowNull: true },
+      projectTaskId:      { type: DataTypes.UUID, allowNull: true },
+      meetingRequestId:   { type: DataTypes.UUID, allowNull: true },
+      organizerUserId:    { type: DataTypes.UUID, allowNull: true },
+      color:              { type: DataTypes.STRING(100), allowNull: true },
+      googleEventId:      { type: DataTypes.STRING(255), allowNull: true },
+      googleCalendarId:   { type: DataTypes.STRING(255), allowNull: true },
+      googleSyncedAt:     { type: DataTypes.DATE, allowNull: true },
+      metadata:           { type: DataTypes.JSONB, defaultValue: {} },
+      createdAt:          { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      updatedAt:          { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      deletedAt:          { type: DataTypes.DATE, allowNull: true },
+    } as any);
+    await qi.addIndex("user_calendar_events", ["businessId", "employeeUserId"], { name: "user_calendar_events_business_employee_idx" } as any);
+    await qi.addIndex("user_calendar_events", ["startAt", "endAt"], { name: "user_calendar_events_range_idx" } as any);
+    console.log("user_calendar_events table created.");
+  } else {
+    const desc: any = await qi.describeTable("user_calendar_events").catch(() => ({}));
+    const columns: Record<string, any> = {
+      itemType: { type: DataTypes.STRING(30), allowNull: false, defaultValue: "EVENT" },
+      projectId: { type: DataTypes.UUID, allowNull: true },
+      projectTaskId: { type: DataTypes.UUID, allowNull: true },
+      meetingRequestId: { type: DataTypes.UUID, allowNull: true },
+      organizerUserId: { type: DataTypes.UUID, allowNull: true },
+    };
+    for (const [name, def] of Object.entries(columns)) {
+      if (!desc[name]) await qi.addColumn("user_calendar_events", name, def as any);
+    }
+  }
+
+  // ── UserCalendarMeetingRequest ──────────────────────────────────────────────
+  if (!await tableExists("user_calendar_meeting_requests")) {
+    await qi.createTable("user_calendar_meeting_requests", {
+      id:               { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      businessId:       { type: DataTypes.UUID, allowNull: false },
+      requesterUserId:  { type: DataTypes.UUID, allowNull: false },
+      recipientUserId:  { type: DataTypes.UUID, allowNull: false },
+      title:            { type: DataTypes.STRING(255), allowNull: false },
+      description:      { type: DataTypes.TEXT, allowNull: true },
+      location:         { type: DataTypes.STRING(255), allowNull: true },
+      startAt:          { type: DataTypes.DATE, allowNull: false },
+      endAt:            { type: DataTypes.DATE, allowNull: false },
+      status:           { type: DataTypes.STRING(30), allowNull: false, defaultValue: "PENDING" },
+      requesterEventId: { type: DataTypes.UUID, allowNull: true },
+      recipientEventId: { type: DataTypes.UUID, allowNull: true },
+      responseNote:     { type: DataTypes.TEXT, allowNull: true },
+      respondedAt:      { type: DataTypes.DATE, allowNull: true },
+      metadata:         { type: DataTypes.JSONB, defaultValue: {} },
+      createdAt:        { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      updatedAt:        { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      deletedAt:        { type: DataTypes.DATE, allowNull: true },
+    } as any);
+    await qi.addIndex("user_calendar_meeting_requests", ["businessId", "recipientUserId", "status"], { name: "calendar_meetings_recipient_status_idx" } as any);
+    await qi.addIndex("user_calendar_meeting_requests", ["businessId", "requesterUserId", "status"], { name: "calendar_meetings_requester_status_idx" } as any);
+    console.log("user_calendar_meeting_requests table created.");
+  }
 }

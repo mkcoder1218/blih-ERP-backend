@@ -55,6 +55,7 @@ import { policyRoutes } from "./modules/policy/policy.routes";
 import { devicesRoutes } from "./modules/devices/devices.routes";
 import { attendanceTelegramRoutes } from "./modules/attendanceTelegram/attendanceTelegram.routes";
 import { inventoryRoutes } from "./modules/inventory/inventory.routes";
+import { calendarRoutes } from "./modules/calendar/calendar.routes";
 
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -155,6 +156,7 @@ apiRouter.use("/attendance/telegram", attendanceTelegramRoutes);
 apiRouter.use("/attendance/hr/late-reasons", attendanceHrLateReasonsRoutes);
 apiRouter.use("/attendance/hr", attendanceHrRoutes);
 apiRouter.use("/attendance-requests", attendanceRequestsRoutes);
+apiRouter.use("/calendar", calendarRoutes);
 apiRouter.use("/overtime-requests", overtimeRoutes);
 apiRouter.use("/leave-requests", leaveRoutes);
 apiRouter.use("/policies", policyRoutes);

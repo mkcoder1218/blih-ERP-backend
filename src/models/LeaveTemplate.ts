@@ -16,6 +16,8 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): LeaveTemplat
       requiresEvidence: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       evidenceInstructions: { type: dataTypes.TEXT, allowNull: true },
       isActive:    { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      isVisibleForRequest: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      isDeprecated: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       createdBy:   { type: dataTypes.UUID, allowNull: true },
     },
     { tableName: "leave_templates", timestamps: true, paranoid: true }

@@ -37,6 +37,12 @@ export class LeaveService {
 
   async updateTemplate(id: string, businessId: string, data: any) {
     const patch = { ...data };
+    if (Object.prototype.hasOwnProperty.call(patch, "isVisibleForRequest")) {
+      patch.isVisibleForRequest = patch.isVisibleForRequest !== false;
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, "isDeprecated")) {
+      patch.isDeprecated = Boolean(patch.isDeprecated);
+    }
     if (Object.prototype.hasOwnProperty.call(patch, "requiresEvidence")) {
       patch.requiresEvidence = Boolean(patch.requiresEvidence);
     }
@@ -57,11 +63,16 @@ export class LeaveService {
   }
 
   async deleteTemplate(id: string, businessId: string) {
-    // Prevent deleting if there are pending requests against it
-    const pending = await db.LeaveRequest.count({
-      where: { businessId, leaveTemplateId: id, status: "pending" },
+    const linked = await db.LeaveRequest.count({
+      where: { businessId, leaveTemplateId: id },
     });
-    if (pending > 0) throw new Error("Cannot delete a template with pending requests. Please resolve them first.");
+    if (linked > 0) {
+      return this.templateDAL.update(id, businessId, {
+        isActive: false,
+        isVisibleForRequest: false,
+        isDeprecated: true,
+      });
+    }
     return this.templateDAL.delete(id, businessId);
   }
 
@@ -72,15 +83,39 @@ export class LeaveService {
     const tpl = await this.templateDAL.findById(data.leaveTemplateId, businessId);
     if (!tpl) throw new Error("Leave template not found");
     if (!tpl.isActive) throw new Error("This leave type is not currently active");
+    if (tpl.isVisibleForRequest === false) throw new Error("This leave type is no longer available for new requests");
     const evidenceUrl = String(data.evidenceUrl || "").trim();
     const evidenceNote = String(data.evidenceNote || "").trim();
     if (tpl.requiresEvidence && !evidenceUrl && !evidenceNote) {
       throw new Error("Evidence is required for this leave type.");
     }
 
-    // 2. Calculate business days
-    const totalDays = this._countWorkdays(data.startDate, data.endDate);
-    if (totalDays <= 0) throw new Error("End date must be after start date");
+    // 2. Calculate requested days
+    const durationType = String(data.durationType || "FULL_DAY").toUpperCase();
+    if (!["FULL_DAY", "HALF_DAY"].includes(durationType)) {
+      throw new Error("Duration must be FULL_DAY or HALF_DAY");
+    }
+    const allowsHalfDay = String(tpl.leaveType || "").toLowerCase() === "annual" || String(tpl.name || "").trim().toLowerCase() === "annual leave";
+    if (durationType === "HALF_DAY" && !allowsHalfDay) {
+      throw new Error("Half-day duration is only available for Annual Leave");
+    }
+    let halfDayPeriod: string | null = null;
+    let requestedDays = 0;
+    if (durationType === "HALF_DAY") {
+      halfDayPeriod = String(data.halfDayPeriod || "").toUpperCase();
+      if (!["MORNING", "AFTERNOON"].includes(halfDayPeriod)) {
+        throw new Error("Half-day period is required");
+      }
+      if (data.startDate !== data.endDate) {
+        throw new Error("Half-day leave must start and end on the same date");
+      }
+      const workdays = this._countWorkdays(data.startDate, data.endDate);
+      if (workdays <= 0) throw new Error("Leave date must be a working day");
+      requestedDays = 0.5;
+    } else {
+      requestedDays = this._countWorkdays(data.startDate, data.endDate);
+      if (requestedDays <= 0) throw new Error("End date must be after start date");
+    }
 
     // 3. Check balance when this leave type uses an allowance
     const year = new Date().getFullYear();
@@ -100,9 +135,9 @@ export class LeaveService {
           year,
         });
       }
-      if (bal.remainingDays < totalDays) {
+      if (bal.remainingDays < requestedDays) {
         throw new Error(
-          `Insufficient leave balance. You have ${bal.remainingDays} day(s) remaining but requested ${totalDays} day(s).`
+          `Insufficient leave balance. You have ${bal.remainingDays} day(s) remaining but requested ${requestedDays} day(s).`
         );
       }
     }
@@ -115,7 +150,10 @@ export class LeaveService {
       leaveType: tpl.leaveType,
       startDate: data.startDate,
       endDate: data.endDate,
-      totalDays,
+      totalDays: requestedDays,
+      durationType,
+      halfDayPeriod,
+      requestedDays,
       reason: data.reason,
       evidenceUrl: evidenceUrl || null,
       evidenceNote: evidenceNote || null,
@@ -205,8 +243,8 @@ export class LeaveService {
         });
         if (bal) {
           await bal.update({
-            usedDays: bal.usedDays + record.totalDays,
-            remainingDays: Math.max(0, bal.remainingDays - record.totalDays),
+            usedDays: bal.usedDays + this._requestedDays(record),
+            remainingDays: Math.max(0, bal.remainingDays - this._requestedDays(record)),
           });
         }
       }
@@ -355,6 +393,10 @@ export class LeaveService {
     } catch (err) {
       console.error("[LeaveService] Failed to notify role users:", err);
     }
+  }
+
+  private _requestedDays(record: any): number {
+    return Number(record.requestedDays ?? record.totalDays ?? 0);
   }
 
   private async _notifyDepartmentHeadUsers(businessId: string, employeeUserId: string, payload: any) {
