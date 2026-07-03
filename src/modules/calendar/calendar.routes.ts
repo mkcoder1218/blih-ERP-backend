@@ -22,6 +22,7 @@ router.patch("/meeting-requests/:id", asyncHandler(ctrl.respondMeetingRequest));
 router.get("/google", asyncHandler(ctrl.googleConnection));
 router.get("/google/auth-url", asyncHandler(ctrl.googleAuthUrl));
 router.delete("/google", asyncHandler(ctrl.googleDisconnect));
+router.post("/google/sync-from-google", asyncHandler(ctrl.syncFromGoogle));
 router.post("/google-sync-all", asyncHandler(ctrl.syncAllGoogle));
 router.post("/:id/google-sync", asyncHandler(ctrl.syncGoogle));
 router.patch("/:id", asyncHandler(ctrl.update));

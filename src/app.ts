@@ -56,6 +56,7 @@ import { devicesRoutes } from "./modules/devices/devices.routes";
 import { attendanceTelegramRoutes } from "./modules/attendanceTelegram/attendanceTelegram.routes";
 import { inventoryRoutes } from "./modules/inventory/inventory.routes";
 import { calendarRoutes } from "./modules/calendar/calendar.routes";
+import { googleCalendarWebhookRoutes } from "./modules/calendar/googleCalendarWebhook.routes";
 
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -156,6 +157,7 @@ apiRouter.use("/attendance/telegram", attendanceTelegramRoutes);
 apiRouter.use("/attendance/hr/late-reasons", attendanceHrLateReasonsRoutes);
 apiRouter.use("/attendance/hr", attendanceHrRoutes);
 apiRouter.use("/attendance-requests", attendanceRequestsRoutes);
+apiRouter.use("/google-calendar", googleCalendarWebhookRoutes);
 apiRouter.use("/calendar", calendarRoutes);
 apiRouter.use("/overtime-requests", overtimeRoutes);
 apiRouter.use("/leave-requests", leaveRoutes);

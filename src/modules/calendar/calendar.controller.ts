@@ -156,4 +156,12 @@ export class CalendarController {
       next({ statusCode: err.statusCode || 400, message: err.message });
     }
   };
+
+  syncFromGoogle = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.json(await this.svc.syncFromGoogle(req.user!.businessId, req.user!.id));
+    } catch (err: any) {
+      next({ statusCode: err.statusCode || 400, message: err.message });
+    }
+  };
 }

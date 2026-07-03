@@ -125,6 +125,8 @@ import definePromotionRequest from "./PromotionRequest";
 import defineHREvent from "./HREvent";
 import defineUserCalendarEvent from "./UserCalendarEvent";
 import defineUserCalendarMeetingRequest from "./UserCalendarMeetingRequest";
+import defineCalendarSyncRetryJob from "./CalendarSyncRetryJob";
+import defineCalendarSyncAuditLog from "./CalendarSyncAuditLog";
 import definePolicy from "./Policy";
 import definePolicyAcceptance from "./PolicyAcceptance";
 import defineInventoryItem from "./InventoryItem";
@@ -260,6 +262,8 @@ export type DB = {
   HREvent: any;
   UserCalendarEvent: any;
   UserCalendarMeetingRequest: any;
+  CalendarSyncRetryJob: any;
+  CalendarSyncAuditLog: any;
   Policy: any;
   PolicyAcceptance: any;
   InventoryItem: any;
@@ -396,6 +400,8 @@ export const db: DB = {
   HREvent: defineHREvent(sequelize, DataTypes),
   UserCalendarEvent: defineUserCalendarEvent(sequelize, DataTypes),
   UserCalendarMeetingRequest: defineUserCalendarMeetingRequest(sequelize, DataTypes),
+  CalendarSyncRetryJob: defineCalendarSyncRetryJob(sequelize, DataTypes),
+  CalendarSyncAuditLog: defineCalendarSyncAuditLog(sequelize, DataTypes),
   Policy: definePolicy(sequelize, DataTypes),
   PolicyAcceptance: definePolicyAcceptance(sequelize, DataTypes),
   InventoryItem: defineInventoryItem(sequelize, DataTypes),

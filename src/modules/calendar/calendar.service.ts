@@ -1,11 +1,11 @@
 import { Op } from "sequelize";
 import { db } from "../../models";
 import { InternalNotifier } from "../notification/notification.service";
+import { GoogleCalendarSyncService } from "./googleCalendarSync.service";
 
 const VALID_AVAILABILITY = new Set(["AVAILABLE", "UNAVAILABLE"]);
 const VALID_ITEM_TYPES = new Set(["TASK", "EVENT", "AVAILABILITY", "MEETING"]);
 const VALID_MEETING_STATUS = new Set(["PENDING", "ACCEPTED", "DECLINED"]);
-const GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 function assertAvailability(value: string) {
   if (!VALID_AVAILABILITY.has(value)) throw Object.assign(new Error("Invalid availability status."), { statusCode: 400 });
@@ -30,28 +30,9 @@ function endOfDate(value: Date | string) {
   return date;
 }
 
-function googleSettingKey(userId: string) {
-  return `google_calendar:${userId}`;
-}
-
-function googleConfig() {
-  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI;
-  if (!clientId || !clientSecret || !redirectUri) {
-    throw Object.assign(new Error("Google Calendar sync is not configured."), { statusCode: 503 });
-  }
-  return { clientId, clientSecret, redirectUri };
-}
-
-async function googleFetch(url: string, init: RequestInit) {
-  const resp = await fetch(url, init);
-  const body = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw Object.assign(new Error(body?.error_description || body?.error?.message || "Google API request failed."), { statusCode: 502 });
-  return body;
-}
-
 export class CalendarService {
+  private googleSync = new GoogleCalendarSyncService();
+
   async list(businessId: string, userId: string, query: any = {}) {
     const rows = await this.listCalendarEvents(businessId, String(query.userId || userId), query);
     if (!query.userId || String(query.userId) === userId) {
@@ -118,7 +99,8 @@ export class CalendarService {
       await event.update({ projectId: task.projectId, projectTaskId: task.id, metadata: { ...(event.metadata || {}), projectTaskLinked: true } });
     }
 
-    return event.reload();
+    const reloaded = await event.reload();
+    return this.googleSync.syncCreateFromBlih(reloaded, { id: userId, businessId });
   }
 
   async update(businessId: string, userId: string, eventId: string, data: any) {
@@ -156,14 +138,17 @@ export class CalendarService {
     if ((event.itemType === "TASK" || payload.itemType === "TASK") && event.projectTaskId) {
       await this.syncProjectTaskFromCalendarEvent(businessId, userId, await event.reload());
     }
-    return event.reload();
+    const reloaded = await event.reload();
+    return this.googleSync.syncUpdateFromBlih(reloaded, { id: userId, businessId });
   }
 
   async remove(businessId: string, userId: string, eventId: string) {
     if (eventId.startsWith("project-task:")) throw Object.assign(new Error("Project tasks must be deleted from Project Management."), { statusCode: 400 });
     const event = await db.UserCalendarEvent.findOne({ where: { id: eventId, businessId, employeeUserId: userId } });
     if (!event) throw Object.assign(new Error("Calendar event not found."), { statusCode: 404 });
+    await event.update({ deletedSource: "BLIH" });
     await event.destroy();
+    await this.googleSync.syncDeleteFromBlih(event, { id: userId, businessId });
   }
 
   async status(businessId: string, userId: string, at = new Date()) {
@@ -236,6 +221,8 @@ export class CalendarService {
       color: "#f59e0b",
       metadata: { ...pendingMetadata, attendeeUserId: requesterUserId },
     });
+    await this.googleSync.syncCreateFromBlih(requesterEvent, { id: requesterUserId, businessId });
+    await this.googleSync.syncCreateFromBlih(recipientEvent, { id: recipientUserId, businessId });
     await request.update({ requesterEventId: requesterEvent.id, recipientEventId: recipientEvent.id });
     await InternalNotifier.send({
       businessId,
@@ -279,7 +266,11 @@ export class CalendarService {
 
     if (status === "DECLINED") {
       await request.update({ status, responseNote: data.responseNote || null, respondedAt: new Date() });
+      const events = await db.UserCalendarEvent.findAll({ where: { businessId, meetingRequestId: request.id } });
       await db.UserCalendarEvent.destroy({ where: { businessId, meetingRequestId: request.id } });
+      for (const event of events) {
+        await this.googleSync.syncDeleteFromBlih(event, { id: event.employeeUserId, businessId });
+      }
       await this.notifyMeetingResponse(businessId, request, false);
       return request.reload({ include: this.meetingIncludes() });
     }
@@ -340,96 +331,36 @@ export class CalendarService {
       responseNote: data.responseNote || null,
       respondedAt: new Date(),
     });
+    await this.googleSync.syncUpdateFromBlih(requesterEvent, { id: request.requesterUserId, businessId });
+    await this.googleSync.syncUpdateFromBlih(recipientEvent, { id: request.recipientUserId, businessId });
     await this.notifyMeetingResponse(businessId, request, true);
     return request.reload({ include: this.meetingIncludes() });
   }
 
   getGoogleAuthUrl(businessId: string, userId: string) {
-    const cfg = googleConfig();
-    const state = Buffer.from(JSON.stringify({ businessId, userId, ts: Date.now() })).toString("base64url");
-    const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-    url.searchParams.set("client_id", cfg.clientId);
-    url.searchParams.set("redirect_uri", cfg.redirectUri);
-    url.searchParams.set("response_type", "code");
-    url.searchParams.set("scope", GOOGLE_SCOPE);
-    url.searchParams.set("access_type", "offline");
-    url.searchParams.set("prompt", "consent");
-    url.searchParams.set("state", state);
-    return { url: url.toString() };
+    return this.googleSync.getAuthUrl(businessId, userId);
   }
 
   async handleGoogleCallback(code: string, state: string) {
-    const cfg = googleConfig();
-    const parsed = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
-    const token = await googleFetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: cfg.clientId,
-        client_secret: cfg.clientSecret,
-        redirect_uri: cfg.redirectUri,
-        grant_type: "authorization_code",
-      }),
-    });
-    const key = googleSettingKey(parsed.userId);
-    const value = {
-      accessToken: token.access_token,
-      refreshToken: token.refresh_token,
-      expiresAt: Date.now() + Number(token.expires_in || 3600) * 1000,
-      scope: token.scope,
-      calendarId: "primary",
-      connectedAt: new Date().toISOString(),
-    };
-    const existing = await db.BusinessSetting.findOne({ where: { businessId: parsed.businessId, key } });
-    if (existing) await existing.update({ value, category: "calendar", isPublic: false });
-    else await db.BusinessSetting.create({ businessId: parsed.businessId, key, value, category: "calendar", isPublic: false });
-    return parsed;
+    return this.googleSync.handleCallback(code, state);
   }
 
   async getGoogleConnection(businessId: string, userId: string) {
-    const setting = await db.BusinessSetting.findOne({ where: { businessId, key: googleSettingKey(userId) } });
-    return { connected: Boolean(setting), calendarId: setting?.value?.calendarId || "primary", connectedAt: setting?.value?.connectedAt || null };
+    return this.googleSync.getConnection(businessId, userId);
   }
 
   async disconnectGoogle(businessId: string, userId: string) {
-    const setting = await db.BusinessSetting.findOne({ where: { businessId, key: googleSettingKey(userId) } });
-    if (setting) await setting.destroy();
+    await this.googleSync.disconnect(businessId, userId);
   }
 
   async syncEventToGoogle(businessId: string, userId: string, eventId: string) {
     if (eventId.startsWith("project-task:")) throw Object.assign(new Error("Open the task in Project Management to sync it."), { statusCode: 400 });
     const event = await db.UserCalendarEvent.findOne({ where: { id: eventId, businessId, employeeUserId: userId } });
     if (!event) throw Object.assign(new Error("Calendar event not found."), { statusCode: 404 });
-    const { token, setting } = await this.googleAccessToken(businessId, userId);
-    const calendarId = setting.value?.calendarId || "primary";
-    const payload = {
-      summary: event.title,
-      description: event.description || undefined,
-      location: event.location || undefined,
-      transparency: event.availabilityStatus === "AVAILABLE" ? "transparent" : "opaque",
-      start: event.allDay ? { date: new Date(event.startAt).toISOString().slice(0, 10) } : { dateTime: new Date(event.startAt).toISOString() },
-      end: event.allDay ? { date: new Date(event.endAt).toISOString().slice(0, 10) } : { dateTime: new Date(event.endAt).toISOString() },
-    };
-    const method = event.googleEventId ? "PATCH" : "POST";
-    const url = event.googleEventId
-      ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.googleEventId)}`
-      : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
-    const synced = await googleFetch(url, {
-      method,
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    await event.update({
-      googleEventId: synced.id || event.googleEventId,
-      googleCalendarId: calendarId,
-      googleSyncedAt: new Date(),
-    });
-    return event.reload();
+    return this.googleSync.syncUpdateFromBlih(event, { id: userId, businessId });
   }
 
   async syncAllEventsToGoogle(businessId: string, userId: string) {
-    await this.googleAccessToken(businessId, userId);
     const events = await db.UserCalendarEvent.findAll({
       where: { businessId, employeeUserId: userId },
       order: [["startAt", "ASC"]],
@@ -438,12 +369,18 @@ export class CalendarService {
     const failed: Array<{ id: string; title: string; message: string }> = [];
     for (const event of events) {
       try {
-        synced.push(await this.syncEventToGoogle(businessId, userId, event.id));
+        const result = await this.googleSync.syncUpdateFromBlih(event, { id: userId, businessId });
+        if (result.googleSyncStatus === "SYNCED") synced.push(result);
+        else failed.push({ id: event.id, title: event.title, message: result.googleSyncError || result.googleSyncStatus });
       } catch (err: any) {
         failed.push({ id: event.id, title: event.title, message: err?.message || "Sync failed" });
       }
     }
     return { syncedCount: synced.length, failedCount: failed.length, failed };
+  }
+
+  async syncFromGoogle(businessId: string, userId: string) {
+    return this.googleSync.syncFromGoogle({ id: userId, businessId });
   }
 
   private async listCalendarEvents(businessId: string, userId: string, query: any = {}) {
@@ -646,26 +583,4 @@ export class CalendarService {
     ];
   }
 
-  private async googleAccessToken(businessId: string, userId: string) {
-    const cfg = googleConfig();
-    const setting = await db.BusinessSetting.findOne({ where: { businessId, key: googleSettingKey(userId) } });
-    if (!setting) throw Object.assign(new Error("Google Calendar is not connected."), { statusCode: 400 });
-    const value = setting.value || {};
-    if (value.accessToken && Number(value.expiresAt || 0) > Date.now() + 60_000) return { token: value.accessToken, setting };
-    if (!value.refreshToken) throw Object.assign(new Error("Google Calendar refresh token is missing. Reconnect Google Calendar."), { statusCode: 400 });
-    const refreshed = await googleFetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: cfg.clientId,
-        client_secret: cfg.clientSecret,
-        refresh_token: value.refreshToken,
-        grant_type: "refresh_token",
-      }),
-    });
-    value.accessToken = refreshed.access_token;
-    value.expiresAt = Date.now() + Number(refreshed.expires_in || 3600) * 1000;
-    await setting.update({ value });
-    return { token: value.accessToken, setting };
-  }
 }

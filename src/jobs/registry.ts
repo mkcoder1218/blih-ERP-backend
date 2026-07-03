@@ -11,6 +11,9 @@ import { inactiveUserCleanupCheck } from './handlers/inactiveUserCleanupCheck';
 import { telegramAttendanceSummary } from './handlers/telegramAttendanceSummary';
 import { telegramPersonalBotPoller } from './handlers/telegramPersonalBotPoller';
 import { telegramDatabaseBackup } from './handlers/telegramDatabaseBackup';
+import { googleCalendarImportSync } from './handlers/googleCalendarImportSync';
+import { googleCalendarWatchRenewal } from './handlers/googleCalendarWatchRenewal';
+import { googleCalendarSyncRetry } from './handlers/googleCalendarSyncRetry';
 
 export function initJobs() {
    console.log(`Background job worker flag: ${env.jobWorkerEnabled ? 'ENABLED' : 'DISABLED'} (timezone: ${env.jobTimezone})`);
@@ -33,4 +36,7 @@ export function initJobs() {
    JobRunner.register(trialExpiryReminder);
    JobRunner.register(scheduledReportRunner);
    JobRunner.register(inactiveUserCleanupCheck);
+   JobRunner.register(googleCalendarImportSync);
+   JobRunner.register(googleCalendarWatchRenewal);
+   JobRunner.register(googleCalendarSyncRetry);
 }

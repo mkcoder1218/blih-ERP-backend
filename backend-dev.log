@@ -4,3 +4,1073 @@
 
 [INFO] 16:04:04 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 6.0.3)
 ◇ injected env (43) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:06:00.083Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:06:00.099Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:07:00.080Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:07:00.090Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:08:00.067Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:08:00.081Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:09:00.077Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:09:00.087Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:10:00.146Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] waiting 99fc7d4b-b085-4229-a563-8086fdfee17d: now 16:10 < 16:46 (Africa/Nairobi)
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:10:00.161Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+User Biruk Birhanu qw connected to WebSocket
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:11:00.073Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:11:00.081Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'none'
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:12:00.137Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:12:00.146Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:13:00.088Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:13:00.104Z
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'none'
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:14:00.203Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:14:00.211Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:15:00.519Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] waiting 99fc7d4b-b085-4229-a563-8086fdfee17d: now 16:15 < 16:46 (Africa/Nairobi)
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:15:00.535Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 16:15:04 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\calendar\calendar.service.ts has been modified
+◇ injected env (43) from .env // tip: ⌘ override existing { override: true }
+DB connected
+DB synced (create-only, no alter)
+[INFO] 16:15:34 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\calendar\calendar.routes.ts has been modified
+◇ injected env (43) from .env // tip: ⌘ enable debugging { debug: true }
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:17:00.091Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:17:00.105Z
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+Job TelegramPersonalBotPoller skipped: already running.
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:18:00.466Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:18:00.475Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:19:00.188Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:19:00.197Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+Job TelegramPersonalBotPoller skipped: already running.
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:20:00.111Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] waiting 99fc7d4b-b085-4229-a563-8086fdfee17d: now 16:20 < 16:46 (Africa/Nairobi)
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:20:00.130Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:21:00.212Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:21:00.224Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:22:00.085Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:22:00.091Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:23:00.167Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:23:00.174Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:24:00.185Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:24:00.198Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:25:00.083Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] waiting 99fc7d4b-b085-4229-a563-8086fdfee17d: now 16:25 < 16:46 (Africa/Nairobi)
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:25:00.096Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:26:00.463Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:26:00.481Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:27:00.137Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:27:00.147Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+Job TelegramPersonalBotPoller skipped: already running.
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:28:00.523Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:28:00.529Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 16:28:42 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\models\UserCalendarEvent.ts has been modified
+◇ injected env (43) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:30:00.218Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:30:00.238Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] waiting 99fc7d4b-b085-4229-a563-8086fdfee17d: now 16:30 < 16:46 (Africa/Nairobi)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 16:30:49 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\calendar\calendar.service.ts has been modified
+[TelegramPersonalBot] enabled personal bot configs: 1
+◇ injected env (43) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+DB connected
+DB synced (create-only, no alter)
+[INFO] 16:31:07 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\calendar\calendar.service.ts has been modified
+◇ injected env (43) from .env // tip: ⌘ override existing { override: true }
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 16:31:43 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\calendar\calendar.service.ts has been modified
+◇ injected env (43) from .env // tip: ⌘ suppress logs { quiet: true }
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:33:00.609Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:33:00.636Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:34:00.311Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:34:00.336Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:35:00.350Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] waiting 99fc7d4b-b085-4229-a563-8086fdfee17d: now 16:35 < 16:46 (Africa/Nairobi)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:35:00.373Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:36:00.084Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:36:00.100Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:37:00.067Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:37:00.075Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 16:37:19 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\calendar\calendar.service.ts has been modified
+[TelegramPersonalBot] enabled personal bot configs: 1
+◇ injected env (43) from .env // tip: ⌘ suppress logs { quiet: true }
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:38:00.193Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:38:00.210Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:39:00.131Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:39:00.143Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:40:00.245Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] waiting 99fc7d4b-b085-4229-a563-8086fdfee17d: now 16:40 < 16:46 (Africa/Nairobi)
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:40:00.267Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[INFO] 16:40:33 Restarting: C:\Users\Mike\Documents\Projects\Blih\Blih-ERP-backend\src\modules\calendar\googleCalendarSync.service.ts has been modified
+◇ injected env (43) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+DB connected
+DB synced (create-only, no alter)
+DB seeded
+Background job worker flag: ENABLED (timezone: UTC)
+Job registered: TelegramAttendanceSummary (* * * * *)
+Job registered: TelegramPersonalBotPoller (*/10 * * * * *)
+Job registered: TelegramDatabaseBackup (*/5 * * * *)
+Initializing Background Job Worker...
+Job registered: ApprovalDeadlineReminder (0 8 * * *)
+Job registered: OverdueInvoiceReminder (0 8 * * *)
+Job registered: SubscriptionExpiryCheck (0 0 * * *)
+Job registered: TrialExpiryReminder (0 9 * * *)
+Job registered: ScheduledReportRunner (0 * * * *)
+Job registered: InactiveUserCleanupCheck (0 2 * * 0)
+Blih ERP backend listening on :4003 (development)
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:42:00.222Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:42:00.244Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:43:00.124Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:43:00.136Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:44:00.412Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:44:00.426Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:45:00.192Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramDatabaseBackup] waiting 99fc7d4b-b085-4229-a563-8086fdfee17d: now 16:45 < 16:46 (Africa/Nairobi)
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:45:00.210Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:46:00.181Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:46:00.189Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:47:00.112Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:47:00.121Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:48:00.073Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:48:00.081Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:49:00.071Z
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:49:00.079Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[CORS] incoming origin: 'http://localhost:3000'
+[CORS] allowed (localhost dev): http://localhost:3000
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramAttendanceSummary] sweep started at 2026-07-03T13:50:00.108Z
+[TelegramDatabaseBackup] enabled backup configs: 1
+[TelegramAttendanceSummary] enabled summary configs: 1
+[TelegramAttendanceSummary] skipped 99fc7d4b-b085-4229-a563-8086fdfee17d: already sent for 2026-07-03
+[TelegramAttendanceSummary] sweep finished at 2026-07-03T13:50:00.120Z
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
+[TelegramPersonalBot] enabled personal bot configs: 1
