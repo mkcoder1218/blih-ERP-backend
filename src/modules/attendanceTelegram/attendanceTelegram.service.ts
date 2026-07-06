@@ -201,6 +201,10 @@ export class AttendanceTelegramService {
       timezone: payload.timezone || defaults.timezone,
       sendTime: normalizeHhmm(payload.sendTime, "20:00")
     };
+    if (effectiveBotType === DATABASE_BACKUP_BOT_TYPE) {
+      update.lastSentForDate = null;
+      update.lastSentAt = null;
+    }
     if (typeof payload.botToken === "string" && payload.botToken.trim()) update.botToken = payload.botToken.trim();
     else if (effectiveBotType === MAIN_BOT_TYPE && !row.botToken && legacySummary?.botToken) update.botToken = legacySummary.botToken;
     await row.update(update);
@@ -751,6 +755,7 @@ export class AttendanceTelegramService {
       }
 
       try {
+        console.log(`[TelegramDatabaseBackup] sending ${setting.businessId}: ${ymd} at ${localTimeHhmm(now, timezone)} (${timezone})`);
         await this.sendDatabaseBackup(setting, ymd);
         await setting.update({ lastSentForDate: ymd, lastSentAt: new Date() });
         console.log(`[TelegramDatabaseBackup] sent ${setting.businessId}: ${ymd} to ${setting.chatId}`);
