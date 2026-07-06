@@ -237,8 +237,8 @@ export class AttendanceTelegramService {
     if (!setting.chatId) throw Object.assign(new Error("Telegram chat ID or group ID is not configured"), { statusCode: 400 });
 
     if (botType === DATABASE_BACKUP_BOT_TYPE) {
-      const text = `Database backup bot test from Blih.\nDatabase: ${env.db.name}\nScheduled time: ${setting.sendTime || "02:00"} (${setting.timezone || "UTC"})`;
-      await this.sendAndLog(setting, "database_backup_test", { chat_id: setting.chatId, text });
+      const dateYmd = localDateYmd(new Date(), setting.timezone || "UTC");
+      await this.sendDatabaseBackup(setting, dateYmd, true);
       return { sent: true };
     }
 
@@ -760,35 +760,45 @@ export class AttendanceTelegramService {
     }
   }
 
-  private async sendDatabaseBackup(setting: any, dateYmd: string) {
+  private async sendDatabaseBackup(setting: any, dateYmd: string, isTest = false) {
     const business = await db.Business.findByPk(setting.businessId, { attributes: ["name", "slug"] });
     const safeBusiness = String(business?.slug || business?.name || setting.businessId).replace(/[^a-z0-9_-]+/gi, "_").slice(0, 60);
-    const fileName = `${safeBusiness}_${env.db.name}_${dateYmd}.dump`;
+    const fileName = `${isTest ? "test_" : ""}${safeBusiness}_${env.db.name}_${dateYmd}.dump`;
     const filePath = path.join(os.tmpdir(), fileName);
 
     try {
-      await execFileAsync(
-        "pg_dump",
-        [
-          "--host", env.db.host,
-          "--port", String(env.db.port),
-          "--username", env.db.user,
-          "--dbname", env.db.name,
-          "--format=custom",
-          "--no-owner",
-          "--file", filePath
-        ],
-        {
-          env: { ...process.env, PGPASSWORD: env.db.password },
-          timeout: 10 * 60 * 1000,
-          maxBuffer: 1024 * 1024
+      try {
+        await execFileAsync(
+          env.pgDumpPath,
+          [
+            "--host", env.db.host,
+            "--port", String(env.db.port),
+            "--username", env.db.user,
+            "--dbname", env.db.name,
+            "--format=custom",
+            "--no-owner",
+            "--file", filePath
+          ],
+          {
+            env: { ...process.env, PGPASSWORD: env.db.password },
+            timeout: 10 * 60 * 1000,
+            maxBuffer: 1024 * 1024
+          }
+        );
+      } catch (err: any) {
+        if (err?.code === "ENOENT") {
+          throw Object.assign(
+            new Error(`Database backup requires pg_dump, but it was not found at "${env.pgDumpPath}". Install PostgreSQL client tools or set PG_DUMP_PATH to the pg_dump executable.`),
+            { statusCode: 500 }
+          );
         }
-      );
+        throw err;
+      }
 
       const content = await fs.readFile(filePath);
-      await this.sendAndLog(setting, "database_backup", {
+      await this.sendAndLog(setting, isTest ? "database_backup_test" : "database_backup", {
         chat_id: setting.chatId,
-        caption: `Database backup for ${business?.name || "Blih ERP"}\nDate: ${dateYmd}\nDatabase: ${env.db.name}`,
+        caption: `${isTest ? "Test: " : ""}Database backup for ${business?.name || "Blih ERP"}\nDate: ${dateYmd}\nDatabase: ${env.db.name}`,
         document: fileName,
         documentContent: content
       });

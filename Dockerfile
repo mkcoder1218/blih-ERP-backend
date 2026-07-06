@@ -20,6 +20,7 @@ RUN apt-get update \
     chromium \
     dumb-init \
     fonts-liberation \
+    postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
