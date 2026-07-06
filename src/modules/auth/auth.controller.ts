@@ -388,9 +388,24 @@ export class AuthController {
         return next({ statusCode: 403, message: "Cannot self-register with this role" });
       }
 
-      // 5. Check duplicate
+      // 5. Check duplicate. Soft-deleted users should not block a fresh public
+      // registration, but the DB unique index still sees them, so free the email.
       const existing = await db.User.findOne({ where: { businessId, email: submittedEmail } });
       if (existing) return next({ statusCode: 409, message: "An account with this email already exists" });
+
+      const archivedUsers = await db.User.findAll({
+        where: {
+          businessId,
+          email: submittedEmail,
+          deletedAt: { [Op.ne]: null },
+        },
+        paranoid: false,
+      });
+      for (const archivedUser of archivedUsers) {
+        await archivedUser.update({
+          email: `archived+${archivedUser.id}@deleted.local`,
+        }, { paranoid: false });
+      }
 
       // 6. Create user
       const autoApprove = (autoSetting?.value === true || autoSetting?.value?.enabled === true) && !onboarding;

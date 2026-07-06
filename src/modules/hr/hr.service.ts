@@ -37,11 +37,20 @@ export class HRService {
         where,
         limit,
         offset,
+        distinct: true,
         order: [['createdAt', 'DESC']],
         include: [
            {
              model: db.User, as: 'user',
              attributes: ['id', 'fullName', 'email', 'phone', 'status'],
+             include: [
+                {
+                   model: db.Role,
+                   attributes: ['id', 'name', 'key'],
+                   through: { attributes: [] },
+                   required: false,
+                },
+             ],
              // Exclude self-registered users awaiting HR approval
              where: { status: 'active' },
              required: true,
