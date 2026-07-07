@@ -47,12 +47,11 @@ jobs:
           SSH_USER: ${{ secrets.HOSTINGER_USER }}
           SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
           DEPLOY_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH }}
-          ENV_PRODUCTION_B64: ${{ secrets.ENV_PRODUCTION_B64 }}
         run: |
           set -e
 
           missing=0
-          for name in SSH_HOST SSH_PORT SSH_USER SSH_KEY DEPLOY_PATH ENV_PRODUCTION_B64; do
+          for name in SSH_HOST SSH_PORT SSH_USER SSH_KEY DEPLOY_PATH; do
             if [ -z "${!name}" ]; then
               echo "Missing required deployment secret/env value: $name"
               missing=1
@@ -60,7 +59,7 @@ jobs:
           done
 
           if [ "$missing" -ne 0 ]; then
-            echo "Add the missing HOSTINGER_* / ENV_PRODUCTION_B64 secrets to the repository or production environment secrets."
+            echo "Add the missing HOSTINGER_* secrets to the repository or production environment secrets."
             exit 1
           fi
 
@@ -86,7 +85,6 @@ jobs:
           DEPLOY_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH }}
           REPOSITORY: ${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
-          ENV_PRODUCTION_B64: ${{ secrets.ENV_PRODUCTION_B64 }}
 
         with:
           host: ${{ secrets.HOSTINGER_HOST }}
@@ -97,7 +95,7 @@ jobs:
           timeout: 30s
           command_timeout: 30m
 
-          envs: DEPLOY_PATH,REPOSITORY,BRANCH,ENV_PRODUCTION_B64
+          envs: DEPLOY_PATH,REPOSITORY,BRANCH
 
           script: |
             set -eu
@@ -119,12 +117,12 @@ jobs:
             git checkout "$BRANCH"
             git reset --hard "origin/$BRANCH"
 
-            if [ -z "$ENV_PRODUCTION_B64" ]; then
-              echo "ENV_PRODUCTION_B64 secret is required"
+            if [ ! -f .env.production ]; then
+              echo ".env.production was not found in $DEPLOY_PATH"
+              echo "Create it manually on the VPS before deploying."
               exit 1
             fi
 
-            printf '%s' "$ENV_PRODUCTION_B64" | base64 -d > .env.production
             chmod 600 .env.production
 
             docker compose pull db
