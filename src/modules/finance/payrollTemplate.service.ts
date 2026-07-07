@@ -231,6 +231,12 @@ export class PayrollTemplateService {
     return this.m(employee?.salaryInfo?.baseSalary ?? employee?.salaryInfo?.monthlySalary ?? employee?.salaryInfo?.salary);
   }
 
+  private isUnpaidSalaryMarker(row: any) {
+    return this.m(row?.baseSalary) === 1
+      && this.m(row?.taxableAmount) === 1
+      && this.m(row?.netPay) === 1;
+  }
+
   private financialOptionsFromSalaryInfo(salaryInfo: any = {}) {
     return {
       pensionableSalary: salaryInfo.pensionableSalary ?? salaryInfo.baseSalary,
@@ -689,6 +695,7 @@ export class PayrollTemplateService {
     if (templateId) {
       rows = rows.filter((row: any) => row.templateId === templateId);
     }
+    rows = rows.filter((row: any) => !this.isUnpaidSalaryMarker(row));
 
     const count = rows.length;
     const pagedRows = rows.slice(offset, offset + limit);
