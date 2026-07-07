@@ -108,6 +108,7 @@ import defineOfferLetter from "./OfferLetter";
 import defineRecruitmentTemplate from "./RecruitmentTemplate";
 import definePayrollTemplate from "./PayrollTemplate";
 import defineEmployeePayrollLink from "./EmployeePayrollLink";
+import defineSalaryDeduction from "./SalaryDeduction";
 import defineSkill from "./Skill";
 import defineInterviewSkill from "./InterviewSkill";
 import defineInterviewerNote from "./InterviewerNote";
@@ -254,6 +255,7 @@ export type DB = {
   RecruitmentTemplate: any;
   PayrollTemplate: any;
   EmployeePayrollLink: any;
+  SalaryDeduction: any;
   Skill: any;
   InterviewSkill: any;
   InterviewerNote: any;
@@ -392,6 +394,7 @@ export const db: DB = {
   RecruitmentTemplate: defineRecruitmentTemplate(sequelize, DataTypes),
   PayrollTemplate: definePayrollTemplate(sequelize, DataTypes),
   EmployeePayrollLink: defineEmployeePayrollLink(sequelize, DataTypes),
+  SalaryDeduction: defineSalaryDeduction(sequelize, DataTypes),
   Skill: defineSkill(sequelize, DataTypes),
   InterviewSkill: defineInterviewSkill(sequelize, DataTypes),
   InterviewerNote: defineInterviewerNote(sequelize, DataTypes),

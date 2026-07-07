@@ -1,6 +1,7 @@
 import { db } from "../../models";
 import { Op } from "sequelize";
 import { TERMINATED_EMPLOYMENT_STATUS } from "../../constants/employee.constants";
+import { SalaryDeductionService } from "./salaryDeduction.service";
 
 const ETHIOPIAN_TAX_POLICY = {
   version: "ethiopian_proclamation_410_2017_allowance_caps",
@@ -225,6 +226,8 @@ export function calculateEthiopianPayroll(baseSalary: number, tpl: any = {}, opt
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 export class PayrollTemplateService {
+  private deductionService = new SalaryDeductionService();
+
   private m(v: any) { return Number(v ?? 0); }
 
   private salaryBase(employee: any) {
@@ -621,16 +624,19 @@ export class PayrollTemplateService {
       linkByUserId = new Map(links.map((link: any) => [link.employeeUserId, link]));
     }
 
-    let rows = records.map((employee: any) => {
+    let rows = await Promise.all(records.map(async (employee: any) => {
       const link: any = linkByUserId.get(employee.userId);
       const salaryInfo = employee.salaryInfo || {};
       const baseSalary = link ? this.m(link.baseSalary) : this.m(salaryInfo.baseSalary ?? salaryInfo.monthlySalary ?? salaryInfo.salary);
       const targetNetSalary = link?.metadata?.targetNetSalary ?? salaryInfo.targetNetSalary ?? null;
       const salaryInputMode = link?.metadata?.salaryInputMode ?? salaryInfo.salaryInputMode ?? null;
-      const computedNetPay = this.m(link?.netPay);
+      const deductionSnapshot = link ? await this.deductionService.syncForPayrollLink(link, query) : null;
+      const deductionSummary = deductionSnapshot ? this.deductionService.formatSummary(deductionSnapshot.deductions) : { total: 0, count: 0, rows: [], groups: {} };
+      const computedNetPay = this.m(deductionSnapshot?.netPay ?? link?.netPay);
       return {
         id: employee.id,
         userId: employee.userId,
+        payrollLinkId: link?.id || null,
         employeeCode: employee.employeeCode,
         name: employee.user?.fullName || "Unknown",
         email: employee.user?.email || "",
@@ -665,9 +671,13 @@ export class PayrollTemplateService {
         healthDeduction: this.m(link?.healthDeduction),
         loanDeduction: this.m(link?.loanDeduction),
         otherDeduction: this.m(link?.otherDeduction),
-        totalDeductions: this.m(link?.totalDeductions),
-        netPay: salaryInputMode === "net" && this.m(targetNetSalary) > 0 ? this.m(targetNetSalary) : computedNetPay,
+        totalDeductions: this.m(deductionSnapshot?.deductionTotal ?? link?.totalDeductions),
+        netPay: computedNetPay,
         computedNetPay,
+        deductionTotal: this.m(deductionSummary.total),
+        deductionCount: this.m(deductionSummary.count),
+        deductionItems: deductionSummary.rows,
+        deductionGroups: deductionSummary.groups,
         taxMeta: link?.metadata?.tax || null,
         taxableAmount: this.m(link?.metadata?.tax?.taxableIncome),
         employeePensionContribution: this.m(link?.pensionDeduction),
@@ -687,7 +697,7 @@ export class PayrollTemplateService {
         lastUpdated: link?.updatedAt || employee.updatedAt || null,
         linkedAt: link?.linkedAt || null,
       };
-    });
+    }));
 
     if (payrollStatus === "linked" || payrollStatus === "pending") {
       rows = rows.filter((row: any) => row.payrollStatus === payrollStatus);

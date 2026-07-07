@@ -60,6 +60,9 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): EmployeePayr
     if (models.User) {
       EmployeePayrollLink.belongsTo(models.User, { foreignKey: "linkedByUserId", as: "linkedBy" });
     }
+    if (models.SalaryDeduction) {
+      EmployeePayrollLink.hasMany(models.SalaryDeduction, { foreignKey: "payrollLinkId", as: "deductions" });
+    }
   };
 
   return EmployeePayrollLink;

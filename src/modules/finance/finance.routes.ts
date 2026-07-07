@@ -5,9 +5,11 @@ import { requireAnyPermission } from "../../middlewares/permission";
 import { requireActiveModule } from "../../middlewares/requireActiveModule";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { FinanceController } from "./finance.controller";
+import { SalaryDeductionController } from "./salaryDeduction.controller";
 
 const router = Router();
 const controller = new FinanceController();
+const deductionController = new SalaryDeductionController();
 
 router.use(requireActiveModule('finance'));
 router.use(authRequired);
@@ -162,6 +164,16 @@ router.patch(
   "/employee-salaries/:userId/base-salary",
   requireAnyPermission("salary_employee_read", "finance.manage"),
   asyncHandler(controller.updateEmployeeBaseSalary)
+);
+router.get(
+  "/employee-salaries/:payrollLinkId/deductions",
+  requireAnyPermission("salary_employee_read", "finance.manage"),
+  asyncHandler(deductionController.listForSalary)
+);
+router.delete(
+  "/employee-salaries/deductions/:deductionId",
+  requireAnyPermission("finance.manage", "salary_employee_read"),
+  asyncHandler(deductionController.removeDeduction)
 );
 router.post(
   "/payroll-links",

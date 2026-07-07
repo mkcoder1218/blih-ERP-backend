@@ -28,6 +28,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): PayrollRecor
     PayrollRecord.belongsTo(models.Business, { foreignKey: "businessId" });
     PayrollRecord.belongsTo(models.User, { foreignKey: "employeeUserId", as: "employee" });
     if (models.Department) PayrollRecord.belongsTo(models.Department, { foreignKey: "departmentId", as: "department" });
+    if (models.SalaryDeduction) PayrollRecord.hasMany(models.SalaryDeduction, { foreignKey: "payrollRecordId", as: "deductions" });
   };
 
   return PayrollRecord;
