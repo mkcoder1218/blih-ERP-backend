@@ -445,7 +445,11 @@ export class SalaryDeductionService {
       money(link.loanDeduction) +
       money(link.otherDeduction)
     );
-    const payrollNetPay = money(Math.max(grossPayForNet + approvedOvertimePay - payrollDeductionTotal, 0));
+    const targetNetSalary = money(link.metadata?.targetNetSalary);
+    const isNetSalaryMode = link.metadata?.salaryInputMode === "net" && targetNetSalary > 0;
+    const payrollNetPay = isNetSalaryMode
+      ? money(targetNetSalary + approvedOvertimePay)
+      : money(Math.max(grossPayForNet + approvedOvertimePay - payrollDeductionTotal, 0));
     const netPay = money(Math.max(payrollNetPay - deductionTotal, 0));
     await link.update({
       totalDeductions: money(payrollDeductionTotal + deductionTotal),
@@ -457,6 +461,8 @@ export class SalaryDeductionService {
         payrollDeductionTotal,
         regularGrossPay,
         approvedOvertimePay,
+        targetNetSalary: targetNetSalary || null,
+        salaryInputMode: link.metadata?.salaryInputMode || null,
         payrollNetPayBeforeAttendanceLeaveDeductions: payrollNetPay,
         deductionPeriodStart: period.start,
         deductionPeriodEnd: period.end,
