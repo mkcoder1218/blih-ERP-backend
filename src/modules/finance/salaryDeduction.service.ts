@@ -5,7 +5,7 @@ import { AttendanceHrService } from "../attendanceHr/attendanceHr.service";
 
 type PeriodRange = { start: string; end: string };
 
-const WORKING_DAYS_DEFAULT = 22;
+const SALARY_PAY_DAYS_DEFAULT = 30;
 
 function dateOnly(value: Date) {
   return value.toISOString().slice(0, 10);
@@ -26,6 +26,21 @@ function todayYmd() {
 function money(value: any) {
   const numeric = Number(value ?? 0);
   return Number.isFinite(numeric) ? Math.round(numeric * 100) / 100 : 0;
+}
+
+function daysInclusive(start: string, end: string) {
+  const first = new Date(`${start}T00:00:00.000Z`);
+  const last = new Date(`${end}T00:00:00.000Z`);
+  if (Number.isNaN(first.getTime()) || Number.isNaN(last.getTime()) || first > last) return 0;
+  return Math.floor((last.getTime() - first.getTime()) / 86_400_000) + 1;
+}
+
+function laterDate(a: string, b: string) {
+  return a > b ? a : b;
+}
+
+function earlierDate(a: string, b: string) {
+  return a < b ? a : b;
 }
 
 function titleCase(value: string) {
@@ -62,16 +77,25 @@ export class SalaryDeductionService {
     return currentMonthRange();
   }
 
-  private workingDays(link: any) {
-    const value = Number(link?.metadata?.workingDaysInPeriod ?? link?.metadata?.workingDays ?? WORKING_DAYS_DEFAULT);
-    return Number.isFinite(value) && value > 0 ? value : WORKING_DAYS_DEFAULT;
+  private salaryPayDays(salaryInfo: any = {}, link?: any) {
+    const value = Number(
+      salaryInfo.salaryPayDays ??
+      salaryInfo.payrollDays ??
+      salaryInfo.monthlyPayDays ??
+      link?.metadata?.salaryPayDays ??
+      link?.metadata?.payrollDays ??
+      link?.metadata?.monthlyPayDays ??
+      SALARY_PAY_DAYS_DEFAULT
+    );
+    return Number.isFinite(value) && value > 0 ? value : SALARY_PAY_DAYS_DEFAULT;
   }
 
   private async salaryContext(link: any) {
     if (link.__salaryDeductionContext) return link.__salaryDeductionContext;
     const employee = await db.EmployeeRecord.findOne({
       where: { businessId: link.businessId, userId: link.employeeUserId },
-      attributes: ["salaryInfo"],
+      attributes: ["salaryInfo", "hireDate", "createdAt"],
+      include: [{ model: db.User, as: "user", attributes: ["createdAt"] }],
     });
     const salaryInfo = employee?.salaryInfo || {};
     const salaryInfoTargetNetSalary = money(
@@ -100,6 +124,9 @@ export class SalaryDeductionService {
       salaryInfo,
       targetNetSalary,
       salaryInputMode,
+      accountCreatedDate: dateOnly(new Date(employee?.user?.createdAt || employee?.createdAt || employee?.hireDate || 0)),
+      hireDate: employee?.hireDate ? dateOnly(new Date(employee.hireDate)) : null,
+      salaryPayDays: this.salaryPayDays(salaryInfo, link),
       deductionBase: normalizedSalaryInputMode !== "base" && targetNetSalary > 0 ? targetNetSalary : baseSalary,
     };
     return link.__salaryDeductionContext;
@@ -107,7 +134,25 @@ export class SalaryDeductionService {
 
   private async dayRate(link: any) {
     const context = await this.salaryContext(link);
-    return money(context.deductionBase / this.workingDays(link));
+    return money(context.deductionBase / context.salaryPayDays);
+  }
+
+  private async paidDaysAlreadyCovered(link: any, effectiveStart: string, effectiveEnd: string) {
+    const paidRecords = await db.PayrollRecord.findAll({
+      where: {
+        businessId: link.businessId,
+        employeeUserId: link.employeeUserId,
+        status: { [Op.in]: ["paid"] },
+        periodStart: { [Op.lte]: effectiveEnd },
+        periodEnd: { [Op.gte]: effectiveStart },
+      },
+      attributes: ["periodStart", "periodEnd"],
+    });
+    return paidRecords.reduce((sum: number, record: any) => {
+      const overlapStart = laterDate(String(record.periodStart).slice(0, 10), effectiveStart);
+      const overlapEnd = earlierDate(String(record.periodEnd).slice(0, 10), effectiveEnd);
+      return sum + daysInclusive(overlapStart, overlapEnd);
+    }, 0);
   }
 
   private async approvedOvertimePay(link: any, period: PeriodRange) {
@@ -500,22 +545,47 @@ export class SalaryDeductionService {
     const salaryInputMode = salaryContext.salaryInputMode;
     const normalizedSalaryInputMode = String(salaryInputMode || "").toLowerCase();
     const isNetSalaryMode = normalizedSalaryInputMode !== "base" && targetNetSalary > 0;
-    const payrollNetPay = isNetSalaryMode
+    const accountStartDate = salaryContext.accountCreatedDate && salaryContext.accountCreatedDate !== "1970-01-01"
+      ? salaryContext.accountCreatedDate
+      : period.start;
+    const effectiveStart = laterDate(period.start, accountStartDate);
+    const effectiveEnd = period.end;
+    const periodPayDays = Math.min(daysInclusive(effectiveStart, effectiveEnd), salaryContext.salaryPayDays);
+    const paidDays = periodPayDays > 0 ? Math.min(await this.paidDaysAlreadyCovered(link, effectiveStart, effectiveEnd), periodPayDays) : 0;
+    const payableDays = Math.max(periodPayDays - paidDays, 0);
+    const payRatio = salaryContext.salaryPayDays > 0 ? payableDays / salaryContext.salaryPayDays : 1;
+    const monthlyGrossForNet = grossPayForNet + approvedOvertimePay;
+    const monthlyPayrollNetPay = isNetSalaryMode
       ? money(targetNetSalary + approvedOvertimePay)
-      : money(Math.max(grossPayForNet + approvedOvertimePay - payrollDeductionTotal, 0));
+      : money(Math.max(monthlyGrossForNet - payrollDeductionTotal, 0));
+    const payrollNetPay = money(monthlyPayrollNetPay * payRatio);
+    const payableGrossPay = money(monthlyGrossForNet * payRatio);
+    const payablePayrollDeductionTotal = money(payrollDeductionTotal * payRatio);
     const netPay = money(Math.max(payrollNetPay - deductionTotal, 0));
     await link.update({
-      totalDeductions: money(payrollDeductionTotal + deductionTotal),
+      totalDeductions: money(payablePayrollDeductionTotal + deductionTotal),
       netPay,
       metadata: {
         ...(link.metadata || {}),
         deductionTotal,
         attendanceLeaveDeductionTotal: deductionTotal,
-        payrollDeductionTotal,
+        payrollDeductionTotal: payablePayrollDeductionTotal,
+        monthlyPayrollDeductionTotal: payrollDeductionTotal,
         regularGrossPay,
         approvedOvertimePay,
+        payableGrossPay,
+        monthlyGrossPay: monthlyGrossForNet,
+        periodPayDays,
+        paidDaysAlreadyCovered: paidDays,
+        payableDays,
+        salaryPayDays: salaryContext.salaryPayDays,
+        salaryPayRatio: payRatio,
+        salaryEffectiveStart: effectiveStart,
+        salaryEffectiveEnd: effectiveEnd,
+        accountCreatedDate: salaryContext.accountCreatedDate || null,
         targetNetSalary: targetNetSalary || null,
         salaryInputMode: salaryInputMode || null,
+        monthlyPayrollNetPayBeforeAttendanceLeaveDeductions: monthlyPayrollNetPay,
         payrollNetPayBeforeAttendanceLeaveDeductions: payrollNetPay,
         deductionPeriodStart: period.start,
         deductionPeriodEnd: period.end,

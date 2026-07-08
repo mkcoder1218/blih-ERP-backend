@@ -235,14 +235,38 @@ export class PayrollTemplateService {
   }
 
   private isUnpaidSalaryMarker(row: any) {
-    return this.m(row?.baseSalary) === 1
+    const salaryInfo = row?.salaryInfo || {};
+    const originalSalaryValues = [
+      salaryInfo.baseSalary,
+      salaryInfo.monthlySalary,
+      salaryInfo.salary,
+      salaryInfo.netSalary,
+      salaryInfo.targetNetSalary,
+      salaryInfo.targetNetPay,
+      salaryInfo.netPay,
+      row?.targetNetSalary,
+    ].map((value) => this.m(value)).filter((value) => value > 0);
+    const hasUnpaidOriginalSalary = originalSalaryValues.some((value) => value <= 1);
+    const hasOnlyTokenPayroll = [
+      row?.baseSalary,
+      row?.grossPay,
+      row?.taxableAmount,
+      row?.netPay,
+      row?.totalCostToCompany,
+      row?.grossSalary,
+      row?.basicSalary,
+    ].some((value) => {
+      const numeric = this.m(value);
+      return numeric > 0 && numeric <= 2;
+    });
+    return hasUnpaidOriginalSalary || (this.m(row?.baseSalary) === 1
       && (
         this.m(row?.taxableAmount) === 1
         || this.m(row?.grossPay) === 1
         || this.m(row?.totalCostToCompany) === 1
         || this.m(row?.grossSalary) === 1
         || this.m(row?.basicSalary) === 1
-      );
+      )) || hasOnlyTokenPayroll;
   }
 
   private financialOptionsFromSalaryInfo(salaryInfo: any = {}) {
@@ -565,16 +589,6 @@ export class PayrollTemplateService {
     if (employmentStatus) where.employmentStatus = employmentStatus;
 
     const userWhere: any = { status: "active" };
-    const accountCreatedRange: any = {};
-    if (dateFrom) {
-      const from = new Date(`${dateFrom}T00:00:00.000Z`);
-      if (!Number.isNaN(from.getTime())) accountCreatedRange[Op.gte] = from;
-    }
-    if (dateTo) {
-      const to = new Date(`${dateTo}T23:59:59.999Z`);
-      if (!Number.isNaN(to.getTime())) accountCreatedRange[Op.lte] = to;
-    }
-    if (Object.keys(accountCreatedRange).length) userWhere.createdAt = accountCreatedRange;
     if (q) {
       userWhere[Op.or] = [
         { fullName: { [Op.iLike]: `%${q}%` } },
@@ -650,8 +664,12 @@ export class PayrollTemplateService {
       const targetNetSalary = link?.metadata?.targetNetSalary ?? salaryInfo.targetNetSalary ?? null;
       const salaryInputMode = link?.metadata?.salaryInputMode ?? salaryInfo.salaryInputMode ?? null;
       const deductionSnapshot = link ? await this.deductionService.syncForPayrollLink(link, query) : null;
+      const effectiveLink: any = deductionSnapshot?.link || link;
+      const effectiveMetadata = effectiveLink?.metadata || {};
       const deductionSummary = deductionSnapshot ? this.deductionService.formatSummary(deductionSnapshot.deductions) : { total: 0, count: 0, rows: [], groups: {} };
-      const computedNetPay = this.m(deductionSnapshot?.netPay ?? link?.netPay);
+      const computedNetPay = this.m(deductionSnapshot?.netPay ?? effectiveLink?.netPay);
+      const payableGrossPay = this.m(effectiveMetadata.payableGrossPay ?? effectiveLink?.grossPay);
+      const salaryPayRatio = this.m(effectiveMetadata.salaryPayRatio ?? 1) || 1;
       return {
         id: employee.id,
         userId: employee.userId,
@@ -677,32 +695,32 @@ export class PayrollTemplateService {
         baseSalaryOverride: link?.baseSalaryOverride ?? null,
         targetNetSalary,
         salaryInputMode,
-        housingAllowance: this.m(link?.housingAllowance),
-        transportAllowance: this.m(link?.transportAllowance),
-        perDiemAllowance: this.m(link?.metadata?.tax?.allowanceBreakdown?.perDiem?.amount ?? salaryInfo.perDiemAllowance),
-        perDiemDays: this.m(link?.metadata?.tax?.allowanceBreakdown?.perDiem?.days ?? salaryInfo.perDiemDays),
-        medicalBenefit: this.m(link?.metadata?.tax?.allowanceBreakdown?.medical?.amount ?? salaryInfo.medicalBenefit),
-        telecomAllowance: this.m(link?.metadata?.tax?.allowanceBreakdown?.telecom?.amount ?? salaryInfo.telecomAllowance),
-        mealAllowance: this.m(link?.mealAllowance),
-        otherAllowance: this.m(link?.otherAllowance),
-        grossPay: this.m(link?.grossPay),
-        taxDeduction: this.m(link?.taxDeduction),
-        pensionDeduction: this.m(link?.pensionDeduction),
-        healthDeduction: this.m(link?.healthDeduction),
-        loanDeduction: this.m(link?.loanDeduction),
-        otherDeduction: this.m(link?.otherDeduction),
-        totalDeductions: this.m(deductionSnapshot?.deductionTotal ?? link?.totalDeductions),
+        housingAllowance: this.m(effectiveLink?.housingAllowance),
+        transportAllowance: this.m(effectiveLink?.transportAllowance),
+        perDiemAllowance: this.m(effectiveMetadata?.tax?.allowanceBreakdown?.perDiem?.amount ?? salaryInfo.perDiemAllowance),
+        perDiemDays: this.m(effectiveMetadata?.tax?.allowanceBreakdown?.perDiem?.days ?? salaryInfo.perDiemDays),
+        medicalBenefit: this.m(effectiveMetadata?.tax?.allowanceBreakdown?.medical?.amount ?? salaryInfo.medicalBenefit),
+        telecomAllowance: this.m(effectiveMetadata?.tax?.allowanceBreakdown?.telecom?.amount ?? salaryInfo.telecomAllowance),
+        mealAllowance: this.m(effectiveLink?.mealAllowance),
+        otherAllowance: this.m(effectiveLink?.otherAllowance),
+        grossPay: payableGrossPay,
+        taxDeduction: this.m(effectiveLink?.taxDeduction) * salaryPayRatio,
+        pensionDeduction: this.m(effectiveLink?.pensionDeduction) * salaryPayRatio,
+        healthDeduction: this.m(effectiveLink?.healthDeduction) * salaryPayRatio,
+        loanDeduction: this.m(effectiveLink?.loanDeduction) * salaryPayRatio,
+        otherDeduction: this.m(effectiveLink?.otherDeduction) * salaryPayRatio,
+        totalDeductions: this.m(effectiveLink?.totalDeductions ?? deductionSnapshot?.deductionTotal),
         netPay: computedNetPay,
         computedNetPay,
         deductionTotal: this.m(deductionSummary.total),
         deductionCount: this.m(deductionSummary.count),
         deductionItems: deductionSummary.rows,
         deductionGroups: deductionSummary.groups,
-        taxMeta: link?.metadata?.tax || null,
+        taxMeta: effectiveMetadata?.tax || null,
         taxableAmount,
-        employeePensionContribution: this.m(link?.pensionDeduction),
-        employerPensionContribution: this.m(link?.metadata?.tax?.employerPensionContribution),
-        totalCostToCompany: this.m(link?.metadata?.tax?.totalCostToCompany || (link ? this.m(link.grossPay) + this.m(link?.metadata?.tax?.employerPensionContribution) : 0)),
+        employeePensionContribution: this.m(effectiveLink?.pensionDeduction) * salaryPayRatio,
+        employerPensionContribution: this.m(effectiveMetadata?.tax?.employerPensionContribution) * salaryPayRatio,
+        totalCostToCompany: this.m(effectiveMetadata?.totalCostToCompany || (effectiveLink ? payableGrossPay + (this.m(effectiveMetadata?.tax?.employerPensionContribution) * salaryPayRatio) : 0)),
         bankAccount: salaryInfo.bankAccount || employee.metadata?.bankAccountNumber || employee.metadata?.bankDetails?.[0]?.accountNumber || "",
         bankAccountMasked: this.maskBankAccount(salaryInfo.bankAccount || employee.metadata?.bankAccountNumber || employee.metadata?.bankDetails?.[0]?.accountNumber),
         paymentStatus: salaryInfo.paymentStatus || "Pending",
@@ -712,10 +730,15 @@ export class PayrollTemplateService {
         arrearsAdjustments: this.m(salaryInfo.arrearsAdjustments),
         workingDaysInPeriod: salaryInfo.workingDaysInPeriod ?? "",
         daysPaid: salaryInfo.daysPaid ?? "",
-        generatedBy: link?.linkedBy?.fullName || "",
+        periodPayDays: effectiveMetadata.periodPayDays ?? null,
+        paidDaysAlreadyCovered: effectiveMetadata.paidDaysAlreadyCovered ?? null,
+        payableDays: effectiveMetadata.payableDays ?? null,
+        salaryEffectiveStart: effectiveMetadata.salaryEffectiveStart ?? null,
+        salaryEffectiveEnd: effectiveMetadata.salaryEffectiveEnd ?? null,
+        generatedBy: effectiveLink?.linkedBy?.fullName || "",
         approvedBy: salaryInfo.approvedBy || "",
-        lastUpdated: link?.updatedAt || employee.updatedAt || null,
-        linkedAt: link?.linkedAt || null,
+        lastUpdated: effectiveLink?.updatedAt || employee.updatedAt || null,
+        linkedAt: effectiveLink?.linkedAt || null,
       };
     })).then((items) => items.filter(Boolean));
 
