@@ -67,8 +67,14 @@ export class SalaryDeductionService {
     return Number.isFinite(value) && value > 0 ? value : WORKING_DAYS_DEFAULT;
   }
 
+  private deductionSalaryBase(link: any) {
+    const targetNetSalary = money(link.metadata?.targetNetSalary);
+    if (link.metadata?.salaryInputMode === "net" && targetNetSalary > 0) return targetNetSalary;
+    return money(link.baseSalary);
+  }
+
   private async approvedOvertimePay(link: any, period: PeriodRange) {
-    const dayRate = money(Number(link.baseSalary || 0) / this.workingDays(link));
+    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
     if (dayRate <= 0) return 0;
     const expectedMinutesPerDay = Number(link?.metadata?.expectedMinutesPerDay || link?.metadata?.attendance?.expectedMinutesPerDay || 480);
     const minuteRate = dayRate / Math.max(expectedMinutesPerDay, 1);
@@ -113,7 +119,7 @@ export class SalaryDeductionService {
   }
 
   private async attendanceDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(Number(link.baseSalary || 0) / this.workingDays(link));
+    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
     if (dayRate <= 0) return [];
     const records = await db.AttendanceRecord.findAll({
       where: {
@@ -169,7 +175,7 @@ export class SalaryDeductionService {
   }
 
   private async attendanceReportDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(Number(link.baseSalary || 0) / this.workingDays(link));
+    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
     if (dayRate <= 0) return [];
 
     let report: any;
@@ -259,7 +265,7 @@ export class SalaryDeductionService {
   }
 
   private async lateExplanationDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(Number(link.baseSalary || 0) / this.workingDays(link));
+    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
     if (dayRate <= 0) return [];
     const start = new Date(`${period.start}T00:00:00.000Z`);
     const end = new Date(`${period.end}T23:59:59.999Z`);
@@ -308,7 +314,7 @@ export class SalaryDeductionService {
   }
 
   private async missedWorkingDayInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(Number(link.baseSalary || 0) / this.workingDays(link));
+    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
     if (dayRate <= 0) return [];
 
     const employee = await db.EmployeeRecord.findOne({
@@ -339,7 +345,7 @@ export class SalaryDeductionService {
   }
 
   private async dailyReasonDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(Number(link.baseSalary || 0) / this.workingDays(link));
+    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
     if (dayRate <= 0) return [];
     const reasons = await db.AttendanceDailyReason.findAll({
       where: {
@@ -379,7 +385,7 @@ export class SalaryDeductionService {
   }
 
   private async leaveDeductionInputs(link: any, period: PeriodRange): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(Number(link.baseSalary || 0) / this.workingDays(link));
+    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
     if (dayRate <= 0) return [];
     const leaves = await db.LeaveRequest.findAll({
       where: {
