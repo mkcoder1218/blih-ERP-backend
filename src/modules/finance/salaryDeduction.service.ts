@@ -67,14 +67,44 @@ export class SalaryDeductionService {
     return Number.isFinite(value) && value > 0 ? value : WORKING_DAYS_DEFAULT;
   }
 
-  private deductionSalaryBase(link: any) {
-    const targetNetSalary = money(link.metadata?.targetNetSalary);
-    if (link.metadata?.salaryInputMode === "net" && targetNetSalary > 0) return targetNetSalary;
-    return money(link.baseSalary);
+  private async salaryContext(link: any) {
+    if (link.__salaryDeductionContext) return link.__salaryDeductionContext;
+    const employee = await db.EmployeeRecord.findOne({
+      where: { businessId: link.businessId, userId: link.employeeUserId },
+      attributes: ["salaryInfo"],
+    });
+    const salaryInfo = employee?.salaryInfo || {};
+    const targetNetSalary = money(
+      link.metadata?.targetNetSalary ??
+      salaryInfo.targetNetSalary ??
+      salaryInfo.netSalary ??
+      salaryInfo.targetNetPay ??
+      salaryInfo.netPay
+    );
+    const salaryInputMode = link.metadata?.salaryInputMode ?? salaryInfo.salaryInputMode ?? salaryInfo.inputMode;
+    const normalizedSalaryInputMode = String(salaryInputMode || "").toLowerCase();
+    const baseSalary = money(
+      salaryInfo.baseSalary ??
+      salaryInfo.monthlySalary ??
+      salaryInfo.salary ??
+      link.baseSalary
+    );
+    link.__salaryDeductionContext = {
+      salaryInfo,
+      targetNetSalary,
+      salaryInputMode,
+      deductionBase: normalizedSalaryInputMode !== "base" && targetNetSalary > 0 ? targetNetSalary : baseSalary,
+    };
+    return link.__salaryDeductionContext;
+  }
+
+  private async dayRate(link: any) {
+    const context = await this.salaryContext(link);
+    return money(context.deductionBase / this.workingDays(link));
   }
 
   private async approvedOvertimePay(link: any, period: PeriodRange) {
-    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
+    const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return 0;
     const expectedMinutesPerDay = Number(link?.metadata?.expectedMinutesPerDay || link?.metadata?.attendance?.expectedMinutesPerDay || 480);
     const minuteRate = dayRate / Math.max(expectedMinutesPerDay, 1);
@@ -119,7 +149,7 @@ export class SalaryDeductionService {
   }
 
   private async attendanceDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
+    const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
     const records = await db.AttendanceRecord.findAll({
       where: {
@@ -175,7 +205,7 @@ export class SalaryDeductionService {
   }
 
   private async attendanceReportDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
+    const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
 
     let report: any;
@@ -265,7 +295,7 @@ export class SalaryDeductionService {
   }
 
   private async lateExplanationDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
+    const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
     const start = new Date(`${period.start}T00:00:00.000Z`);
     const end = new Date(`${period.end}T23:59:59.999Z`);
@@ -314,7 +344,7 @@ export class SalaryDeductionService {
   }
 
   private async missedWorkingDayInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
+    const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
 
     const employee = await db.EmployeeRecord.findOne({
@@ -345,7 +375,7 @@ export class SalaryDeductionService {
   }
 
   private async dailyReasonDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
+    const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
     const reasons = await db.AttendanceDailyReason.findAll({
       where: {
@@ -385,7 +415,7 @@ export class SalaryDeductionService {
   }
 
   private async leaveDeductionInputs(link: any, period: PeriodRange): Promise<SalaryDeductionSnapshotInput[]> {
-    const dayRate = money(this.deductionSalaryBase(link) / this.workingDays(link));
+    const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
     const leaves = await db.LeaveRequest.findAll({
       where: {
@@ -458,8 +488,11 @@ export class SalaryDeductionService {
       money(link.loanDeduction) +
       money(link.otherDeduction)
     );
-    const targetNetSalary = money(link.metadata?.targetNetSalary);
-    const isNetSalaryMode = link.metadata?.salaryInputMode === "net" && targetNetSalary > 0;
+    const salaryContext = await this.salaryContext(link);
+    const targetNetSalary = salaryContext.targetNetSalary;
+    const salaryInputMode = salaryContext.salaryInputMode;
+    const normalizedSalaryInputMode = String(salaryInputMode || "").toLowerCase();
+    const isNetSalaryMode = normalizedSalaryInputMode !== "base" && targetNetSalary > 0;
     const payrollNetPay = isNetSalaryMode
       ? money(targetNetSalary + approvedOvertimePay)
       : money(Math.max(grossPayForNet + approvedOvertimePay - payrollDeductionTotal, 0));
@@ -475,7 +508,7 @@ export class SalaryDeductionService {
         regularGrossPay,
         approvedOvertimePay,
         targetNetSalary: targetNetSalary || null,
-        salaryInputMode: link.metadata?.salaryInputMode || null,
+        salaryInputMode: salaryInputMode || null,
         payrollNetPayBeforeAttendanceLeaveDeductions: payrollNetPay,
         deductionPeriodStart: period.start,
         deductionPeriodEnd: period.end,
