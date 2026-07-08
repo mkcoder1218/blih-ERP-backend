@@ -19,6 +19,10 @@ function currentMonthRange(): PeriodRange {
   };
 }
 
+function todayYmd() {
+  return dateOnly(new Date());
+}
+
 function money(value: any) {
   const numeric = Number(value ?? 0);
   return Number.isFinite(numeric) ? Math.round(numeric * 100) / 100 : 0;
@@ -119,6 +123,7 @@ export class SalaryDeductionService {
       },
     });
     const inputs: SalaryDeductionSnapshotInput[] = [];
+    const today = todayYmd();
     for (const record of records) {
       const leaveUnit = leaveUnits.get(String(record.date)) || 0;
       const status = String(record.status || "").toLowerCase();
@@ -138,7 +143,7 @@ export class SalaryDeductionService {
         reasonType = "late_arrival";
         amount = dayRate / 4;
         description = `Late check-in recorded on ${record.date}.`;
-      } else if (missingCheck && leaveUnit <= 0) {
+      } else if (missingCheck && leaveUnit <= 0 && String(record.date) < today) {
         reasonType = "incomplete_attendance";
         amount = dayRate / 4;
         description = `Incomplete attendance record on ${record.date}.`;
@@ -181,11 +186,13 @@ export class SalaryDeductionService {
     }
 
     const inputs: SalaryDeductionSnapshotInput[] = [];
+    const today = todayYmd();
     for (const row of report.rows || []) {
       const leaveUnit = leaveUnits.get(String(row.date)) || 0;
       const status = String(row.currentStatus || row.status || "").toUpperCase();
       const isMissed = ["MISSED", "NOT_STARTED", "ABSENT"].includes(status);
-      const isIncomplete = status === "INCOMPLETE" || status === "INCOMPLETE_PUNCH" || !row.checkInAtUtc || !row.checkOutAtUtc;
+      const isCompletedDate = String(row.date) < today;
+      const isIncomplete = isCompletedDate && (status === "INCOMPLETE" || status === "INCOMPLETE_PUNCH" || !row.checkInAtUtc || !row.checkOutAtUtc);
       if (isMissed) {
         const amount = money(dayRate * Math.max(1 - leaveUnit, 0));
         if (amount <= 0) continue;

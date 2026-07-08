@@ -10,6 +10,12 @@ export class FinanceController {
   private service = new FinanceService();
   private payrollTplSvc = new PayrollTemplateService();
 
+  private isUnpaidSalaryExportMarker(row: any) {
+    return Number(row?.basicSalary ?? row?.baseSalary ?? 0) === 1
+      && Number(row?.grossSalary ?? row?.grossPay ?? 0) === 1
+      && Number(row?.taxableAmount ?? 0) === 1;
+  }
+
   workforce = async (req: Request, res: Response) => {
     try {
       const data = await this.service.getWorkforceDashboard(req.user!.businessId, req.query);
@@ -270,7 +276,9 @@ export class FinanceController {
         limit: 5000,
         exportAll: "true",
       });
-      const rows = data.rows.map((row: any) => ({
+      const rows = data.rows
+        .filter((row: any) => !this.isUnpaidSalaryExportMarker(row))
+        .map((row: any) => ({
         employeeId: row.employeeCode || row.userId,
         fullName: row.name,
         tin: row.tin || "",

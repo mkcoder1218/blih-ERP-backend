@@ -236,7 +236,13 @@ export class PayrollTemplateService {
 
   private isUnpaidSalaryMarker(row: any) {
     return this.m(row?.baseSalary) === 1
-      && (this.m(row?.taxableAmount) === 1 || this.m(row?.grossPay) === 1 || this.m(row?.totalCostToCompany) === 1);
+      && (
+        this.m(row?.taxableAmount) === 1
+        || this.m(row?.grossPay) === 1
+        || this.m(row?.totalCostToCompany) === 1
+        || this.m(row?.grossSalary) === 1
+        || this.m(row?.basicSalary) === 1
+      );
   }
 
   private financialOptionsFromSalaryInfo(salaryInfo: any = {}) {
