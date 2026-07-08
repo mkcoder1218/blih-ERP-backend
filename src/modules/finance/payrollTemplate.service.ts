@@ -236,8 +236,7 @@ export class PayrollTemplateService {
 
   private isUnpaidSalaryMarker(row: any) {
     return this.m(row?.baseSalary) === 1
-      && this.m(row?.taxableAmount) === 1
-      && this.m(row?.netPay) === 1;
+      && (this.m(row?.taxableAmount) === 1 || this.m(row?.grossPay) === 1 || this.m(row?.totalCostToCompany) === 1);
   }
 
   private financialOptionsFromSalaryInfo(salaryInfo: any = {}) {
@@ -628,7 +627,7 @@ export class PayrollTemplateService {
       const link: any = linkByUserId.get(employee.userId);
       const salaryInfo = employee.salaryInfo || {};
       const baseSalary = link ? this.m(link.baseSalary) : this.m(salaryInfo.baseSalary ?? salaryInfo.monthlySalary ?? salaryInfo.salary);
-      const taxableAmount = this.m(link?.metadata?.tax?.taxableIncome);
+      const taxableAmount = link ? this.m(link?.metadata?.tax?.taxableIncome) : baseSalary;
       if (baseSalary === 1 && taxableAmount === 1) return null;
       const targetNetSalary = link?.metadata?.targetNetSalary ?? salaryInfo.targetNetSalary ?? null;
       const salaryInputMode = link?.metadata?.salaryInputMode ?? salaryInfo.salaryInputMode ?? null;

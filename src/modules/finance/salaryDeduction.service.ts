@@ -63,6 +63,25 @@ export class SalaryDeductionService {
     return Number.isFinite(value) && value > 0 ? value : WORKING_DAYS_DEFAULT;
   }
 
+  private async approvedOvertimePay(link: any, period: PeriodRange) {
+    const dayRate = money(Number(link.baseSalary || 0) / this.workingDays(link));
+    if (dayRate <= 0) return 0;
+    const expectedMinutesPerDay = Number(link?.metadata?.expectedMinutesPerDay || link?.metadata?.attendance?.expectedMinutesPerDay || 480);
+    const minuteRate = dayRate / Math.max(expectedMinutesPerDay, 1);
+    const requests = await db.OvertimeRequest.findAll({
+      where: {
+        businessId: link.businessId,
+        employeeUserId: link.employeeUserId,
+        status: { [Op.in]: ["approved", "closed"] },
+        overtimeDate: { [Op.between]: [period.start, period.end] },
+      },
+    });
+    return money(requests.reduce((sum: number, request: any) => {
+      const minutes = Number(request.approvedOvertimeMinutes || request.totalMinutes || request.expectedDurationMinutes || 0);
+      return sum + Math.max(minutes, 0) * minuteRate;
+    }, 0));
+  }
+
   private async approvedLeaveUnits(link: any, period: PeriodRange) {
     const leaves = await db.LeaveRequest.findAll({
       where: {
@@ -407,6 +426,18 @@ export class SalaryDeductionService {
     const deductions = await this.repo.listActiveForPayrollLinkIds(businessId, [payrollLinkId], period);
     const salaryImpactingDeductions = deductions.filter((item: any) => item.sourceModule !== "payroll");
     const deductionTotal = money(salaryImpactingDeductions.reduce((sum: number, item: any) => sum + money(item.amount), 0));
+    const regularGrossPay = money(
+      money(link.baseSalary) +
+      money(link.housingAllowance) +
+      money(link.transportAllowance) +
+      money(link.mealAllowance) +
+      money(link.otherAllowance) +
+      money(link.metadata?.tax?.allowanceBreakdown?.perDiem?.amount) +
+      money(link.metadata?.tax?.allowanceBreakdown?.medical?.amount) +
+      money(link.metadata?.tax?.allowanceBreakdown?.telecom?.amount)
+    );
+    const approvedOvertimePay = await this.approvedOvertimePay(link, period);
+    const grossPayForNet = regularGrossPay > 0 ? regularGrossPay : money(link.grossPay);
     const payrollDeductionTotal = money(
       money(link.taxDeduction) +
       money(link.pensionDeduction) +
@@ -414,7 +445,7 @@ export class SalaryDeductionService {
       money(link.loanDeduction) +
       money(link.otherDeduction)
     );
-    const payrollNetPay = money(Math.max(money(link.grossPay) - payrollDeductionTotal, 0));
+    const payrollNetPay = money(Math.max(grossPayForNet + approvedOvertimePay - payrollDeductionTotal, 0));
     const netPay = money(Math.max(payrollNetPay - deductionTotal, 0));
     await link.update({
       totalDeductions: money(payrollDeductionTotal + deductionTotal),
@@ -424,6 +455,8 @@ export class SalaryDeductionService {
         deductionTotal,
         attendanceLeaveDeductionTotal: deductionTotal,
         payrollDeductionTotal,
+        regularGrossPay,
+        approvedOvertimePay,
         payrollNetPayBeforeAttendanceLeaveDeductions: payrollNetPay,
         deductionPeriodStart: period.start,
         deductionPeriodEnd: period.end,
