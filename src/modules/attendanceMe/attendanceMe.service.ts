@@ -70,10 +70,17 @@ function isSaturday(date: Date, timeZone: string) {
 async function approvedLunchUseMinutesForDate(businessId: string, userId: string, dateYmd: string) {
   if (!db.SpecialRequest?.findAll) return 0;
   const rows = await db.SpecialRequest.findAll({
-    where: { businessId, requestedBy: userId, requestedDate: dateYmd, status: "approved" },
-    attributes: ["requestedMinutes"],
+    where: {
+      businessId,
+      requestedBy: userId,
+      status: { [Op.in]: ["approved", "APPROVED"] },
+    },
+    attributes: ["requestedDate", "requestedMinutes"],
   });
-  return rows.reduce((sum: number, request: any) => sum + Number(request.requestedMinutes || 0), 0);
+  const total = rows
+    .filter((request: any) => String(request.requestedDate || "").slice(0, 10) === dateYmd)
+    .reduce((sum: number, request: any) => sum + Number(request.requestedMinutes || 0), 0);
+  return Math.min(60, Math.max(0, total));
 }
 
 export class AttendanceMeService {
@@ -105,11 +112,17 @@ export class AttendanceMeService {
       : [];
     const approvedSpecialRequests = db.SpecialRequest?.findAll
       ? await db.SpecialRequest.findAll({
-          where: { businessId, requestedBy: userId, requestedDate: dateYmd, status: "approved" },
+          where: {
+            businessId,
+            requestedBy: userId,
+            status: { [Op.in]: ["approved", "APPROVED"] },
+          },
           order: [["approvedAt", "DESC"]],
         })
       : [];
-    const approvedLunchUseMinutes = approvedSpecialRequests.reduce((sum: number, request: any) => sum + Number(request.requestedMinutes || 0), 0);
+    const approvedLunchUseMinutes = Math.min(60, approvedSpecialRequests
+      .filter((request: any) => String(request.requestedDate || "").slice(0, 10) === dateYmd)
+      .reduce((sum: number, request: any) => sum + Number(request.requestedMinutes || 0), 0));
     const requiredLunchBreakMinutes = Math.max(0, 60 - approvedLunchUseMinutes);
 
     const latest: AttendanceEventType | null = events.length ? (events[events.length - 1].type as AttendanceEventType) : null;
