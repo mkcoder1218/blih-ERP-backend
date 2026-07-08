@@ -54,7 +54,7 @@ export class SalaryDeductionRepository {
       relatedDate: input.relatedDate || null,
     };
     const existing = await db.SalaryDeduction.findOne({ where, paranoid: false });
-    if (existing?.status === "removed") return existing;
+    if (existing?.status === "removed" && existing.metadata?.manuallyRemoved === true) return existing;
     if (existing) {
       await existing.update({
         amount: input.amount,
@@ -68,6 +68,26 @@ export class SalaryDeductionRepository {
       return existing;
     }
     return db.SalaryDeduction.create({ ...input, status: "active", metadata: input.metadata || {} });
+  }
+
+  async retireSystemGeneratedForPeriod(businessId: string, payrollLinkId: string, period: { start: string; end: string }) {
+    const records = await db.SalaryDeduction.findAll({
+      where: {
+        businessId,
+        payrollLinkId,
+        status: "active",
+        sourceModule: { [Op.ne]: "payroll" },
+        relatedDate: { [Op.between]: [period.start, period.end] },
+      },
+    });
+    for (const record of records) {
+      if (record.metadata?.manuallyRemoved === true || record.metadata?.systemGenerated !== true) continue;
+      await record.update({
+        status: "removed",
+        removedAt: new Date(),
+        metadata: { ...(record.metadata || {}), retiredBySnapshotRefresh: true },
+      });
+    }
   }
 
   markRemoved(record: any, removedByUserId: string) {

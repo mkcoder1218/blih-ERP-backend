@@ -202,7 +202,9 @@ export class SalaryDeductionService {
       }
 
       const penaltyMinutes = Number(row.penaltyMinutes || 0);
-      if (penaltyMinutes > 0 && leaveUnit <= 0) {
+      const penaltyText = String(`${row.penaltyReason || ""} ${row.deductionLabel || ""}`).toLowerCase();
+      const skipPenalty = isIncomplete || penaltyText.includes("lunch");
+      if (penaltyMinutes > 0 && leaveUnit <= 0 && !skipPenalty) {
         const expectedMinutes = Number(row.expectedMinutes || 480);
         const amount = money(dayRate * Math.min(penaltyMinutes / Math.max(expectedMinutes, 1), 1));
         inputs.push({
@@ -385,6 +387,7 @@ export class SalaryDeductionService {
   async syncForPayrollLink(link: any, periodInput?: any) {
     const period = this.periodFromLink(link, this.periodFromInput(periodInput));
     const leaveUnits = await this.approvedLeaveUnits(link, period);
+    await this.repo.retireSystemGeneratedForPeriod(link.businessId, link.id, period);
     const inputs = [
       ...(await this.attendanceReportDeductionInputs(link, period, leaveUnits)),
       ...(await this.attendanceDeductionInputs(link, period, leaveUnits)),

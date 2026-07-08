@@ -5,6 +5,7 @@ import { initDatabase } from "./database";
 import { initJobs } from "./jobs/registry";
 import { seedPlatformSuperAdminFromEnv } from "./database/platformAdminSeed";
 import { initializeSocket } from "./services/realtime/socket";
+import { refreshSalaryDeductionSnapshotsOnStartup } from "./modules/finance/salaryDeductionStartupWorker";
 
 async function start() {
   await initDatabase();
@@ -15,6 +16,12 @@ async function start() {
   initializeSocket(server);
   
   initJobs();
+
+  setImmediate(() => {
+    refreshSalaryDeductionSnapshotsOnStartup().catch((err) => {
+      console.error("Salary deduction startup refresh failed:", err);
+    });
+  });
 
   server.listen(env.port, () => {
     // -disable-next-line no-console

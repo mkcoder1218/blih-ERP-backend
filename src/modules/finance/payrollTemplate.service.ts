@@ -628,6 +628,8 @@ export class PayrollTemplateService {
       const link: any = linkByUserId.get(employee.userId);
       const salaryInfo = employee.salaryInfo || {};
       const baseSalary = link ? this.m(link.baseSalary) : this.m(salaryInfo.baseSalary ?? salaryInfo.monthlySalary ?? salaryInfo.salary);
+      const taxableAmount = this.m(link?.metadata?.tax?.taxableIncome);
+      if (baseSalary === 1 && taxableAmount === 1) return null;
       const targetNetSalary = link?.metadata?.targetNetSalary ?? salaryInfo.targetNetSalary ?? null;
       const salaryInputMode = link?.metadata?.salaryInputMode ?? salaryInfo.salaryInputMode ?? null;
       const deductionSnapshot = link ? await this.deductionService.syncForPayrollLink(link, query) : null;
@@ -679,7 +681,7 @@ export class PayrollTemplateService {
         deductionItems: deductionSummary.rows,
         deductionGroups: deductionSummary.groups,
         taxMeta: link?.metadata?.tax || null,
-        taxableAmount: this.m(link?.metadata?.tax?.taxableIncome),
+        taxableAmount,
         employeePensionContribution: this.m(link?.pensionDeduction),
         employerPensionContribution: this.m(link?.metadata?.tax?.employerPensionContribution),
         totalCostToCompany: this.m(link?.metadata?.tax?.totalCostToCompany || (link ? this.m(link.grossPay) + this.m(link?.metadata?.tax?.employerPensionContribution) : 0)),
@@ -697,7 +699,7 @@ export class PayrollTemplateService {
         lastUpdated: link?.updatedAt || employee.updatedAt || null,
         linkedAt: link?.linkedAt || null,
       };
-    }));
+    })).then((items) => items.filter(Boolean));
 
     if (payrollStatus === "linked" || payrollStatus === "pending") {
       rows = rows.filter((row: any) => row.payrollStatus === payrollStatus);
