@@ -74,14 +74,21 @@ export class SalaryDeductionService {
       attributes: ["salaryInfo"],
     });
     const salaryInfo = employee?.salaryInfo || {};
-    const targetNetSalary = money(
-      link.metadata?.targetNetSalary ??
+    const salaryInfoTargetNetSalary = money(
       salaryInfo.targetNetSalary ??
       salaryInfo.netSalary ??
       salaryInfo.targetNetPay ??
       salaryInfo.netPay
     );
-    const salaryInputMode = link.metadata?.salaryInputMode ?? salaryInfo.salaryInputMode ?? salaryInfo.inputMode;
+    const targetNetSalary = money(
+      link.metadata?.targetNetSalary ??
+      salaryInfoTargetNetSalary
+    );
+    const salaryInfoInputMode = String(salaryInfo.salaryInputMode ?? salaryInfo.inputMode ?? "").toLowerCase();
+    const salaryInfoIsNetMode = salaryInfoTargetNetSalary > 0 && salaryInfoInputMode !== "base";
+    const salaryInputMode = salaryInfoIsNetMode
+      ? (salaryInfo.salaryInputMode ?? salaryInfo.inputMode ?? "net")
+      : (link.metadata?.salaryInputMode ?? salaryInfo.salaryInputMode ?? salaryInfo.inputMode);
     const normalizedSalaryInputMode = String(salaryInputMode || "").toLowerCase();
     const baseSalary = money(
       salaryInfo.baseSalary ??
