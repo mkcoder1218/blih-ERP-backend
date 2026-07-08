@@ -83,6 +83,21 @@ export class AttendanceHrService {
     }
 
     const settingsJson = typeof settings.toJSON === "function" ? settings.toJSON() : settings;
+    const specialRequestRows = userIds.length && db.SpecialRequest?.findAll
+      ? await db.SpecialRequest.findAll({
+          where: {
+            businessId,
+            requestedBy: { [Op.in]: userIds },
+            requestedDate: opts.dateYmd,
+            status: "approved",
+          },
+          attributes: ["requestedBy", "requestedMinutes"],
+        })
+      : [];
+    const specialMinutesByEmployee = new Map<string, number>();
+    for (const request of specialRequestRows) {
+      specialMinutesByEmployee.set(request.requestedBy, (specialMinutesByEmployee.get(request.requestedBy) || 0) + Number(request.requestedMinutes || 0));
+    }
     const balancePairs = await Promise.all(userIds.map(async (employeeId) => {
       const balances = await this.latenessReasonRules.balancesForEmployee(businessId, employeeId, startUtc);
       const enabled = balances.filter((balance) => balance.enabled);
@@ -171,13 +186,15 @@ export class AttendanceHrService {
       const er = roster.employeeRecord || null;
       const evs = byEmployee.get(roster.employeeId) || [];
       const calcSettings = { ...settingsJson, defaultStartTime: roster.assignedStartTime };
+      const approvedLunchUseMinutes = specialMinutesByEmployee.get(roster.employeeId) || 0;
 
       const { calculation, normalized } = calculateAttendanceDay({
         events: evs.map((e: any) => ({ type: e.type, timestampUtc: new Date(e.timestampUtc) })),
         settings: calcSettings,
         dayStartUtc: startUtc,
         dayEndUtc: endUtc,
-        nowUtc: new Date()
+        nowUtc: new Date(),
+        approvedLunchUseMinutes,
       });
 
       const reportRow: any = reportByEmployee.get(roster.employeeId) || null;
@@ -226,6 +243,7 @@ export class AttendanceHrService {
         breakMinutes: finalCalculation.totalBreakMinutes,
         penaltyMinutes: appliedPenaltyMinutes,
         penaltyReason: appliedPenaltyReason,
+        approvedSpecialRequestMinutes: approvedLunchUseMinutes,
         deductionLabel,
         latenessReasonCredit: creditByEmployee.get(roster.employeeId) || { remaining: 0, limit: 0, reasons: [] },
         expectedMinutes: finalCalculation.expectedMinutes,

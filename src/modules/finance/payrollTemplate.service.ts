@@ -573,7 +573,7 @@ export class PayrollTemplateService {
     const records = await db.EmployeeRecord.findAll({
       where,
       include: [
-        { model: db.User, as: "user", attributes: ["id", "fullName", "email"], where: userWhere, required: true },
+        { model: db.User, as: "user", attributes: ["id", "fullName", "email", "createdAt"], where: userWhere, required: true },
         { model: db.Department, as: "department", attributes: ["id", "name"] },
         { model: db.Position, as: "position", attributes: ["id", "title"] },
       ],
@@ -652,6 +652,7 @@ export class PayrollTemplateService {
         employmentType: employee.employmentType,
         employmentStatus: employee.employmentStatus,
         hireDate: employee.hireDate,
+        createdAt: employee.user?.createdAt || employee.createdAt,
         salaryInfo,
         payrollStatus: link ? "linked" : "pending",
         templateId: link?.templateId || null,

@@ -91,6 +91,13 @@ export class AttendanceMeService {
     const reasonBalances = db.AttendanceLateReason?.findAll && db.AttendanceRequest?.count
       ? await this.latenessReasonRules.balancesForEmployee(businessId, userId, now)
       : [];
+    const approvedSpecialRequests = db.SpecialRequest?.findAll
+      ? await db.SpecialRequest.findAll({
+          where: { businessId, requestedBy: userId, requestedDate: dateYmd, status: "approved" },
+          order: [["approvedAt", "DESC"]],
+        })
+      : [];
+    const approvedLunchUseMinutes = approvedSpecialRequests.reduce((sum: number, request: any) => sum + Number(request.requestedMinutes || 0), 0);
 
     const latest: AttendanceEventType | null = events.length ? (events[events.length - 1].type as AttendanceEventType) : null;
     const lunchBreakEnabled = settings.lunchBreakEnabled !== false;
@@ -122,7 +129,8 @@ export class AttendanceMeService {
       settings,
       dayStartUtc: startUtc,
       dayEndUtc: endUtc,
-      nowUtc: now
+      nowUtc: now,
+      approvedLunchUseMinutes,
     });
 
     return {
@@ -152,7 +160,9 @@ export class AttendanceMeService {
         lunchMode: String(settings.lunchMode || "FLEXIBLE"),
         fixedLunchStartTime: settings.fixedLunchStartTime || null,
         fixedLunchEndTime: settings.fixedLunchEndTime || null,
-        allowMultipleLunchBreaks: Boolean(settings.allowMultipleLunchBreaks)
+        allowMultipleLunchBreaks: Boolean(settings.allowMultipleLunchBreaks),
+        approvedSpecialRequestMinutes: approvedLunchUseMinutes,
+        approvedSpecialRequests,
       },
       dailyReasons: {
         late: dailyReasons.filter((item: any) => item.reasonType === "late").map((item: any) => ({

@@ -71,9 +71,11 @@ export function calculateAttendanceDay(params: {
   dayStartUtc: Date;
   dayEndUtc: Date;
   nowUtc: Date;
+  approvedLunchUseMinutes?: number;
 }): { calculation: AttendanceCalculation; normalized: NormalizedAttendanceDay } {
   const { events, settings, dayStartUtc, dayEndUtc, nowUtc } = params;
   const tz = settings.timezone || "UTC";
+  const approvedLunchUseMinutes = Math.max(0, Number(params.approvedLunchUseMinutes || 0));
 
   const ordered = [...events].sort((a, b) => a.timestampUtc.getTime() - b.timestampUtc.getTime());
   const localOrdered = ordered
@@ -92,28 +94,32 @@ export function calculateAttendanceDay(params: {
   const checkInMinute = checkInAtUtc ? localMinutes(checkInAtUtc, tz) : null;
   const lunchOutMinute = lunchOutAtUtc ? localMinutes(lunchOutAtUtc, tz) : null;
   const lunchInMinute = lunchInAtUtc ? localMinutes(lunchInAtUtc, tz) : null;
+  const lunchBreakEnabled = settings.lunchBreakEnabled === true;
 
-  // Build intervals with support for multiple breaks:
-  // Work intervals: CHECK_IN -> LUNCH_OUT, LUNCH_IN -> LUNCH_OUT, LUNCH_IN -> CHECK_OUT
   let totalWorkedMinutes = 0;
   let totalBreakMinutes = 0;
+  let hasCompleteLunch = false;
 
   if (checkInMinute !== null) {
-    const hasValidLunch =
-      lunchOutMinute !== null &&
-      lunchInMinute !== null &&
-      lunchOutMinute >= checkInMinute &&
-      lunchInMinute >= lunchOutMinute &&
-      lunchOutMinute <= calculationEndMinute;
-
-    if (hasValidLunch) {
-      totalWorkedMinutes += minutesBetweenLocal(checkInMinute, lunchOutMinute);
-      totalBreakMinutes += minutesBetweenLocal(lunchOutMinute, Math.min(lunchInMinute, calculationEndMinute));
-      if (lunchInMinute <= calculationEndMinute) {
-        totalWorkedMinutes += minutesBetweenLocal(lunchInMinute, calculationEndMinute);
+    let cursor = checkInMinute;
+    let working = true;
+    for (const event of localOrdered) {
+      if (event.localMinute < checkInMinute || event.localMinute > calculationEndMinute) continue;
+      if (event.type === "LUNCH_OUT" && working) {
+        totalWorkedMinutes += minutesBetweenLocal(cursor, event.localMinute);
+        cursor = event.localMinute;
+        working = false;
+      } else if (event.type === "LUNCH_IN" && !working) {
+        totalBreakMinutes += minutesBetweenLocal(cursor, event.localMinute);
+        cursor = event.localMinute;
+        working = true;
+        hasCompleteLunch = true;
       }
+    }
+    if (working) {
+      totalWorkedMinutes += minutesBetweenLocal(cursor, calculationEndMinute);
     } else {
-      totalWorkedMinutes += minutesBetweenLocal(checkInMinute, calculationEndMinute);
+      totalBreakMinutes += minutesBetweenLocal(cursor, calculationEndMinute);
     }
   }
 
@@ -123,13 +129,6 @@ export function calculateAttendanceDay(params: {
   let penaltyMinutes = 0;
   let penaltyReason: string | null = null;
 
-  const lunchBreakEnabled = settings.lunchBreakEnabled !== false;
-  const hasCompleteLunch =
-    lunchOutMinute !== null &&
-    lunchInMinute !== null &&
-    checkInMinute !== null &&
-    lunchOutMinute >= checkInMinute &&
-    lunchInMinute >= lunchOutMinute;
   const hasFinalCheckout = Boolean(checkOutAtUtc);
   const defaultEndMinutes = parseHHmmToMinutes(settings.defaultEndTime || "17:00");
   const dayLocalDate = localDateKey(dayStartUtc, tz);
@@ -142,10 +141,12 @@ export function calculateAttendanceDay(params: {
     penaltyMinutes = Math.max(0, expectedMinutes - halfDayMinutes);
     penaltyReason = lunchBreakEnabled && !hasCompleteLunch ? "Missed lunch checkout and final checkout; half-day credit applied" : "Missed final checkout; half-day credit applied";
   } else if (!saturdayTrackingOnly && checkInAtUtc && hasFinalCheckout && lunchBreakEnabled && !hasCompleteLunch) {
-    const lunchPenaltyMinutes = 120;
+    const lunchPenaltyMinutes = approvedLunchUseMinutes >= 60 ? 0 : Math.max(0, 120 - approvedLunchUseMinutes);
     penaltyMinutes = Math.min(lunchPenaltyMinutes, totalWorkedMinutes);
     totalWorkedMinutes = Math.max(0, totalWorkedMinutes - penaltyMinutes);
-    penaltyReason = "Missed lunch checkout; 2h deduction applied";
+    penaltyReason = penaltyMinutes > 0
+      ? "Missed lunch checkout; lunch deduction adjusted by approved Special Request"
+      : null;
   }
 
   const remainingMinutes = Math.max(0, expectedMinutes - totalWorkedMinutes);

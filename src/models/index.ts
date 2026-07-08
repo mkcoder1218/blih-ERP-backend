@@ -120,6 +120,7 @@ import defineAttendanceLateExplanation from "./AttendanceLateExplanation";
 import defineAttendanceRequest from "./AttendanceRequest";
 import defineAttendanceDailyReason from "./AttendanceDailyReason";
 import defineOvertimeRequest from "./OvertimeRequest";
+import defineSpecialRequest from "./SpecialRequest";
 import defineLeaveTemplate from "./LeaveTemplate";
 import defineLeaveRequest from "./LeaveRequest";
 import definePromotionRequest from "./PromotionRequest";
@@ -147,6 +148,7 @@ export type DB = {
   AttendanceRequest: any;
   AttendanceDailyReason: any;
   OvertimeRequest: any;
+  SpecialRequest: any;
   LeaveTemplate: any;
   LeaveRequest: any;
   User: any;
@@ -286,6 +288,7 @@ export const db: DB = {
   AttendanceRequest: defineAttendanceRequest(sequelize, DataTypes),
   AttendanceDailyReason: defineAttendanceDailyReason(sequelize, DataTypes),
   OvertimeRequest: defineOvertimeRequest(sequelize, DataTypes),
+  SpecialRequest: defineSpecialRequest(sequelize, DataTypes),
   LeaveTemplate: defineLeaveTemplate(sequelize, DataTypes),
   LeaveRequest: defineLeaveRequest(sequelize, DataTypes),
   User: defineUser(sequelize, DataTypes),

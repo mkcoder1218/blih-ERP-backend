@@ -270,6 +270,71 @@ export class FinanceController {
 
   exportEmployeeSalaries = async (req: Request, res: Response) => {
     try {
+      const defaultColumnIds = ["employee", "payPeriod", "salarySummary", "status", "actions"];
+      const showMoreColumnIds = [
+        "employee",
+        "payPeriod",
+        "department",
+        "employmentType",
+        "salaryTemplate",
+        "salarySummary",
+        "basicSalary",
+        "grossSalary",
+        "taxableAmount",
+        "incomeTaxPaye",
+        "employeePension",
+        "totalDeductions",
+        "deductionReasonsCount",
+        "attendanceDeduction",
+        "overtime",
+        "netSalary",
+        "status",
+      ];
+      const columnMap: Record<string, { key: string; value: (row: any) => any }> = {
+        employee: { key: "employee", value: (row) => row.name },
+        payPeriod: { key: "payPeriod", value: (row) => row.payPeriod || "" },
+        salarySummary: {
+          key: "salarySummary",
+          value: (row) => `Gross: ${row.grossPay} | Deduct: ${row.deductionTotal ?? row.totalDeductions} | Net: ${row.netPay}`,
+        },
+        grossSalary: { key: "grossSalary", value: (row) => row.grossPay },
+        totalDeductions: { key: "totalDeductions", value: (row) => row.deductionTotal ?? row.totalDeductions },
+        netSalary: { key: "netSalary", value: (row) => row.netPay },
+        status: { key: "status", value: (row) => row.paymentStatus || "" },
+        actions: { key: "actions", value: () => "" },
+        employeeId: { key: "employeeId", value: (row) => row.employeeCode || row.userId },
+        tin: { key: "tin", value: (row) => row.tin || "" },
+        paymentDate: { key: "paymentDate", value: (row) => row.paymentDate || "" },
+        basicSalary: { key: "basicSalary", value: (row) => row.baseSalary },
+        taxableAmount: { key: "taxableAmount", value: (row) => row.taxableAmount },
+        incomeTaxPaye: { key: "incomeTaxPaye", value: (row) => row.taxDeduction },
+        employeePension: { key: "employeePension", value: (row) => row.employeePensionContribution },
+        employerPension: { key: "employerPension", value: (row) => row.employerPensionContribution },
+        deductionReasonsCount: { key: "deductionReasonsCount", value: (row) => row.deductionCount },
+        department: { key: "department", value: (row) => row.department?.name || "" },
+        employmentType: { key: "employmentType", value: (row) => row.employmentType || "" },
+        salaryTemplate: { key: "salaryTemplate", value: (row) => row.templateName || "" },
+        approvedLeave: {
+          key: "approvedLeave",
+          value: (row) => (row.deductionItems || []).filter((item: any) => item.status === "active" && item.reasonType === "leave").length,
+        },
+        attendanceDeduction: {
+          key: "attendanceDeduction",
+          value: (row) => (row.deductionItems || [])
+            .filter((item: any) => item.status === "active" && item.sourceModule === "attendance")
+            .reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0),
+        },
+        overtime: { key: "overtime", value: (row) => row.overtimePay },
+        createdAt: { key: "createdAt", value: (row) => row.createdAt || "" },
+        updatedAt: { key: "updatedAt", value: (row) => row.lastUpdated || "" },
+      };
+      const requestedColumnIds = String(req.query.columns || "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const fallbackColumnIds = String(req.query.showMoreDetails || "").toLowerCase() === "true" ? showMoreColumnIds : defaultColumnIds;
+      const selectedColumnIds = (requestedColumnIds.length ? requestedColumnIds : fallbackColumnIds)
+        .filter((id) => columnMap[id] && id !== "actions");
       const data = await this.payrollTplSvc.listEmployeeSalaries(req.user!.businessId, {
         ...req.query,
         page: 1,
@@ -278,40 +343,11 @@ export class FinanceController {
       });
       const rows = data.rows
         .filter((row: any) => !this.isUnpaidSalaryExportMarker(row))
-        .map((row: any) => ({
-        employeeId: row.employeeCode || row.userId,
-        fullName: row.name,
-        tin: row.tin || "",
-        payPeriod: row.payPeriod || "",
-        paymentDate: row.paymentDate || "",
-        basicSalary: row.baseSalary,
-        grossSalary: row.grossPay,
-        taxableAmount: row.taxableAmount,
-        incomeTaxPaye: row.taxDeduction,
-        employeePensionContribution: row.employeePensionContribution,
-        totalEmployeeDeductions: row.totalDeductions,
-        netSalaryTakeHome: row.netPay,
-        employerPensionContribution: row.employerPensionContribution,
-        totalCostToCompany: row.totalCostToCompany,
-        bankAccount: row.bankAccountMasked || "",
-        paymentStatus: row.paymentStatus || "",
-        remarks: row.remarks || "",
-        ...(String(req.query.showMoreDetails || "").toLowerCase() === "true" ? {
-          housingAllowance: row.housingAllowance,
-          transportAllowance: row.transportAllowance,
-          otherAllowances: row.otherAllowance,
-          overtimePay: row.overtimePay,
-          bonusIncentive: row.bonusIncentive,
-          arrearsAdjustments: row.arrearsAdjustments,
-          loanRepaymentAdvanceRecovery: row.loanDeduction,
-          otherDeductions: row.otherDeduction,
-          workingDaysInPeriod: row.workingDaysInPeriod,
-          daysPaid: row.daysPaid,
-          generatedBy: row.generatedBy,
-          approvedBy: row.approvedBy,
-          lastUpdated: row.lastUpdated,
-        } : {}),
-      }));
+        .map((row: any) => selectedColumnIds.reduce((acc: Record<string, any>, id) => {
+          const column = columnMap[id];
+          acc[column.key] = column.value(row);
+          return acc;
+        }, {}));
       const csv = this.toCsv(rows);
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", 'attachment; filename="employee-salaries.csv"');

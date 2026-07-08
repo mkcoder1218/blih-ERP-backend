@@ -23,6 +23,7 @@ export type AttendanceDailyReportRow = AttendanceDailyReportPunches & {
   TotalHoursWorked: number;
   RegularHoursWorked: number;
   ApprovedOvertimeHours: number;
+  ApprovedSpecialRequestMinutes: number;
   LatenessStatus: "OnTime" | "Late-WithNotice" | "Late-NoNotice" | "Absent" | "IncompletePunch" | "ApprovedLeave";
   MinutesLate: number;
   NoticeStatus: "Approved" | "Pending" | "None" | "Invalid" | "Rejected" | "Expired" | "NotApplicable";
@@ -320,6 +321,16 @@ export class AttendanceDailyReportService {
         include: [{ model: db.AttendanceLateReason, as: "lateReason", attributes: ["id", "name"] }],
       }),
     ]);
+    const specialRequests = employeeIds.length && db.SpecialRequest?.findAll
+      ? await db.SpecialRequest.findAll({
+          where: {
+            businessId,
+            requestedBy: employeeWhere,
+            status: "approved",
+            requestedDate: { [Op.between]: [opts.startDate, opts.endDate] },
+          },
+        })
+      : [];
 
     const eventsByEmployeeDate = groupByEmployeeDate(events);
     const leavesByEmployee = new Map<string, any[]>();
@@ -352,6 +363,11 @@ export class AttendanceDailyReportService {
       rows.push(request);
       overtimeByEmployeeDate.set(key, rows);
     }
+    const specialMinutesByEmployeeDate = new Map<string, number>();
+    for (const request of specialRequests) {
+      const key = `${request.requestedBy}__${request.requestedDate}`;
+      specialMinutesByEmployeeDate.set(key, (specialMinutesByEmployeeDate.get(key) || 0) + Number(request.requestedMinutes || 0));
+    }
     const lateByEventId = new Map<string, any>();
     for (const explanation of lateExplanations) lateByEventId.set(explanation.attendanceEventId, explanation);
     const dailyReasonsByEmployeeDate = new Map<string, any[]>();
@@ -370,6 +386,7 @@ export class AttendanceDailyReportService {
         leaves: leavesByEmployee.get(roster.employeeId) || [],
         notices: noticesByEmployee.get(roster.employeeId) || [],
         approvedOvertimeRequests: overtimeByEmployeeDate.get(`${roster.employeeId}__${roster.dateYmd}`) || [],
+        approvedSpecialRequestMinutes: specialMinutesByEmployeeDate.get(`${roster.employeeId}__${roster.dateYmd}`) || 0,
         lateByEventId,
         dailyReasons: dailyReasonsByEmployeeDate.get(`${roster.employeeId}__${roster.dateYmd}`) || [],
         lateNoReasonPenaltyGraceMinutes,
@@ -391,19 +408,21 @@ export class AttendanceDailyReportService {
     leaves: any[];
     notices: any[];
     approvedOvertimeRequests: any[];
+    approvedSpecialRequestMinutes: number;
     lateByEventId: Map<string, any>;
     dailyReasons: any[];
     lateNoReasonPenaltyGraceMinutes: number;
     audience: "hr" | "public";
   }): Promise<AttendanceDailyReportRow> {
-    const { roster, events, corrections, leaves, notices, approvedOvertimeRequests, lateByEventId, dailyReasons, lateNoReasonPenaltyGraceMinutes } = params;
+    const { roster, events, corrections, leaves, notices, approvedOvertimeRequests, approvedSpecialRequestMinutes, lateByEventId, dailyReasons, lateNoReasonPenaltyGraceMinutes } = params;
     const punchMap = buildPunchMap(events, corrections);
     const checkIn = punchMap.CHECK_IN ? new Date(punchMap.CHECK_IN.timestampUtc) : null;
     const lunchOut = punchMap.LUNCH_OUT ? new Date(punchMap.LUNCH_OUT.timestampUtc) : null;
     const lunchIn = punchMap.LUNCH_IN ? new Date(punchMap.LUNCH_IN.timestampUtc) : null;
     const checkOut = punchMap.CHECK_OUT ? new Date(punchMap.CHECK_OUT.timestampUtc) : null;
     const hasAnyPunch = REQUIRED_PUNCHES.some((type) => Boolean(punchMap[type]));
-    const hasAllPunches = REQUIRED_PUNCHES.every((type) => Boolean(punchMap[type]));
+    const lunchRequirementCovered = Boolean(lunchOut && lunchIn) || approvedSpecialRequestMinutes >= MINIMUM_LUNCH_MINUTES;
+    const hasAllPunches = Boolean(checkIn && checkOut && lunchRequirementCovered);
     const hasApprovedLeave = leaves.some((leave) => leave.startDate <= roster.dateYmd && roster.dateYmd <= leave.endDate);
     const approvedLeave = leaves.find((leave) => leave.startDate <= roster.dateYmd && roster.dateYmd <= leave.endDate);
     const dayNotices = notices.filter((notice) => noticeDate(notice) === roster.dateYmd || requestOverlapsDate(notice, roster.dateYmd));
@@ -489,7 +508,12 @@ export class AttendanceDailyReportService {
     if (checkIn && lunchOut && lunchIn && checkOut) {
       const morning = minutesBetween(checkIn, lunchOut);
       const afternoon = minutesBetween(lunchIn, checkOut);
-      const rawWorkedMinutes = Math.max(0, morning + afternoon - Math.max(0, MINIMUM_LUNCH_MINUTES - (lunchMinutesTaken || 0)));
+      const rawWorkedMinutes = Math.max(0, morning + afternoon - Math.max(0, MINIMUM_LUNCH_MINUTES - (lunchMinutesTaken || 0) - approvedSpecialRequestMinutes));
+      const rawExcessMinutes = Math.max(0, rawWorkedMinutes - STANDARD_WORK_MINUTES);
+      approvedOvertimeMinutes = Math.min(rawExcessMinutes, approvedOvertimeMinutesForDay(approvedOvertimeRequests));
+      totalMinutes = Math.min(rawWorkedMinutes, STANDARD_WORK_MINUTES + approvedOvertimeMinutes);
+    } else if (checkIn && checkOut && approvedSpecialRequestMinutes >= MINIMUM_LUNCH_MINUTES) {
+      const rawWorkedMinutes = minutesBetween(checkIn, checkOut);
       const rawExcessMinutes = Math.max(0, rawWorkedMinutes - STANDARD_WORK_MINUTES);
       approvedOvertimeMinutes = Math.min(rawExcessMinutes, approvedOvertimeMinutesForDay(approvedOvertimeRequests));
       totalMinutes = Math.min(rawWorkedMinutes, STANDARD_WORK_MINUTES + approvedOvertimeMinutes);
@@ -533,6 +557,7 @@ export class AttendanceDailyReportService {
       TotalHoursWorked: roundHours(totalMinutes),
       RegularHoursWorked: roundHours(regularMinutes),
       ApprovedOvertimeHours: roundHours(approvedOvertimeMinutes),
+      ApprovedSpecialRequestMinutes: approvedSpecialRequestMinutes,
       LatenessStatus: latenessStatus,
       MinutesLate: minutesLate,
       NoticeStatus: noticeStatus,
