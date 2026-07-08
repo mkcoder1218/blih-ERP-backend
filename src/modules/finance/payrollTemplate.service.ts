@@ -565,16 +565,16 @@ export class PayrollTemplateService {
     if (employmentStatus) where.employmentStatus = employmentStatus;
 
     const userWhere: any = { status: "active" };
-    const createdAtRange: any = {};
+    const accountCreatedRange: any = {};
     if (dateFrom) {
       const from = new Date(`${dateFrom}T00:00:00.000Z`);
-      if (!Number.isNaN(from.getTime())) createdAtRange[Op.gte] = from;
+      if (!Number.isNaN(from.getTime())) accountCreatedRange[Op.gte] = from;
     }
     if (dateTo) {
       const to = new Date(`${dateTo}T23:59:59.999Z`);
-      if (!Number.isNaN(to.getTime())) createdAtRange[Op.lte] = to;
+      if (!Number.isNaN(to.getTime())) accountCreatedRange[Op.lte] = to;
     }
-    if (Object.keys(createdAtRange).length) userWhere.createdAt = createdAtRange;
+    if (Object.keys(accountCreatedRange).length) userWhere.createdAt = accountCreatedRange;
     if (q) {
       userWhere[Op.or] = [
         { fullName: { [Op.iLike]: `%${q}%` } },
