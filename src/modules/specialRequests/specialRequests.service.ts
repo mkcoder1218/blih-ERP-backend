@@ -51,8 +51,8 @@ export class SpecialRequestsService {
     const lunchUsageType = String(data.lunchUsageType || "").toUpperCase();
     if (!["FULL", "PARTIAL"].includes(lunchUsageType)) throw new Error("Valid lunch usage type is required.");
     const requestedMinutes = lunchUsageType === "FULL" ? FULL_LUNCH_REQUEST_MINUTES : Number(data.requestedMinutes || 0);
-    if (!Number.isFinite(requestedMinutes) || requestedMinutes <= 0 || requestedMinutes > 240) {
-      throw new Error("Requested minutes must be between 1 and 240.");
+    if (!Number.isFinite(requestedMinutes) || requestedMinutes <= 0 || requestedMinutes > FULL_LUNCH_REQUEST_MINUTES) {
+      throw new Error(`Requested minutes must be between 1 and ${FULL_LUNCH_REQUEST_MINUTES}.`);
     }
     if (!data.requestedDate) throw new Error("Requested date is required.");
     if (!data.reason || !String(data.reason).trim()) throw new Error("Reason is required.");

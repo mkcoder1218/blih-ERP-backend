@@ -3,7 +3,7 @@ import Joi from "joi";
 export const specialRequestCreateSchema = Joi.object({
   requestedDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
   lunchUsageType: Joi.string().valid("FULL", "PARTIAL").required(),
-  requestedMinutes: Joi.number().integer().min(1).max(240).when("lunchUsageType", {
+  requestedMinutes: Joi.number().integer().min(1).max(60).when("lunchUsageType", {
     is: "FULL",
     then: Joi.optional(),
     otherwise: Joi.required(),

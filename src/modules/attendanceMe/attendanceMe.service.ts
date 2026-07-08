@@ -13,6 +13,7 @@ type AttendanceActionCooldown = {
   startedAtUtc: string;
   untilUtc: string;
   remainingMinutes: number;
+  requiredMinutes: number;
 };
 const POST_CHECKOUT_COOLDOWN_MS = 60 * 60 * 1000;
 
@@ -41,18 +42,20 @@ function nextAllowedTypes(params: {
   return []; // CHECK_OUT -> none
 }
 
-function buildCooldown(lastEvent: any | null, now: Date, action: AttendanceEventType): AttendanceActionCooldown | null {
+function buildCooldown(lastEvent: any | null, now: Date, action: AttendanceEventType, cooldownMs = POST_CHECKOUT_COOLDOWN_MS): AttendanceActionCooldown | null {
   if (!lastEvent) return null;
+  if (cooldownMs <= 0) return null;
   const lastTs = new Date(lastEvent.timestampUtc).getTime();
   if (Number.isNaN(lastTs)) return null;
-  const untilTs = lastTs + POST_CHECKOUT_COOLDOWN_MS;
+  const untilTs = lastTs + cooldownMs;
   if (now.getTime() >= untilTs) return null;
   return {
     action,
     active: true,
     startedAtUtc: new Date(lastTs).toISOString(),
     untilUtc: new Date(untilTs).toISOString(),
-    remainingMinutes: Math.max(1, Math.ceil((untilTs - now.getTime()) / 60_000))
+    remainingMinutes: Math.max(1, Math.ceil((untilTs - now.getTime()) / 60_000)),
+    requiredMinutes: Math.ceil(cooldownMs / 60_000)
   };
 }
 
@@ -62,6 +65,15 @@ function localDateKey(date: Date, timeZone: string) {
 
 function isSaturday(date: Date, timeZone: string) {
   return new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(date) === "Sat";
+}
+
+async function approvedLunchUseMinutesForDate(businessId: string, userId: string, dateYmd: string) {
+  if (!db.SpecialRequest?.findAll) return 0;
+  const rows = await db.SpecialRequest.findAll({
+    where: { businessId, requestedBy: userId, requestedDate: dateYmd, status: "approved" },
+    attributes: ["requestedMinutes"],
+  });
+  return rows.reduce((sum: number, request: any) => sum + Number(request.requestedMinutes || 0), 0);
 }
 
 export class AttendanceMeService {
@@ -98,6 +110,7 @@ export class AttendanceMeService {
         })
       : [];
     const approvedLunchUseMinutes = approvedSpecialRequests.reduce((sum: number, request: any) => sum + Number(request.requestedMinutes || 0), 0);
+    const requiredLunchBreakMinutes = Math.max(0, 60 - approvedLunchUseMinutes);
 
     const latest: AttendanceEventType | null = events.length ? (events[events.length - 1].type as AttendanceEventType) : null;
     const lunchBreakEnabled = settings.lunchBreakEnabled !== false;
@@ -108,7 +121,7 @@ export class AttendanceMeService {
     let cooldown: AttendanceActionCooldown | null = null;
 
     if (latest === "LUNCH_OUT") {
-      cooldown = buildCooldown(events[events.length - 1], now, "LUNCH_IN");
+      cooldown = buildCooldown(events[events.length - 1], now, "LUNCH_IN", requiredLunchBreakMinutes * 60_000);
       if (cooldown) nextAllowed = nextAllowed.filter((type) => type !== "LUNCH_IN");
     }
 
@@ -210,6 +223,9 @@ export class AttendanceMeService {
 
     const startUtc = startOfBusinessDayUtc(now, tz);
     const endUtc = endOfBusinessDayUtc(now, tz);
+    const dateYmd = localDateKey(now, tz);
+    const approvedLunchUseMinutes = await approvedLunchUseMinutesForDate(businessId, userId, dateYmd);
+    const requiredLunchBreakMinutes = Math.max(0, 60 - approvedLunchUseMinutes);
 
     return db.sequelize.transaction(async (t: Transaction) => {
       // Serialize attendance event writes per user to avoid race conditions (multi-tab / double click).
@@ -248,9 +264,9 @@ export class AttendanceMeService {
       }
 
       if (input.type === "LUNCH_IN" && latest === "LUNCH_OUT") {
-        const cooldown = buildCooldown(existing[existing.length - 1], now, "LUNCH_IN");
+        const cooldown = buildCooldown(existing[existing.length - 1], now, "LUNCH_IN", requiredLunchBreakMinutes * 60_000);
         if (cooldown) {
-          throw Object.assign(new Error(`Lunch check-in is available after the mandatory 1 hour lunch break (${cooldown.remainingMinutes} min remaining)`), { statusCode: 400 });
+          throw Object.assign(new Error(`Lunch check-in is available after the mandatory ${requiredLunchBreakMinutes} minute lunch break (${cooldown.remainingMinutes} min remaining)`), { statusCode: 400 });
         }
       }
 
