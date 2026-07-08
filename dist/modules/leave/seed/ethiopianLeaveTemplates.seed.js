@@ -15,6 +15,8 @@ const ETHIOPIAN_LEAVE_TEMPLATES = [
         requiresEvidence: false,
         evidenceInstructions: null,
         isActive: true,
+        isVisibleForRequest: true,
+        isDeprecated: false,
     },
     {
         name: "Sick Leave",
@@ -25,6 +27,8 @@ const ETHIOPIAN_LEAVE_TEMPLATES = [
         requiresEvidence: true,
         evidenceInstructions: "Attach a medical certificate or other medical evidence where required.",
         isActive: true,
+        isVisibleForRequest: true,
+        isDeprecated: false,
     },
     {
         name: "Maternity Leave",
@@ -35,6 +39,8 @@ const ETHIOPIAN_LEAVE_TEMPLATES = [
         requiresEvidence: true,
         evidenceInstructions: "Attach pregnancy-related medical evidence, including examination documentation where applicable.",
         isActive: true,
+        isVisibleForRequest: true,
+        isDeprecated: false,
     },
     {
         name: "Paternity Leave",
@@ -45,6 +51,8 @@ const ETHIOPIAN_LEAVE_TEMPLATES = [
         requiresEvidence: false,
         evidenceInstructions: null,
         isActive: true,
+        isVisibleForRequest: true,
+        isDeprecated: false,
     },
     {
         name: "Wedding Leave",
@@ -55,6 +63,8 @@ const ETHIOPIAN_LEAVE_TEMPLATES = [
         requiresEvidence: true,
         evidenceInstructions: "Attach marriage-related supporting evidence if requested.",
         isActive: true,
+        isVisibleForRequest: true,
+        isDeprecated: false,
     },
     {
         name: "Bereavement Leave",
@@ -65,6 +75,8 @@ const ETHIOPIAN_LEAVE_TEMPLATES = [
         requiresEvidence: true,
         evidenceInstructions: "Attach bereavement or family-event supporting evidence if requested.",
         isActive: true,
+        isVisibleForRequest: true,
+        isDeprecated: false,
     },
     {
         name: "Serious Personal Event Leave",
@@ -75,6 +87,8 @@ const ETHIOPIAN_LEAVE_TEMPLATES = [
         requiresEvidence: true,
         evidenceInstructions: "Describe the exceptional event and attach supporting evidence if requested.",
         isActive: true,
+        isVisibleForRequest: true,
+        isDeprecated: false,
     },
     {
         name: "Union Leave",
@@ -85,6 +99,8 @@ const ETHIOPIAN_LEAVE_TEMPLATES = [
         requiresEvidence: true,
         evidenceInstructions: "Attach union duty, meeting, proceeding, seminar, or training evidence.",
         isActive: true,
+        isVisibleForRequest: true,
+        isDeprecated: false,
     },
     {
         name: "Special Purpose Leave",
@@ -95,6 +111,8 @@ const ETHIOPIAN_LEAVE_TEMPLATES = [
         requiresEvidence: true,
         evidenceInstructions: "Attach summons, voting, witness, or other official supporting evidence.",
         isActive: true,
+        isVisibleForRequest: true,
+        isDeprecated: false,
     },
     {
         name: "Weekly Rest and Public Holiday",
@@ -105,16 +123,27 @@ const ETHIOPIAN_LEAVE_TEMPLATES = [
         requiresEvidence: false,
         evidenceInstructions: null,
         isActive: true,
+        isVisibleForRequest: true,
+        isDeprecated: false,
     },
 ];
 const OBSOLETE_DEFAULT_LEAVE_TYPES = ["casual", "unpaid"];
 async function seedEthiopianLeaveTemplatesForBusiness(businessId) {
-    await models_1.db.LeaveTemplate.destroy({
+    const obsoleteTemplates = await models_1.db.LeaveTemplate.findAll({
         where: {
             businessId,
             leaveType: { [sequelize_1.Op.in]: OBSOLETE_DEFAULT_LEAVE_TYPES },
         },
     });
+    for (const template of obsoleteTemplates) {
+        const linked = await models_1.db.LeaveRequest.count({ where: { businessId, leaveTemplateId: template.id } });
+        if (linked > 0) {
+            await template.update({ isActive: false, isVisibleForRequest: false, isDeprecated: true });
+        }
+        else {
+            await template.destroy();
+        }
+    }
     for (const template of ETHIOPIAN_LEAVE_TEMPLATES) {
         const existing = await models_1.db.LeaveTemplate.findOne({
             where: { businessId, leaveType: template.leaveType },

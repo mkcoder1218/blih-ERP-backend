@@ -554,6 +554,8 @@ export class PayrollTemplateService {
     const employmentStatus = String(query.employmentStatus || "");
     const payrollStatus = String(query.payrollStatus || "");
     const templateId = String(query.templateId || "");
+    const dateFrom = String(query.dateFrom || "").trim();
+    const dateTo = String(query.dateTo || "").trim();
 
     const where: any = {
       businessId,
@@ -563,6 +565,16 @@ export class PayrollTemplateService {
     if (employmentStatus) where.employmentStatus = employmentStatus;
 
     const userWhere: any = { status: "active" };
+    const createdAtRange: any = {};
+    if (dateFrom) {
+      const from = new Date(`${dateFrom}T00:00:00.000Z`);
+      if (!Number.isNaN(from.getTime())) createdAtRange[Op.gte] = from;
+    }
+    if (dateTo) {
+      const to = new Date(`${dateTo}T23:59:59.999Z`);
+      if (!Number.isNaN(to.getTime())) createdAtRange[Op.lte] = to;
+    }
+    if (Object.keys(createdAtRange).length) userWhere.createdAt = createdAtRange;
     if (q) {
       userWhere[Op.or] = [
         { fullName: { [Op.iLike]: `%${q}%` } },

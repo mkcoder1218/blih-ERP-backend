@@ -8,12 +8,14 @@ const offerLetterRenderer_1 = require("../../utils/offerLetterRenderer");
 const offerLetterPdfGenerator_1 = require("../../utils/offerLetterPdfGenerator");
 const offerLetterMailer_1 = require("../../utils/offerLetterMailer");
 const sequelize_1 = require("sequelize");
+const payrollTemplate_service_1 = require("../finance/payrollTemplate.service");
 const employee_constants_1 = require("../../constants/employee.constants");
 const bulkEmployeeValidation_service_1 = require("./bulkEmployeeValidation.service");
 class HRController {
     constructor() {
         this.service = new hr_service_1.HRService();
         this.bulkValidationService = new bulkEmployeeValidation_service_1.BulkEmployeeValidationService();
+        this.payrollTemplateService = new payrollTemplate_service_1.PayrollTemplateService();
         // Seed hook
         this.seedTemplates = async (req, res) => {
             await this.service.provisionTemplates(req.user.businessId);
@@ -584,9 +586,15 @@ class HRController {
                     limit: size,
                     offset,
                 });
+                const employeeRecords = await models_1.db.EmployeeRecord.findAll({
+                    where: { businessId, userId: { [Op.in]: rows.map((u) => u.id) } },
+                    attributes: ['userId', 'salaryInfo', 'metadata'],
+                });
+                const employeeRecordByUserId = new Map(employeeRecords.map((record) => [record.userId, record]));
                 const items = rows.map((u) => {
                     const profile = u.BusinessUserProfile;
                     const settings = profile?.settings ?? {};
+                    const employeeRecord = employeeRecordByUserId.get(u.id);
                     return {
                         id: u.id,
                         fullName: u.fullName,
@@ -601,6 +609,7 @@ class HRController {
                         hireDate: profile?.joinedAt || null,
                         department: profile?.department || null,
                         position: profile?.position || null,
+                        financial: this.pendingRegistrationFinancialInfo(employeeRecord),
                         personal: {
                             dateOfBirth: settings.dateOfBirth || null,
                             gender: settings.gender || null,
@@ -640,7 +649,7 @@ class HRController {
                         }, {
                             model: models_1.db.EmployeeRecord,
                             // User hasMany EmployeeRecord — Sequelize uses the plural alias
-                            attributes: ['id', 'metadata', 'emergencyContact', 'departmentId', 'positionId', 'employmentType', 'hireDate'],
+                            attributes: ['id', 'metadata', 'salaryInfo', 'emergencyContact', 'departmentId', 'positionId', 'employmentType', 'hireDate'],
                             required: false,
                             limit: 1,
                             order: [['createdAt', 'DESC']],
@@ -652,7 +661,12 @@ class HRController {
                 const plain = user.toJSON ? user.toJSON() : user;
                 const empRecord = (plain.EmployeeRecords ?? [])[0] ?? null;
                 (0, response_1.successResponse)(res, {
-                    user: { ...plain, EmployeeRecord: empRecord, EmployeeRecords: undefined },
+                    user: {
+                        ...plain,
+                        EmployeeRecord: empRecord,
+                        EmployeeRecords: undefined,
+                        financial: this.pendingRegistrationFinancialInfo(empRecord),
+                    },
                 });
             }
             catch (e) {
@@ -673,6 +687,19 @@ class HRController {
                 });
                 if (!user)
                     return (0, response_1.errorResponse)(res, 'Not found', 404);
+                if (req.body?.financialConfirmation !== true) {
+                    return (0, response_1.errorResponse)(res, 'Confirm the financial information before approval', 400);
+                }
+                let financialInfo;
+                try {
+                    financialInfo = this.normalizeApprovalFinancialInfo(req.body?.financialInfo);
+                }
+                catch (validationError) {
+                    return (0, response_1.errorResponse)(res, validationError.message, 400);
+                }
+                const employeeRecord = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: user.id } });
+                if (!employeeRecord)
+                    return (0, response_1.errorResponse)(res, 'Employee record is required before approval', 400);
                 await user.update({
                     status: 'active',
                     rejectionReason: null,
@@ -700,10 +727,11 @@ class HRController {
                         }, { where: { businessId, reservedForOnboardingId: onboarding.id } });
                     }
                 }
+                const payroll = await this.payrollTemplateService.setupAutomaticEthiopianPayroll(businessId, req.user.id, user.id, financialInfo);
                 // Send approval email (non-fatal)
                 const business = await models_1.db.Business.findByPk(businessId, { attributes: ['name'] });
                 sendApprovalEmail({ toEmail: user.email, toName: user.fullName, businessName: business?.name || '' }).catch(() => null);
-                (0, response_1.successResponse)(res, { approved: true, userId: user.id });
+                (0, response_1.successResponse)(res, { approved: true, userId: user.id, payroll });
             }
             catch (e) {
                 (0, response_1.errorResponse)(res, e.message);
@@ -788,6 +816,62 @@ class HRController {
             ...(current || {}),
             baseSalary: profile?.monthlySalary ?? current?.baseSalary ?? null,
             currency: profile?.salaryCurrency || current?.currency || "ETB",
+        };
+    }
+    normalizeApprovalFinancialInfo(input) {
+        const data = input || {};
+        const hasBaseSalary = data.baseSalary != null || data.monthlySalary != null || data.salary != null;
+        const baseSalary = hasBaseSalary ? Number(data.baseSalary ?? data.monthlySalary ?? data.salary) : null;
+        const netSalary = Number(data.netSalary ?? data.targetNetSalary ?? data.targetNetPay ?? data.netPay ?? 0);
+        if ((baseSalary == null || !Number.isFinite(baseSalary) || baseSalary <= 0) && (!Number.isFinite(netSalary) || netSalary <= 0)) {
+            throw new Error("Base salary or net salary is required before approval");
+        }
+        const pensionableSalary = Number(data.pensionableSalary ?? baseSalary ?? 0);
+        if (data.pensionableSalary != null && (!Number.isFinite(pensionableSalary) || pensionableSalary < 0))
+            throw new Error("Pensionable salary must be valid");
+        return {
+            ...(baseSalary != null ? { baseSalary } : {}),
+            ...(Number.isFinite(netSalary) && netSalary > 0 ? { netSalary } : {}),
+            ...(data.pensionableSalary != null ? { pensionableSalary } : {}),
+            currency: data.currency || "ETB",
+            transportAllowance: Number(data.transportAllowance ?? 0),
+            perDiemAllowance: Number(data.perDiemAllowance ?? 0),
+            perDiemDays: Number(data.perDiemDays ?? 0),
+            medicalBenefit: Number(data.medicalBenefit ?? 0),
+            telecomAllowance: Number(data.telecomAllowance ?? 0),
+            housingAllowance: Number(data.housingAllowance ?? 0),
+            mealAllowance: Number(data.mealAllowance ?? 0),
+            otherAllowance: Number(data.otherAllowance ?? 0),
+            employeePensionRate: Number(data.employeePensionRate ?? 7),
+            employerPensionRate: Number(data.employerPensionRate ?? 11),
+            bankAccount: data.bankAccount || null,
+            tin: data.tin || null,
+            paymentStatus: data.paymentStatus || "Pending",
+            remarks: data.remarks || null,
+        };
+    }
+    pendingRegistrationFinancialInfo(employeeRecord) {
+        const salaryInfo = employeeRecord?.salaryInfo ?? {};
+        const metadata = employeeRecord?.metadata ?? {};
+        const primaryBank = Array.isArray(metadata.bankDetails) ? metadata.bankDetails[0] : null;
+        return {
+            bankName: primaryBank?.bankName ?? metadata.bankName ?? null,
+            bankAccount: salaryInfo.bankAccount ?? primaryBank?.accountNumber ?? metadata.bankAccountNumber ?? null,
+            tin: salaryInfo.tin ?? metadata.tin ?? metadata.taxIdentificationNumber ?? null,
+            salaryInputMode: salaryInfo.salaryInputMode ?? null,
+            baseSalary: salaryInfo.baseSalary ?? null,
+            netSalary: salaryInfo.targetNetSalary ?? salaryInfo.netSalary ?? null,
+            transportAllowance: salaryInfo.transportAllowance ?? null,
+            perDiemAllowance: salaryInfo.perDiemAllowance ?? null,
+            perDiemDays: salaryInfo.perDiemDays ?? null,
+            medicalBenefit: salaryInfo.medicalBenefit ?? null,
+            telecomAllowance: salaryInfo.telecomAllowance ?? null,
+            housingAllowance: salaryInfo.housingAllowance ?? null,
+            mealAllowance: salaryInfo.mealAllowance ?? null,
+            otherAllowance: salaryInfo.otherAllowance ?? null,
+            employeePensionRate: salaryInfo.employeePensionRate ?? null,
+            employerPensionRate: salaryInfo.employerPensionRate ?? null,
+            remarks: salaryInfo.remarks ?? null,
         };
     }
     buildEmergencyContact(current, profile) {

@@ -270,11 +270,151 @@ class FinanceController {
                 (0, response_1.errorResponse)(res, e.message);
             }
         };
+        this.listEmployeeSalaries = async (req, res) => {
+            try {
+                const data = await this.payrollTplSvc.listEmployeeSalaries(req.user.businessId, req.query);
+                res.status(200).json({
+                    success: true,
+                    message: "Employee salaries loaded",
+                    data: data.rows,
+                    meta: {
+                        total: data.count,
+                        page: data.page,
+                        limit: data.limit,
+                        totalPages: data.totalPages,
+                        totals: data.totals,
+                        requestId: res.locals.requestId,
+                    },
+                });
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        this.exportEmployeeSalaries = async (req, res) => {
+            try {
+                const defaultColumnIds = ["employee", "payPeriod", "salarySummary", "status", "actions"];
+                const showMoreColumnIds = [
+                    "employee",
+                    "payPeriod",
+                    "department",
+                    "employmentType",
+                    "salaryTemplate",
+                    "salarySummary",
+                    "basicSalary",
+                    "grossSalary",
+                    "taxableAmount",
+                    "incomeTaxPaye",
+                    "employeePension",
+                    "totalDeductions",
+                    "deductionReasonsCount",
+                    "attendanceDeduction",
+                    "overtime",
+                    "netSalary",
+                    "status",
+                ];
+                const columnMap = {
+                    employee: { key: "employee", value: (row) => row.name },
+                    payPeriod: { key: "payPeriod", value: (row) => row.payPeriod || "" },
+                    salarySummary: {
+                        key: "salarySummary",
+                        value: (row) => `Gross: ${row.grossPay} | Deduct: ${row.deductionTotal ?? row.totalDeductions} | Net: ${row.netPay}`,
+                    },
+                    grossSalary: { key: "grossSalary", value: (row) => row.grossPay },
+                    totalDeductions: { key: "totalDeductions", value: (row) => row.deductionTotal ?? row.totalDeductions },
+                    netSalary: { key: "netSalary", value: (row) => row.netPay },
+                    status: { key: "status", value: (row) => row.paymentStatus || "" },
+                    actions: { key: "actions", value: () => "" },
+                    employeeId: { key: "employeeId", value: (row) => row.employeeCode || row.userId },
+                    tin: { key: "tin", value: (row) => row.tin || "" },
+                    paymentDate: { key: "paymentDate", value: (row) => row.paymentDate || "" },
+                    basicSalary: { key: "basicSalary", value: (row) => row.baseSalary },
+                    taxableAmount: { key: "taxableAmount", value: (row) => row.taxableAmount },
+                    incomeTaxPaye: { key: "incomeTaxPaye", value: (row) => row.taxDeduction },
+                    employeePension: { key: "employeePension", value: (row) => row.employeePensionContribution },
+                    employerPension: { key: "employerPension", value: (row) => row.employerPensionContribution },
+                    deductionReasonsCount: { key: "deductionReasonsCount", value: (row) => row.deductionCount },
+                    department: { key: "department", value: (row) => row.department?.name || "" },
+                    employmentType: { key: "employmentType", value: (row) => row.employmentType || "" },
+                    salaryTemplate: { key: "salaryTemplate", value: (row) => row.templateName || "" },
+                    approvedLeave: {
+                        key: "approvedLeave",
+                        value: (row) => (row.deductionItems || []).filter((item) => item.status === "active" && item.reasonType === "leave").length,
+                    },
+                    attendanceDeduction: {
+                        key: "attendanceDeduction",
+                        value: (row) => (row.deductionItems || [])
+                            .filter((item) => item.status === "active" && item.sourceModule === "attendance")
+                            .reduce((sum, item) => sum + Number(item.amount || 0), 0),
+                    },
+                    overtime: { key: "overtime", value: (row) => row.overtimePay },
+                    createdAt: { key: "createdAt", value: (row) => row.createdAt || "" },
+                    updatedAt: { key: "updatedAt", value: (row) => row.lastUpdated || "" },
+                };
+                const requestedColumnIds = String(req.query.columns || "")
+                    .split(",")
+                    .map((value) => value.trim())
+                    .filter(Boolean);
+                const fallbackColumnIds = String(req.query.showMoreDetails || "").toLowerCase() === "true" ? showMoreColumnIds : defaultColumnIds;
+                const selectedColumnIds = (requestedColumnIds.length ? requestedColumnIds : fallbackColumnIds)
+                    .filter((id) => columnMap[id] && id !== "actions");
+                const data = await this.payrollTplSvc.listEmployeeSalaries(req.user.businessId, {
+                    ...req.query,
+                    page: 1,
+                    limit: 5000,
+                    exportAll: "true",
+                });
+                const rows = data.rows
+                    .filter((row) => !this.isUnpaidSalaryExportMarker(row))
+                    .map((row) => selectedColumnIds.reduce((acc, id) => {
+                    const column = columnMap[id];
+                    acc[column.key] = column.value(row);
+                    return acc;
+                }, {}));
+                const csv = this.toCsv(rows);
+                res.setHeader("Content-Type", "text/csv; charset=utf-8");
+                res.setHeader("Content-Disposition", 'attachment; filename="employee-salaries.csv"');
+                res.status(200).send(csv);
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        this.updateEmployeeBaseSalary = async (req, res) => {
+            try {
+                const result = await this.payrollTplSvc.updateEmployeeBaseSalaryWithEthiopianTax(req.user.businessId, req.user.id, req.params.userId, req.body || {});
+                await auditLog_service_1.AuditLogService.log('UPDATE_EMPLOYEE_BASE_SALARY', 'finance_salary', req.params.userId, null, result, req);
+                (0, response_1.successResponse)(res, result, 'Employee base salary updated');
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        this.syncEthiopianTax = async (req, res) => {
+            try {
+                const result = await this.payrollTplSvc.syncEthiopianTax(req.user.businessId, req.user.id, req.body || {});
+                await auditLog_service_1.AuditLogService.log('SYNC_ETHIOPIAN_SALARY_TAX', 'finance_salary', 'ethiopian_proclamation', null, result, req);
+                (0, response_1.successResponse)(res, result, `${result.syncedCount} employee salary records synced`);
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
         this.linkEmployeeToTemplate = async (req, res) => {
             try {
                 const link = await this.payrollTplSvc.linkEmployee(req.user.businessId, req.user.id, req.body);
                 await auditLog_service_1.AuditLogService.log('LINK_EMPLOYEE_PAYROLL', 'finance_payroll', String(link.id), null, link, req);
                 (0, response_1.successResponse)(res, link, 'Employee linked to payroll template', 201);
+            }
+            catch (e) {
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
+        this.bulkLinkEmployeesToTemplate = async (req, res) => {
+            try {
+                const result = await this.payrollTplSvc.bulkLinkEmployees(req.user.businessId, req.user.id, req.body);
+                await auditLog_service_1.AuditLogService.log('BULK_LINK_EMPLOYEE_PAYROLL', 'finance_payroll', String(req.body.templateId), null, result, req);
+                (0, response_1.successResponse)(res, result, `${result.linkedCount} employees linked to payroll template`, 201);
             }
             catch (e) {
                 (0, response_1.errorResponse)(res, e.message);
@@ -289,6 +429,11 @@ class FinanceController {
                 (0, response_1.errorResponse)(res, e.message);
             }
         };
+    }
+    isUnpaidSalaryExportMarker(row) {
+        return Number(row?.basicSalary ?? row?.baseSalary ?? 0) === 1
+            && Number(row?.grossSalary ?? row?.grossPay ?? 0) === 1
+            && Number(row?.taxableAmount ?? 0) === 1;
     }
     rowsForExport(data, tab) {
         if (tab === 'salary')

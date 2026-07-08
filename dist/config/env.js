@@ -30,6 +30,7 @@ exports.env = {
     authRateLimitMaxReqs: Number(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || 20),
     jobWorkerEnabled: toBool(process.env.JOB_WORKER_ENABLED, false),
     jobTimezone: process.env.JOB_TIMEZONE || "UTC",
+    pgDumpPath: process.env.PG_DUMP_PATH || "pg_dump",
     guestApiKey: process.env.GUEST_API_KEY,
     policiesApiBaseUrl: process.env.POLICIES_API_BASE_URL,
     nodeEnv: process.env.NODE_ENV || "development",

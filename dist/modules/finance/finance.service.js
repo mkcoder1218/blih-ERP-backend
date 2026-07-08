@@ -42,7 +42,7 @@ class FinanceService {
         return map;
     }
     async getWorkforceDashboard(businessId, query = {}) {
-        const [employees, perf, budgets, expenses, payrollRecords, salaryRequests, reallocations, benefits, enrollments, notifications, auditLogs] = await Promise.all([
+        const [employees, perf, budgets, expenses, payrollRecords, payrollLinks, salaryRequests, reallocations, benefits, enrollments, notifications, auditLogs] = await Promise.all([
             this.employees(businessId),
             this.performanceMap(businessId),
             models_1.db.Budget.findAll({ where: { businessId }, include: [{ model: models_1.db.Department, attributes: ['id', 'name'] }] }),
@@ -62,6 +62,12 @@ class FinanceService {
                 ],
                 order: [['periodEnd', 'DESC']]
             }),
+            models_1.db.EmployeePayrollLink.findAll({
+                where: { businessId },
+                include: [
+                    { model: models_1.db.PayrollTemplate, as: 'template', attributes: ['id', 'name', 'currency'] }
+                ]
+            }),
             models_1.db.SalaryAdjustmentRequest.findAll({
                 where: { businessId },
                 include: [
@@ -77,8 +83,11 @@ class FinanceService {
             models_1.db.Notification.findAll({ where: { businessId, moduleKey: 'finance' }, order: [['createdAt', 'DESC']], limit: 8 }),
             models_1.db.AuditLog.findAll({ where: { businessId, entityType: { [sequelize_1.Op.in]: ['finance_salary', 'finance_payroll', 'finance_expense', 'finance_budget', 'finance_benefit'] } }, order: [['createdAt', 'DESC']], limit: 20 })
         ]);
+        const payrollLinkByUserId = new Map(payrollLinks.map((link) => [link.employeeUserId, link]));
         const employeeRows = employees.map((employee) => {
             const annualSalary = this.salaryFromRecord(employee);
+            const payrollLink = payrollLinkByUserId.get(employee.userId);
+            const taxMeta = payrollLink?.metadata?.tax || {};
             return {
                 id: employee.id,
                 userId: employee.userId,
@@ -91,11 +100,32 @@ class FinanceService {
                 performance: perf.get(employee.userId) ?? null,
                 hireDate: employee.hireDate,
                 employmentType: employee.employmentType,
-                salaryInfo: employee.salaryInfo || {}
+                salaryInfo: employee.salaryInfo || {},
+                payroll: payrollLink ? {
+                    templateName: payrollLink.template?.name || 'Payroll Template',
+                    grossPay: this.money(payrollLink.grossPay),
+                    totalDeductions: this.money(payrollLink.totalDeductions),
+                    netPay: this.money(payrollLink.netPay),
+                    employeePensionContribution: this.money(payrollLink.pensionDeduction),
+                    employerPensionContribution: this.money(taxMeta.employerPensionContribution),
+                    totalCostToCompany: this.money(taxMeta.totalCostToCompany || (this.money(payrollLink.grossPay) + this.money(taxMeta.employerPensionContribution))),
+                    currency: payrollLink.currency,
+                } : null
             };
         });
         const salaryTotal = employeeRows.reduce((sum, row) => sum + row.salary, 0);
         const avgSalary = employeeRows.length ? salaryTotal / employeeRows.length : 0;
+        const payrollCostAnalytics = payrollLinks.reduce((acc, link) => {
+            const taxMeta = link.metadata?.tax || {};
+            const employerPension = this.money(taxMeta.employerPensionContribution);
+            const totalCostToCompany = this.money(taxMeta.totalCostToCompany || (this.money(link.grossPay) + employerPension));
+            acc.grossPayroll += this.money(link.grossPay);
+            acc.employeeDeductions += this.money(link.totalDeductions);
+            acc.employeePension += this.money(link.pensionDeduction);
+            acc.employerPension += employerPension;
+            acc.totalCostToCompany += totalCostToCompany;
+            return acc;
+        }, { grossPayroll: 0, employeeDeductions: 0, employeePension: 0, employerPension: 0, totalCostToCompany: 0 });
         const activePayroll = payrollRecords.length ? payrollRecords : employeeRows.map((row) => {
             const monthlyGross = row.salary / 12;
             const pension = monthlyGross * 0.06;
@@ -195,6 +225,14 @@ class FinanceService {
                 totals: {
                     avgSalary,
                     totalPayroll: salaryTotal,
+                    grossPayroll: payrollCostAnalytics.grossPayroll,
+                    employeeDeductions: payrollCostAnalytics.employeeDeductions,
+                    employeePension: payrollCostAnalytics.employeePension,
+                    employerPension: payrollCostAnalytics.employerPension,
+                    totalCostToCompany: payrollCostAnalytics.totalCostToCompany,
+                    currentMonthOtherExpenses: currentMonthExpenses.reduce((sum, expense) => sum + this.money(expense.amount), 0),
+                    totalCompanyOutflow: payrollCostAnalytics.totalCostToCompany + currentMonthExpenses.reduce((sum, expense) => sum + this.money(expense.amount), 0),
+                    payrollCostLoadPercent: payrollCostAnalytics.grossPayroll ? ((payrollCostAnalytics.totalCostToCompany - payrollCostAnalytics.grossPayroll) / payrollCostAnalytics.grossPayroll) * 100 : 0,
                     pendingRequests: pendingSalary.length,
                     avgIncreasePercent: pendingSalary.length ? pendingSalary.reduce((sum, r) => sum + ((this.money(r.requestedSalary) - this.money(r.currentSalary)) / Math.max(this.money(r.currentSalary), 1)) * 100, 0) / pendingSalary.length : 0
                 },

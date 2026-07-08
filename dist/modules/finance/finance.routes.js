@@ -7,8 +7,10 @@ const permission_1 = require("../../middlewares/permission");
 const requireActiveModule_1 = require("../../middlewares/requireActiveModule");
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const finance_controller_1 = require("./finance.controller");
+const salaryDeduction_controller_1 = require("./salaryDeduction.controller");
 const router = (0, express_1.Router)();
 const controller = new finance_controller_1.FinanceController();
+const deductionController = new salaryDeduction_controller_1.SalaryDeductionController();
 router.use((0, requireActiveModule_1.requireActiveModule)('finance'));
 router.use(auth_1.authRequired);
 router.post("/templates", (0, permission_1.requireAnyPermission)("finance.manage"), (0, asyncHandler_1.asyncHandler)(controller.seedForms));
@@ -42,6 +44,13 @@ router.delete("/payroll-templates/:id", (0, permission_1.requireAnyPermission)("
 router.post("/payroll-templates/preview", (0, permission_1.requireAnyPermission)("finance.read", "finance.manage", "payroll.read", "payroll.run"), (0, asyncHandler_1.asyncHandler)(controller.previewPayrollCalculation));
 // Employee Payroll Links
 router.get("/payroll-dashboard", (0, permission_1.requireAnyPermission)("finance.read", "finance.manage", "payroll.read", "payroll.run"), (0, asyncHandler_1.asyncHandler)(controller.getPayrollDashboard));
-router.post("/payroll-links", (0, permission_1.requireAnyPermission)("finance.manage", "payroll.run"), (0, asyncHandler_1.asyncHandler)(controller.linkEmployeeToTemplate));
+router.get("/employee-salaries", (0, permission_1.requireAnyPermission)("salary_employee_read", "finance.manage"), (0, asyncHandler_1.asyncHandler)(controller.listEmployeeSalaries));
+router.get("/employee-salaries/export", (0, permission_1.requireAnyPermission)("salary_employee_read", "finance.manage"), (0, asyncHandler_1.asyncHandler)(controller.exportEmployeeSalaries));
+router.post("/employee-salaries/sync-ethiopian-tax", (0, permission_1.requireAnyPermission)("salary_employee_read", "finance.manage"), (0, asyncHandler_1.asyncHandler)(controller.syncEthiopianTax));
+router.patch("/employee-salaries/:userId/base-salary", (0, permission_1.requireAnyPermission)("salary_employee_read", "finance.manage"), (0, asyncHandler_1.asyncHandler)(controller.updateEmployeeBaseSalary));
+router.get("/employee-salaries/:payrollLinkId/deductions", (0, permission_1.requireAnyPermission)("salary_employee_read", "finance.manage"), (0, asyncHandler_1.asyncHandler)(deductionController.listForSalary));
+router.delete("/employee-salaries/deductions/:deductionId", (0, permission_1.requireAnyPermission)("finance.manage", "salary_employee_read"), (0, asyncHandler_1.asyncHandler)(deductionController.removeDeduction));
+router.post("/payroll-links", (0, permission_1.requireAnyPermission)("finance.manage", "payroll.run", "salary_employee_read"), (0, asyncHandler_1.asyncHandler)(controller.linkEmployeeToTemplate));
+router.post("/payroll-links/bulk", (0, permission_1.requireAnyPermission)("finance.manage", "payroll.run", "salary_employee_read"), (0, asyncHandler_1.asyncHandler)(controller.bulkLinkEmployeesToTemplate));
 router.delete("/payroll-links/:userId", (0, permission_1.requireAnyPermission)("finance.manage"), (0, asyncHandler_1.asyncHandler)(controller.unlinkEmployee));
 exports.financeRoutes = router;

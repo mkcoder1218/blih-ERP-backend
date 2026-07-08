@@ -113,6 +113,7 @@ const OfferLetter_1 = __importDefault(require("./OfferLetter"));
 const RecruitmentTemplate_1 = __importDefault(require("./RecruitmentTemplate"));
 const PayrollTemplate_1 = __importDefault(require("./PayrollTemplate"));
 const EmployeePayrollLink_1 = __importDefault(require("./EmployeePayrollLink"));
+const SalaryDeduction_1 = __importDefault(require("./SalaryDeduction"));
 const Skill_1 = __importDefault(require("./Skill"));
 const InterviewSkill_1 = __importDefault(require("./InterviewSkill"));
 const InterviewerNote_1 = __importDefault(require("./InterviewerNote"));
@@ -124,10 +125,15 @@ const AttendanceLateExplanation_1 = __importDefault(require("./AttendanceLateExp
 const AttendanceRequest_1 = __importDefault(require("./AttendanceRequest"));
 const AttendanceDailyReason_1 = __importDefault(require("./AttendanceDailyReason"));
 const OvertimeRequest_1 = __importDefault(require("./OvertimeRequest"));
+const SpecialRequest_1 = __importDefault(require("./SpecialRequest"));
 const LeaveTemplate_1 = __importDefault(require("./LeaveTemplate"));
 const LeaveRequest_1 = __importDefault(require("./LeaveRequest"));
 const PromotionRequest_1 = __importDefault(require("./PromotionRequest"));
 const HREvent_1 = __importDefault(require("./HREvent"));
+const UserCalendarEvent_1 = __importDefault(require("./UserCalendarEvent"));
+const UserCalendarMeetingRequest_1 = __importDefault(require("./UserCalendarMeetingRequest"));
+const CalendarSyncRetryJob_1 = __importDefault(require("./CalendarSyncRetryJob"));
+const CalendarSyncAuditLog_1 = __importDefault(require("./CalendarSyncAuditLog"));
 const Policy_1 = __importDefault(require("./Policy"));
 const PolicyAcceptance_1 = __importDefault(require("./PolicyAcceptance"));
 const InventoryItem_1 = __importDefault(require("./InventoryItem"));
@@ -146,6 +152,7 @@ exports.db = {
     AttendanceRequest: (0, AttendanceRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     AttendanceDailyReason: (0, AttendanceDailyReason_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     OvertimeRequest: (0, OvertimeRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    SpecialRequest: (0, SpecialRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     LeaveTemplate: (0, LeaveTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     LeaveRequest: (0, LeaveRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     User: (0, User_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -254,12 +261,17 @@ exports.db = {
     RecruitmentTemplate: (0, RecruitmentTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     PayrollTemplate: (0, PayrollTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     EmployeePayrollLink: (0, EmployeePayrollLink_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    SalaryDeduction: (0, SalaryDeduction_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Skill: (0, Skill_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     InterviewSkill: (0, InterviewSkill_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     InterviewerNote: (0, InterviewerNote_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     CandidateOnboarding: (0, CandidateOnboarding_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     PromotionRequest: (0, PromotionRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     HREvent: (0, HREvent_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    UserCalendarEvent: (0, UserCalendarEvent_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    UserCalendarMeetingRequest: (0, UserCalendarMeetingRequest_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    CalendarSyncRetryJob: (0, CalendarSyncRetryJob_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    CalendarSyncAuditLog: (0, CalendarSyncAuditLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Policy: (0, Policy_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     PolicyAcceptance: (0, PolicyAcceptance_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     InventoryItem: (0, InventoryItem_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),

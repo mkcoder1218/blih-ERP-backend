@@ -10,6 +10,7 @@ const database_1 = require("./database");
 const registry_1 = require("./jobs/registry");
 const platformAdminSeed_1 = require("./database/platformAdminSeed");
 const socket_1 = require("./services/realtime/socket");
+const salaryDeductionStartupWorker_1 = require("./modules/finance/salaryDeductionStartupWorker");
 async function start() {
     await (0, database_1.initDatabase)();
     await (0, platformAdminSeed_1.seedPlatformSuperAdminFromEnv)();
@@ -17,6 +18,11 @@ async function start() {
     // Initialize WebSocket service
     (0, socket_1.initializeSocket)(server);
     (0, registry_1.initJobs)();
+    setImmediate(() => {
+        (0, salaryDeductionStartupWorker_1.refreshSalaryDeductionSnapshotsOnStartup)().catch((err) => {
+            console.error("Salary deduction startup refresh failed:", err);
+        });
+    });
     server.listen(env_1.env.port, () => {
         // -disable-next-line no-console
         console.log(`Blih ERP backend listening on :${env_1.env.port} (${env_1.env.nodeEnv})`);

@@ -82,11 +82,14 @@ const attendanceHr_routes_1 = require("./modules/attendanceHr/attendanceHr.route
 const lateReasons_routes_1 = require("./modules/attendanceHrLateReasons/lateReasons.routes");
 const attendanceRequests_routes_1 = require("./modules/attendanceRequests/attendanceRequests.routes");
 const overtime_routes_1 = require("./modules/overtime/overtime.routes");
+const specialRequests_routes_1 = require("./modules/specialRequests/specialRequests.routes");
 const leave_routes_1 = require("./modules/leave/leave.routes");
 const policy_routes_1 = require("./modules/policy/policy.routes");
 const devices_routes_1 = require("./modules/devices/devices.routes");
 const attendanceTelegram_routes_1 = require("./modules/attendanceTelegram/attendanceTelegram.routes");
 const inventory_routes_1 = require("./modules/inventory/inventory.routes");
+const calendar_routes_1 = require("./modules/calendar/calendar.routes");
+const googleCalendarWebhook_routes_1 = require("./modules/calendar/googleCalendarWebhook.routes");
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const swagger_1 = require("./config/swagger");
 const app = (0, express_1.default)();
@@ -178,6 +181,9 @@ apiRouter.use("/attendance/telegram", attendanceTelegram_routes_1.attendanceTele
 apiRouter.use("/attendance/hr/late-reasons", lateReasons_routes_1.attendanceHrLateReasonsRoutes);
 apiRouter.use("/attendance/hr", attendanceHr_routes_1.attendanceHrRoutes);
 apiRouter.use("/attendance-requests", attendanceRequests_routes_1.attendanceRequestsRoutes);
+apiRouter.use("/attendance-special-requests", specialRequests_routes_1.specialRequestsRoutes);
+apiRouter.use("/google-calendar", googleCalendarWebhook_routes_1.googleCalendarWebhookRoutes);
+apiRouter.use("/calendar", calendar_routes_1.calendarRoutes);
 apiRouter.use("/overtime-requests", overtime_routes_1.overtimeRoutes);
 apiRouter.use("/leave-requests", leave_routes_1.leaveRoutes);
 apiRouter.use("/policies", policy_routes_1.policyRoutes);
