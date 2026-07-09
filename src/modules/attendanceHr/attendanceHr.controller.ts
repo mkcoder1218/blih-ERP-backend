@@ -7,7 +7,7 @@ import { AttendanceMonthlyReportService } from "../../services/attendanceMonthly
 import { LatenessReasonRulesService } from "../../services/latenessReasonRules.service";
 import { toCsv } from "../../utils/csv";
 
-const DAILY_HEADERS = ["EmployeeName", "Department", "AssignedStartTime", "MorningCheckIn", "LunchCheckOut", "LunchCheckIn", "EveningCheckOut", "LunchMinutesTaken", "NetHoursWorked", "LatenessStatus", "MinutesLate", "NoticeStatus", "DeductionApplied", "LatenessReason_HROnly"];
+const DAILY_HEADERS = ["EmployeeName", "TotalDaysExpectedToWork", "TotalDaysWorked", "TotalMissedDays", "Date", "Department", "AssignedStartTime", "MorningCheckIn", "LunchCheckOut", "LunchCheckIn", "EveningCheckOut", "LunchMinutesTaken", "NetHoursWorked", "LatenessStatus", "MinutesLate", "NoticeStatus", "DeductionApplied", "LatenessReason_HROnly"];
 const DAILY_PUBLIC_HEADERS = DAILY_HEADERS.filter((header) => header !== "LatenessReason_HROnly");
 const WEEKLY_HEADERS = ["EmployeeName", "Department", "ScheduledWorkDays", "DaysOnTime", "DaysLateWithNotice", "DaysLateNoNotice", "DaysAbsent", "DaysIncompletePunch", "LatenessNoticesUsed", "PunctualityRatePercent", "NetHoursWorked", "HalfDayDeductions", "FullDayDeductions"];
 const MONTHLY_HEADERS = ["EmployeeName", "Department", "EmploymentCategory", "ScheduledWorkDays", "DaysOnTime", "DaysLateWithNotice", "DaysLateNoNotice", "DaysAbsent", "DaysIncompletePunch", "PunctualityRatePercent", "LatenessNoticesUsed", "TotalMinutesLate", "TotalHoursWorked", "ApprovedOvertimeHours", "HalfDayDeductions", "FullDayDeductions", "DeductedHours", "AnnualLeaveDaysUsed", "SickLeaveDaysUsed", "OtherLeaveDaysUsed", "AnnualLeaveBalanceRemaining", "AccountabilityFlag"];
@@ -78,6 +78,23 @@ export class AttendanceHrController {
       if (status === "NOT_STARTED") return String(row.LatenessStatus || "") === "Absent";
       return String(row.LatenessStatus || row.NoticeStatus || row.AccountabilityFlag || "").toLowerCase() === status.toLowerCase();
     });
+  }
+
+  private dailyAttendanceSummaries(rows: Record<string, any>[]) {
+    const byEmployee = new Map<string, { expected: number; worked: number; missed: number }>();
+    for (const row of rows) {
+      const key = String(row.EmployeeId || row.EmployeeName || "");
+      const summary = byEmployee.get(key) || { expected: 0, worked: 0, missed: 0 };
+      const status = String(row.LatenessStatus || "");
+      summary.expected += 1;
+      if (status === "Absent") {
+        summary.missed += 1;
+      } else if (status !== "ApprovedLeave") {
+        summary.worked += 1;
+      }
+      byEmployee.set(key, summary);
+    }
+    return byEmployee;
   }
 
   summary = async (req: Request, res: Response) => {
@@ -306,9 +323,12 @@ export class AttendanceHrController {
   exportDailyReport = async (req: Request, res: Response) => {
     const q: any = req.query;
     const canViewHrOnly = this.canViewHrOnly(req);
+    const enableDateFilter = q.enableDateFilter === true || q.enableDateFilter === "true";
+    const startDate = enableDateFilter ? q.startDate : q.date;
+    const endDate = enableDateFilter ? q.endDate : q.date;
     const reportRows = await this.dailyReport.generate(req.user!.businessId, {
-      startDate: q.date,
-      endDate: q.date,
+      startDate,
+      endDate,
       departmentId: q.departmentId || null,
       employeeId: q.employeeId || null,
       audience: canViewHrOnly ? "hr" : "public"
@@ -317,8 +337,13 @@ export class AttendanceHrController {
       search: q.search,
       status: q.status
     });
+    const summaries = this.dailyAttendanceSummaries(filtered);
     const rows = filtered.map((row: any) => ({
       EmployeeName: row.EmployeeName,
+      TotalDaysExpectedToWork: summaries.get(String(row.EmployeeId || row.EmployeeName || ""))?.expected || 0,
+      TotalDaysWorked: summaries.get(String(row.EmployeeId || row.EmployeeName || ""))?.worked || 0,
+      TotalMissedDays: summaries.get(String(row.EmployeeId || row.EmployeeName || ""))?.missed || 0,
+      Date: row.Date,
       Department: row.Department || "",
       AssignedStartTime: row.AssignedStartTime,
       MorningCheckIn: row.MorningCheckIn || "",
@@ -334,7 +359,8 @@ export class AttendanceHrController {
       ...(canViewHrOnly ? { LatenessReason_HROnly: row.LatenessReason_HROnly || "" } : {})
     }));
     const headers = canViewHrOnly ? DAILY_HEADERS : DAILY_PUBLIC_HEADERS;
-    return this.sendExport(res, `attendance-daily-${q.date}`, q.format, rows, headers);
+    const filenameDate = enableDateFilter ? `${startDate}-to-${endDate}` : q.date;
+    return this.sendExport(res, `attendance-daily-${filenameDate}`, q.format, rows, headers);
   };
 
   exportWeeklyReport = async (req: Request, res: Response) => {
