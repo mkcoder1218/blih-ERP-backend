@@ -80,6 +80,16 @@ export class AttendanceHrController {
     });
   }
 
+  private selectedEmployeeIds(queryValue?: string | string[] | null) {
+    const values = Array.isArray(queryValue) ? queryValue : String(queryValue || "").split(",");
+    const ids = values.map((value) => String(value || "").trim()).filter(Boolean);
+    return ids.length ? new Set(ids) : null;
+  }
+
+  private filterSelectedEmployees<T extends Record<string, any>>(rows: T[], employeeIds?: Set<string> | null) {
+    return employeeIds ? rows.filter((row) => row.EmployeeId && employeeIds.has(row.EmployeeId)) : rows;
+  }
+
   private dailyAttendanceSummaries(rows: Record<string, any>[]) {
     const byEmployee = new Map<string, { expected: number; worked: number; missed: number }>();
     for (const row of rows) {
@@ -95,6 +105,36 @@ export class AttendanceHrController {
       byEmployee.set(key, summary);
     }
     return byEmployee;
+  }
+
+  private dailySelectedEmployeeSummaryRows(rows: Record<string, any>[], summaries: Map<string, { expected: number; worked: number; missed: number }>, dateLabel: string, canViewHrOnly: boolean) {
+    const byEmployee = new Map<string, Record<string, any>>();
+    for (const row of rows) {
+      const key = String(row.EmployeeId || row.EmployeeName || "");
+      if (byEmployee.has(key)) continue;
+      const summary = summaries.get(key) || { expected: 0, worked: 0, missed: 0 };
+      byEmployee.set(key, {
+        EmployeeName: row.EmployeeName,
+        TotalDaysExpectedToWork: summary.expected,
+        TotalDaysWorked: summary.worked,
+        TotalMissedDays: summary.missed,
+        Date: dateLabel,
+        Department: row.Department || "",
+        AssignedStartTime: row.AssignedStartTime || "",
+        MorningCheckIn: "",
+        LunchCheckOut: "",
+        LunchCheckIn: "",
+        EveningCheckOut: "",
+        LunchMinutesTaken: "",
+        NetHoursWorked: row.NetHoursWorked ?? "",
+        LatenessStatus: "",
+        MinutesLate: "",
+        NoticeStatus: "",
+        DeductionApplied: summary.missed > 0 ? "Yes" : "No",
+        ...(canViewHrOnly ? { LatenessReason_HROnly: row.LatenessReason_HROnly || "" } : {})
+      });
+    }
+    return Array.from(byEmployee.values());
   }
 
   summary = async (req: Request, res: Response) => {
@@ -326,6 +366,7 @@ export class AttendanceHrController {
     const enableDateFilter = q.enableDateFilter === true || q.enableDateFilter === "true";
     const startDate = enableDateFilter ? q.startDate : q.date;
     const endDate = enableDateFilter ? q.endDate : q.date;
+    const selectedEmployeeIds = this.selectedEmployeeIds(q.employeeIds);
     const reportRows = await this.dailyReport.generate(req.user!.businessId, {
       startDate,
       endDate,
@@ -337,8 +378,11 @@ export class AttendanceHrController {
       search: q.search,
       status: q.status
     });
-    const summaries = this.dailyAttendanceSummaries(filtered);
-    const rows = filtered.map((row: any) => ({
+    const selectedRows = this.filterSelectedEmployees(filtered, selectedEmployeeIds);
+    const summaries = this.dailyAttendanceSummaries(selectedRows);
+    const rows = selectedEmployeeIds
+      ? this.dailySelectedEmployeeSummaryRows(selectedRows, summaries, enableDateFilter ? `${startDate} to ${endDate}` : q.date, canViewHrOnly)
+      : selectedRows.map((row: any) => ({
       EmployeeName: row.EmployeeName,
       TotalDaysExpectedToWork: summaries.get(String(row.EmployeeId || row.EmployeeName || ""))?.expected || 0,
       TotalDaysWorked: summaries.get(String(row.EmployeeId || row.EmployeeName || ""))?.worked || 0,
@@ -365,6 +409,7 @@ export class AttendanceHrController {
 
   exportWeeklyReport = async (req: Request, res: Response) => {
     const q: any = req.query;
+    const selectedEmployeeIds = this.selectedEmployeeIds(q.employeeIds);
     const reportRows = await this.weeklyReport.generate(req.user!.businessId, {
       startDate: q.startDate,
       endDate: q.endDate,
@@ -376,7 +421,8 @@ export class AttendanceHrController {
       search: q.search,
       status: q.status
     });
-    const rows = filtered.map((row: any) => ({
+    const selectedRows = this.filterSelectedEmployees(filtered, selectedEmployeeIds);
+    const rows = selectedRows.map((row: any) => ({
       EmployeeName: row.EmployeeName,
       Department: row.Department || "",
       ScheduledWorkDays: row.ScheduledWorkDays,
@@ -396,6 +442,7 @@ export class AttendanceHrController {
 
   exportMonthlyReport = async (req: Request, res: Response) => {
     const q: any = req.query;
+    const selectedEmployeeIds = this.selectedEmployeeIds(q.employeeIds);
     const reportRows = await this.monthlyReport.generate(req.user!.businessId, {
       month: q.month,
       departmentId: q.departmentId || null,
@@ -406,7 +453,8 @@ export class AttendanceHrController {
       search: q.search,
       status: q.status
     });
-    const rows = filtered.map((row: any) => ({
+    const selectedRows = this.filterSelectedEmployees(filtered, selectedEmployeeIds);
+    const rows = selectedRows.map((row: any) => ({
       EmployeeName: row.EmployeeName,
       Department: row.Department || "",
       EmploymentCategory: row.EmploymentCategory || "",

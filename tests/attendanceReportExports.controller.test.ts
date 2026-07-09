@@ -20,6 +20,44 @@ jest.mock("../src/services/attendanceDailyReport.service", () => ({
         DeductionApplied: true,
         LatenessReason_HROnly: "HR-only note",
       },
+      {
+        Date: "2026-06-22",
+        EmployeeId: "employee-2",
+        EmployeeName: "Noah Tesfaye",
+        Department: "Finance",
+        EmploymentCategory: "Non-Managerial",
+        AssignedStartTime: "08:30",
+        MorningCheckIn: "08:20",
+        LunchCheckOut: "12:00",
+        LunchCheckIn: "13:00",
+        EveningCheckOut: "17:20",
+        LunchMinutesTaken: 60,
+        NetHoursWorked: 8,
+        LatenessStatus: "OnTime",
+        MinutesLate: 0,
+        NoticeStatus: "NotApplicable",
+        DeductionApplied: false,
+        LatenessReason_HROnly: "",
+      },
+      {
+        Date: "2026-06-23",
+        EmployeeId: "employee-2",
+        EmployeeName: "Noah Tesfaye",
+        Department: "Finance",
+        EmploymentCategory: "Non-Managerial",
+        AssignedStartTime: "08:30",
+        MorningCheckIn: "",
+        LunchCheckOut: "",
+        LunchCheckIn: "",
+        EveningCheckOut: "",
+        LunchMinutesTaken: null,
+        NetHoursWorked: 0,
+        LatenessStatus: "Absent",
+        MinutesLate: 0,
+        NoticeStatus: "None",
+        DeductionApplied: true,
+        LatenessReason_HROnly: "",
+      },
     ]),
   })),
 }));
@@ -136,5 +174,24 @@ describe("attendance report exports", () => {
       expect.objectContaining({ startDate: "2026-06-22", endDate: "2026-06-22" })
     );
     expect(res.headers["Content-Disposition"]).toContain("attendance-daily-2026-06-22.csv");
+  });
+
+  it("exports only selected employees when employeeIds are provided", async () => {
+    const controller = new AttendanceHrController();
+    const req: any = {
+      user: { businessId: "biz-1", roles: ["HR_MANAGER"], permissions: ["attendance.read"] },
+      query: {
+        date: "2026-06-22",
+        employeeIds: "employee-2",
+        format: "csv",
+      },
+    };
+    const res: any = resMock();
+
+    await controller.exportDailyReport(req, res);
+
+    expect(res.body).toContain("Noah Tesfaye");
+    expect(res.body).not.toContain("Marta Bekele");
+    expect(res.body.match(/Noah Tesfaye/g)).toHaveLength(1);
   });
 });
