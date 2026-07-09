@@ -107,8 +107,8 @@ describe("attendance report exports", () => {
     await controller.exportDailyReport(req, res);
 
     expect(res.statusCode).toBe(200);
-    expect(res.body.split("\n")[0]).toBe("EmployeeName,TotalDaysExpectedToWork,TotalDaysWorked,TotalMissedDays,Date,Department,AssignedStartTime,MorningCheckIn,LunchCheckOut,LunchCheckIn,EveningCheckOut,LunchMinutesTaken,NetHoursWorked,LatenessStatus,MinutesLate,NoticeStatus,DeductionApplied,LatenessReason_HROnly");
-    expect(res.body).toContain("Marta Bekele,1,1,0,2026-06-22");
+    expect(res.body.split("\n")[0]).toBe("EmployeeName,TotalDaysExpectedToWork,TotalDaysWorked,TotalMissedDays,PenaltyDeductedHours,PenaltyDeductionDetails,DaysAvailableOrWorked,MissedDays,Date,Department,AssignedStartTime,MorningCheckIn,LunchCheckOut,LunchCheckIn,EveningCheckOut,LunchMinutesTaken,NetHoursWorked,LatenessStatus,MinutesLate,NoticeStatus,DeductionApplied,LatenessReason_HROnly");
+    expect(res.body).toContain("Marta Bekele,1,1,0,4h");
     expect(res.body).toContain("HR-only note");
   });
 
@@ -193,5 +193,11 @@ describe("attendance report exports", () => {
     expect(res.body).toContain("Noah Tesfaye");
     expect(res.body).not.toContain("Marta Bekele");
     expect(res.body.match(/Noah Tesfaye/g)).toHaveLength(1);
+    expect(res.body).toContain("8h");
+    expect(res.body).toContain("2026-06-23: 8h");
+    expect(res.body).toContain("2026-06-22");
+    expect(res.body).toContain("2026-06-23");
+    expect(res.body).not.toContain("[");
+    expect(res.body).not.toContain("{");
   });
 });

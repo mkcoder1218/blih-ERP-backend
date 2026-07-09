@@ -4,13 +4,24 @@ import { AttendanceHrService } from "./attendanceHr.service";
 import { AttendanceDailyReportService } from "../../services/attendanceDailyReport.service";
 import { AttendanceWeeklyReportService } from "../../services/attendanceWeeklyReport.service";
 import { AttendanceMonthlyReportService } from "../../services/attendanceMonthlyReport.service";
+import { AttendanceDeductionService } from "../../services/attendanceDeduction.service";
 import { LatenessReasonRulesService } from "../../services/latenessReasonRules.service";
 import { toCsv } from "../../utils/csv";
 
-const DAILY_HEADERS = ["EmployeeName", "TotalDaysExpectedToWork", "TotalDaysWorked", "TotalMissedDays", "Date", "Department", "AssignedStartTime", "MorningCheckIn", "LunchCheckOut", "LunchCheckIn", "EveningCheckOut", "LunchMinutesTaken", "NetHoursWorked", "LatenessStatus", "MinutesLate", "NoticeStatus", "DeductionApplied", "LatenessReason_HROnly"];
+const DAILY_HEADERS = ["EmployeeName", "TotalDaysExpectedToWork", "TotalDaysWorked", "TotalMissedDays", "PenaltyDeductedHours", "PenaltyDeductionDetails", "DaysAvailableOrWorked", "MissedDays", "Date", "Department", "AssignedStartTime", "MorningCheckIn", "LunchCheckOut", "LunchCheckIn", "EveningCheckOut", "LunchMinutesTaken", "NetHoursWorked", "LatenessStatus", "MinutesLate", "NoticeStatus", "DeductionApplied", "LatenessReason_HROnly"];
 const DAILY_PUBLIC_HEADERS = DAILY_HEADERS.filter((header) => header !== "LatenessReason_HROnly");
 const WEEKLY_HEADERS = ["EmployeeName", "Department", "ScheduledWorkDays", "DaysOnTime", "DaysLateWithNotice", "DaysLateNoNotice", "DaysAbsent", "DaysIncompletePunch", "LatenessNoticesUsed", "PunctualityRatePercent", "NetHoursWorked", "HalfDayDeductions", "FullDayDeductions"];
 const MONTHLY_HEADERS = ["EmployeeName", "Department", "EmploymentCategory", "ScheduledWorkDays", "DaysOnTime", "DaysLateWithNotice", "DaysLateNoNotice", "DaysAbsent", "DaysIncompletePunch", "PunctualityRatePercent", "LatenessNoticesUsed", "TotalMinutesLate", "TotalHoursWorked", "ApprovedOvertimeHours", "HalfDayDeductions", "FullDayDeductions", "DeductedHours", "AnnualLeaveDaysUsed", "SickLeaveDaysUsed", "OtherLeaveDaysUsed", "AnnualLeaveBalanceRemaining", "AccountabilityFlag"];
+
+type DailyAttendanceExportSummary = {
+  expected: number;
+  worked: number;
+  missed: number;
+  deductedHours: number;
+  penaltyDetails: string[];
+  workedDays: string[];
+  missedDays: string[];
+};
 
 function escapeHtml(value: any) {
   return String(value ?? "")
@@ -33,6 +44,7 @@ export class AttendanceHrController {
   private dailyReport = new AttendanceDailyReportService();
   private weeklyReport = new AttendanceWeeklyReportService();
   private monthlyReport = new AttendanceMonthlyReportService();
+  private deductionService = new AttendanceDeductionService();
   private latenessReasonRules = new LatenessReasonRulesService();
 
   private canViewHrOnly(req: Request) {
@@ -90,34 +102,58 @@ export class AttendanceHrController {
     return employeeIds ? rows.filter((row) => row.EmployeeId && employeeIds.has(row.EmployeeId)) : rows;
   }
 
+  private formatDeductedHours(hours: number) {
+    if (!hours) return "0h";
+    return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(2)}h`;
+  }
+
+  private dailyPenaltyDetail(row: Record<string, any>, deduction: ReturnType<AttendanceDeductionService["calculate"]>) {
+    if (!deduction.DeductedHours) return "";
+    return `${row.Date}: ${this.formatDeductedHours(deduction.DeductedHours)} (${deduction.DeductionLabel} - ${deduction.Reason})`;
+  }
+
+  private emptyDailyAttendanceSummary(): DailyAttendanceExportSummary {
+    return { expected: 0, worked: 0, missed: 0, deductedHours: 0, penaltyDetails: [], workedDays: [], missedDays: [] };
+  }
+
   private dailyAttendanceSummaries(rows: Record<string, any>[]) {
-    const byEmployee = new Map<string, { expected: number; worked: number; missed: number }>();
+    const byEmployee = new Map<string, DailyAttendanceExportSummary>();
     for (const row of rows) {
       const key = String(row.EmployeeId || row.EmployeeName || "");
-      const summary = byEmployee.get(key) || { expected: 0, worked: 0, missed: 0 };
+      const summary = byEmployee.get(key) || this.emptyDailyAttendanceSummary();
       const status = String(row.LatenessStatus || "");
+      const deduction = this.deductionService.calculate(row as any);
+      const penaltyDetail = this.dailyPenaltyDetail(row, deduction);
       summary.expected += 1;
       if (status === "Absent") {
         summary.missed += 1;
+        if (row.Date) summary.missedDays.push(String(row.Date));
       } else if (status !== "ApprovedLeave") {
         summary.worked += 1;
+        if (row.Date) summary.workedDays.push(String(row.Date));
       }
+      summary.deductedHours += Number(deduction.DeductedHours || 0);
+      if (penaltyDetail) summary.penaltyDetails.push(penaltyDetail);
       byEmployee.set(key, summary);
     }
     return byEmployee;
   }
 
-  private dailySelectedEmployeeSummaryRows(rows: Record<string, any>[], summaries: Map<string, { expected: number; worked: number; missed: number }>, dateLabel: string, canViewHrOnly: boolean) {
+  private dailySelectedEmployeeSummaryRows(rows: Record<string, any>[], summaries: ReturnType<AttendanceHrController["dailyAttendanceSummaries"]>, dateLabel: string, canViewHrOnly: boolean) {
     const byEmployee = new Map<string, Record<string, any>>();
     for (const row of rows) {
       const key = String(row.EmployeeId || row.EmployeeName || "");
       if (byEmployee.has(key)) continue;
-      const summary = summaries.get(key) || { expected: 0, worked: 0, missed: 0 };
+      const summary = summaries.get(key) || this.emptyDailyAttendanceSummary();
       byEmployee.set(key, {
         EmployeeName: row.EmployeeName,
         TotalDaysExpectedToWork: summary.expected,
         TotalDaysWorked: summary.worked,
         TotalMissedDays: summary.missed,
+        PenaltyDeductedHours: this.formatDeductedHours(summary.deductedHours),
+        PenaltyDeductionDetails: summary.penaltyDetails.length ? summary.penaltyDetails.join("; ") : "No penalty deductions",
+        DaysAvailableOrWorked: summary.workedDays.length ? summary.workedDays.join(", ") : "None",
+        MissedDays: summary.missedDays.length ? summary.missedDays.join(", ") : "None",
         Date: dateLabel,
         Department: row.Department || "",
         AssignedStartTime: row.AssignedStartTime || "",
@@ -130,7 +166,7 @@ export class AttendanceHrController {
         LatenessStatus: "",
         MinutesLate: "",
         NoticeStatus: "",
-        DeductionApplied: summary.missed > 0 ? "Yes" : "No",
+        DeductionApplied: summary.deductedHours > 0 ? "Yes" : "No",
         ...(canViewHrOnly ? { LatenessReason_HROnly: row.LatenessReason_HROnly || "" } : {})
       });
     }
@@ -382,26 +418,37 @@ export class AttendanceHrController {
     const summaries = this.dailyAttendanceSummaries(selectedRows);
     const rows = selectedEmployeeIds
       ? this.dailySelectedEmployeeSummaryRows(selectedRows, summaries, enableDateFilter ? `${startDate} to ${endDate}` : q.date, canViewHrOnly)
-      : selectedRows.map((row: any) => ({
-      EmployeeName: row.EmployeeName,
-      TotalDaysExpectedToWork: summaries.get(String(row.EmployeeId || row.EmployeeName || ""))?.expected || 0,
-      TotalDaysWorked: summaries.get(String(row.EmployeeId || row.EmployeeName || ""))?.worked || 0,
-      TotalMissedDays: summaries.get(String(row.EmployeeId || row.EmployeeName || ""))?.missed || 0,
-      Date: row.Date,
-      Department: row.Department || "",
-      AssignedStartTime: row.AssignedStartTime,
-      MorningCheckIn: row.MorningCheckIn || "",
-      LunchCheckOut: row.LunchCheckOut || "",
-      LunchCheckIn: row.LunchCheckIn || "",
-      EveningCheckOut: row.EveningCheckOut || "",
-      LunchMinutesTaken: row.LunchMinutesTaken ?? "",
-      NetHoursWorked: row.NetHoursWorked,
-      LatenessStatus: row.LatenessStatus,
-      MinutesLate: row.MinutesLate,
-      NoticeStatus: row.NoticeStatus,
-      DeductionApplied: row.DeductionApplied ? "Yes" : "No",
-      ...(canViewHrOnly ? { LatenessReason_HROnly: row.LatenessReason_HROnly || "" } : {})
-    }));
+      : selectedRows.map((row: any) => {
+        const summary = summaries.get(String(row.EmployeeId || row.EmployeeName || "")) || this.emptyDailyAttendanceSummary();
+        const deduction = this.deductionService.calculate(row);
+        const penaltyDetail = this.dailyPenaltyDetail(row, deduction);
+        const isWorkedDay = row.LatenessStatus !== "Absent" && row.LatenessStatus !== "ApprovedLeave";
+        const isMissedDay = row.LatenessStatus === "Absent";
+        return {
+          EmployeeName: row.EmployeeName,
+          TotalDaysExpectedToWork: summary.expected,
+          TotalDaysWorked: summary.worked,
+          TotalMissedDays: summary.missed,
+          PenaltyDeductedHours: this.formatDeductedHours(deduction.DeductedHours),
+          PenaltyDeductionDetails: penaltyDetail || "No penalty deductions",
+          DaysAvailableOrWorked: isWorkedDay && row.Date ? row.Date : "None",
+          MissedDays: isMissedDay && row.Date ? row.Date : "None",
+          Date: row.Date,
+          Department: row.Department || "",
+          AssignedStartTime: row.AssignedStartTime,
+          MorningCheckIn: row.MorningCheckIn || "",
+          LunchCheckOut: row.LunchCheckOut || "",
+          LunchCheckIn: row.LunchCheckIn || "",
+          EveningCheckOut: row.EveningCheckOut || "",
+          LunchMinutesTaken: row.LunchMinutesTaken ?? "",
+          NetHoursWorked: row.NetHoursWorked,
+          LatenessStatus: row.LatenessStatus,
+          MinutesLate: row.MinutesLate,
+          NoticeStatus: row.NoticeStatus,
+          DeductionApplied: row.DeductionApplied ? "Yes" : "No",
+          ...(canViewHrOnly ? { LatenessReason_HROnly: row.LatenessReason_HROnly || "" } : {})
+        };
+      });
     const headers = canViewHrOnly ? DAILY_HEADERS : DAILY_PUBLIC_HEADERS;
     const filenameDate = enableDateFilter ? `${startDate}-to-${endDate}` : q.date;
     return this.sendExport(res, `attendance-daily-${filenameDate}`, q.format, rows, headers);
