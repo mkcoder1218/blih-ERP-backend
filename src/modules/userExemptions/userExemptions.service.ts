@@ -62,6 +62,15 @@ export class UserExemptionsService {
     return db.UserExemption.findOne({ where: { id, businessId }, include: this.include() });
   }
 
+  async revoke(businessId: string, id: string) {
+    const record = await db.UserExemption.findOne({ where: { id, businessId } });
+    if (!record) throw Object.assign(new Error("Exemption not found."), { statusCode: 404 });
+    if (record.status !== "APPROVED") throw Object.assign(new Error("Only approved exemptions can be removed."), { statusCode: 400 });
+    const snapshot = record.toJSON();
+    await record.destroy();
+    return snapshot;
+  }
+
   async pendingRecord(businessId: string, id: string) {
     const record = await db.UserExemption.findOne({ where: { id, businessId } });
     if (!record) throw Object.assign(new Error("Exemption request not found."), { statusCode: 404 });

@@ -45,4 +45,14 @@ export class UserExemptionsController {
       next({ statusCode: err.statusCode || 400, message: err.message });
     }
   };
+
+  revoke = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const record = await this.svc.revoke(req.user!.businessId, req.params.id);
+      await AuditLogService.log("REVOKE", "user_exemption", req.params.id, record, null, req, "warning");
+      res.json({ userExemption: record, removed: true });
+    } catch (err: any) {
+      next({ statusCode: err.statusCode || 400, message: err.message });
+    }
+  };
 }

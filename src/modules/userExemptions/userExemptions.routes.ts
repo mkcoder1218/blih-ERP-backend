@@ -16,5 +16,6 @@ router.get("/", requireAnyPermission("profiles.read", "hr.read", "hr.write", "us
 router.post("/", requireAnyPermission("hr.write", "user.update", "attendance.manage"), validate(createUserExemptionSchema), asyncHandler(controller.create));
 router.post("/:id/approve", requireRole("BUSINESS_ADMIN"), asyncHandler(controller.approve));
 router.post("/:id/reject", requireRole("BUSINESS_ADMIN"), validate(rejectUserExemptionSchema), asyncHandler(controller.reject));
+router.delete("/:id", requireRole("BUSINESS_ADMIN"), asyncHandler(controller.revoke));
 
 export const userExemptionsRoutes = router;
