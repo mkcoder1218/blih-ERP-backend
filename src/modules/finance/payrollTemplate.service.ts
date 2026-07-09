@@ -229,6 +229,23 @@ export class PayrollTemplateService {
   private deductionService = new SalaryDeductionService();
 
   private m(v: any) { return Number(v ?? 0); }
+  private async payrollExcludedUserIds(businessId: string): Promise<string[]> {
+    if (!db.UserExemption?.findAll) return [];
+    const rows = await db.UserExemption.findAll({
+      where: { businessId, status: "APPROVED", excludeFromPayroll: true },
+      attributes: ["userId"],
+    });
+    return rows.map((row: any) => row.userId);
+  }
+
+  private async isPayrollExcluded(businessId: string, employeeUserId: string): Promise<boolean> {
+    if (!db.UserExemption?.findOne) return false;
+    const exemption = await db.UserExemption.findOne({
+      where: { businessId, userId: employeeUserId, status: "APPROVED", excludeFromPayroll: true },
+      attributes: ["id"],
+    });
+    return Boolean(exemption);
+  }
 
   private salaryBase(employee: any) {
     return this.m(employee?.salaryInfo?.baseSalary ?? employee?.salaryInfo?.monthlySalary ?? employee?.salaryInfo?.salary);
@@ -526,8 +543,13 @@ export class PayrollTemplateService {
 
   // ── Pending employees (no payroll link) ────────────────────────────────────
   async getPendingEmployees(businessId: string) {
+    const payrollExcludedUserIds = await this.payrollExcludedUserIds(businessId);
     const allEmployees = await db.EmployeeRecord.findAll({
-      where: { businessId, employmentStatus: { [Op.ne]: TERMINATED_EMPLOYMENT_STATUS } },
+      where: {
+        businessId,
+        employmentStatus: { [Op.ne]: TERMINATED_EMPLOYMENT_STATUS },
+        ...(payrollExcludedUserIds.length ? { userId: { [Op.notIn]: payrollExcludedUserIds } } : {}),
+      },
       include: [
         { model: db.User, as: "user", attributes: ["id", "fullName", "email"] },
         { model: db.Department, as: "department", attributes: ["id", "name"] },
@@ -558,8 +580,12 @@ export class PayrollTemplateService {
 
   // ── Linked employees (have a payroll link) ──────────────────────────────────
   async getLinkedEmployees(businessId: string) {
+    const payrollExcludedUserIds = await this.payrollExcludedUserIds(businessId);
     return db.EmployeePayrollLink.findAll({
-      where: { businessId },
+      where: {
+        businessId,
+        ...(payrollExcludedUserIds.length ? { employeeUserId: { [Op.notIn]: payrollExcludedUserIds } } : {}),
+      },
       include: [
         { model: db.User, as: "employee", attributes: ["id", "fullName", "email"] },
         { model: db.PayrollTemplate, as: "template", attributes: ["id", "name", "currency"] },
@@ -580,11 +606,13 @@ export class PayrollTemplateService {
     const templateId = String(query.templateId || "");
     const dateFrom = String(query.dateFrom || "").trim();
     const dateTo = String(query.dateTo || "").trim();
+    const payrollExcludedUserIds = await this.payrollExcludedUserIds(businessId);
 
     const where: any = {
       businessId,
       employmentStatus: { [Op.ne]: TERMINATED_EMPLOYMENT_STATUS },
     };
+    if (payrollExcludedUserIds.length) where.userId = { [Op.notIn]: payrollExcludedUserIds };
     if (departmentId) where.departmentId = departmentId;
     if (employmentStatus) where.employmentStatus = employmentStatus;
 
@@ -795,6 +823,9 @@ export class PayrollTemplateService {
     employerPensionRate?: number;
     calculationMode?: "ethiopian" | "template";
   }) {
+    if (await this.isPayrollExcluded(businessId, data.employeeUserId)) {
+      throw Object.assign(new Error("This user is excluded from payroll by an approved exemption."), { statusCode: 400 });
+    }
     const employee = await db.EmployeeRecord.findOne({
       where: { businessId, userId: data.employeeUserId },
     });
@@ -883,7 +914,8 @@ export class PayrollTemplateService {
     employeeUserIds: string[];
     templateId: string;
   }) {
-    const employeeUserIds = Array.from(new Set((data.employeeUserIds || []).filter(Boolean)));
+    const excluded = new Set(await this.payrollExcludedUserIds(businessId));
+    const employeeUserIds = Array.from(new Set((data.employeeUserIds || []).filter(Boolean))).filter((id) => !excluded.has(id));
     if (!data.templateId) throw new Error("Payroll template is required");
     if (!employeeUserIds.length) throw new Error("Select at least one employee");
 
@@ -904,6 +936,9 @@ export class PayrollTemplateService {
   }
 
   async updateEmployeeBaseSalaryWithEthiopianTax(businessId: string, actorUserId: string, employeeUserId: string, salaryInput: any) {
+    if (await this.isPayrollExcluded(businessId, employeeUserId)) {
+      throw Object.assign(new Error("This user is excluded from payroll by an approved exemption."), { statusCode: 400 });
+    }
     const employee = await db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
     if (!employee) throw new Error("Employee not found");
 

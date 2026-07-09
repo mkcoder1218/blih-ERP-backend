@@ -137,6 +137,7 @@ import defineTelegramBotSetting from "./TelegramBotSetting";
 import defineTelegramAccountLink from "./TelegramAccountLink";
 import defineTelegramLinkCode from "./TelegramLinkCode";
 import defineTelegramNotificationLog from "./TelegramNotificationLog";
+import defineUserExemption from "./UserExemption";
 
 export type DB = {
   sequelize: typeof sequelize;
@@ -276,6 +277,7 @@ export type DB = {
   TelegramAccountLink: any;
   TelegramLinkCode: any;
   TelegramNotificationLog: any;
+  UserExemption: any;
 };
 
 export const db: DB = {
@@ -416,6 +418,7 @@ export const db: DB = {
   TelegramAccountLink: defineTelegramAccountLink(sequelize, DataTypes),
   TelegramLinkCode: defineTelegramLinkCode(sequelize, DataTypes),
   TelegramNotificationLog: defineTelegramNotificationLog(sequelize, DataTypes),
+  UserExemption: defineUserExemption(sequelize, DataTypes),
 };
 
 Object.values(db).forEach((model: any) => {

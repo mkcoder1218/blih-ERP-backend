@@ -58,6 +58,7 @@ import { attendanceTelegramRoutes } from "./modules/attendanceTelegram/attendanc
 import { inventoryRoutes } from "./modules/inventory/inventory.routes";
 import { calendarRoutes } from "./modules/calendar/calendar.routes";
 import { googleCalendarWebhookRoutes } from "./modules/calendar/googleCalendarWebhook.routes";
+import { userExemptionsRoutes } from "./modules/userExemptions/userExemptions.routes";
 
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -118,6 +119,7 @@ apiRouter.get("/status", (req, res) => {
 
 apiRouter.use("/auth", authRoutes);
 apiRouter.use("/users", userRoutes);
+apiRouter.use("/user-exemptions", userExemptionsRoutes);
 apiRouter.use("/businesses", businessRoutes);
 apiRouter.use("/plans", planRoutes);
 apiRouter.use("/sector-focuses", sectorFocusRoutes);

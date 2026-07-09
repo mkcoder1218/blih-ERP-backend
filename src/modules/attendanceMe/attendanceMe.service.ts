@@ -86,9 +86,31 @@ async function approvedLunchUseMinutesForDate(businessId: string, userId: string
 export class AttendanceMeService {
   private telegram = new AttendanceTelegramService();
   private latenessReasonRules = new LatenessReasonRulesService();
+  private async approvedExemption(userId: string, businessId: string) {
+    return db.UserExemption?.findOne
+      ? db.UserExemption.findOne({ where: { businessId, userId, status: "APPROVED" } })
+      : null;
+  }
+
   async getTodaySummary(userId: string, businessId: string) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     if (!settings) return { settings: null, disabledReason: "Attendance settings not found", timeline: [], nextAllowed: [] };
+    const exemption = await this.approvedExemption(userId, businessId);
+    if (exemption) {
+      return {
+        settings,
+        disabledReason: "You are exempted from attendance check-in and check-out.",
+        timeline: [],
+        nextAllowed: [],
+        cooldown: null,
+        attendanceExemption: {
+          id: exemption.id,
+          reason: exemption.reason,
+          excludeFromPayroll: Boolean(exemption.excludeFromPayroll),
+          approvedAt: exemption.approvedAt,
+        },
+      };
+    }
 
     const tz = settings.timezone || "UTC";
     const now = new Date();
@@ -214,6 +236,8 @@ export class AttendanceMeService {
   async createEvent(userId: string, businessId: string, input: { type: AttendanceEventType; latitude?: number | null; longitude?: number | null }) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     if (!settings) throw Object.assign(new Error("Attendance settings not found"), { statusCode: 400 });
+    const exemption = await this.approvedExemption(userId, businessId);
+    if (exemption) throw Object.assign(new Error("This user is exempted from attendance check-in and check-out."), { statusCode: 403 });
     if (!settings.attendanceEnabled) throw Object.assign(new Error("Attendance is disabled"), { statusCode: 400 });
     const tz = settings.timezone || "UTC";
     const now = new Date();

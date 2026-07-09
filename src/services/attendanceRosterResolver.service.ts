@@ -1,5 +1,6 @@
 import { ACTIVE_EMPLOYMENT_STATUS } from "../constants/employee.constants";
 import { db } from "../models";
+import { Op } from "sequelize";
 
 export type AttendanceRosterEmployeeDay = {
   dateYmd: string;
@@ -71,6 +72,17 @@ export class AttendanceRosterResolver {
     };
     if (opts.departmentId) employeeWhere.departmentId = opts.departmentId;
     if (opts.employeeId) employeeWhere.userId = opts.employeeId;
+
+    const exemptUserIds = db.UserExemption?.findAll
+      ? (await db.UserExemption.findAll({
+          where: { businessId, status: "APPROVED" },
+          attributes: ["userId"],
+        })).map((row: any) => row.userId)
+      : [];
+    if (opts.employeeId && exemptUserIds.includes(opts.employeeId)) return [];
+    if (exemptUserIds.length) {
+      employeeWhere.userId = opts.employeeId || { [Op.notIn]: exemptUserIds };
+    }
 
     const employees = await db.EmployeeRecord.findAll({
       where: employeeWhere,
