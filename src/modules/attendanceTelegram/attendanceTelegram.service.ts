@@ -257,6 +257,19 @@ export class AttendanceTelegramService {
     return { sent: true };
   }
 
+  async sendGroupMessageTest(businessId: string, text: string) {
+    const message = String(text || "").trim();
+    if (!message) throw Object.assign(new Error("Telegram test message is required"), { statusCode: 400 });
+    if (message.length > 4000) throw Object.assign(new Error("Telegram test message is too long"), { statusCode: 400 });
+
+    const setting = await this.getMainSetting(businessId, true);
+    if (!setting?.botToken) throw Object.assign(new Error("Telegram bot token is not configured"), { statusCode: 400 });
+    if (!setting.chatId) throw Object.assign(new Error("Telegram chat ID or group ID is not configured"), { statusCode: 400 });
+
+    await this.sendAndLog(setting, "punctuality_message_test", { chat_id: setting.chatId, text: message });
+    return { sent: true };
+  }
+
   async handleWebhook(businessId: string, update: any) {
     if (update?.callback_query) return this.handleCallbackQuery(businessId, update.callback_query);
 

@@ -1,6 +1,12 @@
 import nodemailer from 'nodemailer';
+import { smtpService } from '../modules/smtp/smtp.service';
 
-function createTransporter() {
+async function createTransporter(businessId?: string) {
+  if (businessId) {
+    const resolved = await smtpService.resolveBusinessTransport(businessId);
+    if (resolved) return { transporter: resolved.transporter, from: resolved.from };
+  }
+
   const host = process.env.SMTP_HOST;
   const port = parseInt(process.env.SMTP_PORT || '587', 10);
   const secure = process.env.SMTP_SECURE === 'true';
@@ -12,12 +18,15 @@ function createTransporter() {
     return null;
   }
 
-  return nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+  return {
+    transporter: nodemailer.createTransport({ host, port, secure, auth: { user, pass } }),
+    from: `"${process.env.SMTP_FROM_NAME || 'HR Team'}" <${process.env.SMTP_FROM_EMAIL || user}>`,
+  };
 }
 
-async function getTransporter() {
-  const t = createTransporter();
-  if (t) return { transporter: t, isTest: false, testUser: null };
+async function getTransporter(businessId?: string) {
+  const t = await createTransporter(businessId);
+  if (t) return { ...t, isTest: false, testUser: null };
 
   console.warn('[InterviewMailer] SMTP credentials missing — using Ethereal test account');
   const testAccount = await nodemailer.createTestAccount();
@@ -28,6 +37,7 @@ async function getTransporter() {
       secure: false,
       auth: { user: testAccount.user, pass: testAccount.pass },
     }),
+    from: `"${process.env.SMTP_FROM_NAME || 'HR Team'}" <${process.env.SMTP_FROM_EMAIL || testAccount.user}>`,
     isTest: true,
     testUser: testAccount.user,
   };
@@ -44,12 +54,11 @@ export interface InterviewInvitePayload {
   interviewerName?: string;
   acceptUrl: string;
   declineUrl: string;
+  businessId?: string;
 }
 
 export async function sendInterviewInviteEmail(payload: InterviewInvitePayload): Promise<boolean> {
-  const { transporter, isTest } = await getTransporter();
-  const fromName = process.env.SMTP_FROM_NAME || 'HR Team';
-  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'hr@company.com';
+  const { transporter, isTest, from } = await getTransporter(payload.businessId);
 
   const dateStr = new Date(payload.interviewAt).toLocaleString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -99,7 +108,7 @@ export async function sendInterviewInviteEmail(payload: InterviewInvitePayload):
   const text = `Dear ${payload.candidateName},\n\nYou have been invited for an interview for ${payload.jobTitle}.\n\nDate: ${dateStr}\nDuration: ${payload.duration} minutes\nFormat: ${payload.type}${payload.venue ? `\nLocation: ${payload.venue}` : ''}\n\nAccept: ${payload.acceptUrl}\nDecline: ${payload.declineUrl}\n\nBest regards,\nHR Team`;
 
   const info = await transporter.sendMail({
-    from: `"${fromName}" <${fromEmail}>`,
+    from,
     to: payload.candidateEmail,
     subject: `Interview Invitation — ${payload.jobTitle}`,
     text,
@@ -122,12 +131,11 @@ export interface InterviewNotificationPayload {
   duration: number;
   type: string;
   venue?: string;
+  businessId?: string;
 }
 
 export async function sendInterviewerNotificationEmail(payload: InterviewNotificationPayload): Promise<boolean> {
-  const { transporter, isTest } = await getTransporter();
-  const fromName = process.env.SMTP_FROM_NAME || 'HR Team';
-  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'hr@company.com';
+  const { transporter, isTest, from } = await getTransporter(payload.businessId);
 
   const dateStr = new Date(payload.interviewAt).toLocaleString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -161,7 +169,7 @@ export async function sendInterviewerNotificationEmail(payload: InterviewNotific
 </html>`;
 
   const info = await transporter.sendMail({
-    from: `"${fromName}" <${fromEmail}>`,
+    from,
     to: payload.interviewerEmail,
     subject: `Interview Assignment — ${payload.candidateName} for ${payload.jobTitle}`,
     text: `Hi ${payload.interviewerName},\n\nYou have been assigned to interview ${payload.candidateName} for ${payload.jobTitle} on ${dateStr}.\n\nBest regards,\nHR Team`,

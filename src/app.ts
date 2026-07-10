@@ -59,6 +59,7 @@ import { inventoryRoutes } from "./modules/inventory/inventory.routes";
 import { calendarRoutes } from "./modules/calendar/calendar.routes";
 import { googleCalendarWebhookRoutes } from "./modules/calendar/googleCalendarWebhook.routes";
 import { userExemptionsRoutes } from "./modules/userExemptions/userExemptions.routes";
+import { smtpRoutes } from "./modules/smtp/smtp.routes";
 
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -136,6 +137,7 @@ apiRouter.use("/okr", okrRoutes);
 apiRouter.use("/client-portal", clientPortalRoutes);
 apiRouter.use("/reporting", reportingRoutes);
 apiRouter.use("/settings", settingsRoutes);
+apiRouter.use("/smtp", smtpRoutes);
 apiRouter.use("/subscription", subscriptionRoutes);
 apiRouter.use("/admin-ops", adminOpsRoutes);
 apiRouter.use("/people", peopleRoutes);

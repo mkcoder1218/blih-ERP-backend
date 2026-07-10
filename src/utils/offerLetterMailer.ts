@@ -1,12 +1,15 @@
 import nodemailer from 'nodemailer';
+import { smtpService } from '../modules/smtp/smtp.service';
 
 export async function sendOfferLetterEmail(
   toEmail: string,
   subject: string,
   htmlContent: string,
   textContent: string,
-  pdfAttachmentPath?: string
+  pdfAttachmentPath?: string,
+  businessId?: string
 ): Promise<boolean> {
+  const businessTransport = businessId ? await smtpService.resolveBusinessTransport(businessId) : null;
   const host = process.env.SMTP_HOST;
   const port = parseInt(process.env.SMTP_PORT || '587', 10);
   const secure = process.env.SMTP_SECURE === 'true';
@@ -15,7 +18,12 @@ export async function sendOfferLetterEmail(
 
   let transportConfig: any;
 
-  if (!host || !user || !pass) {
+  let from = `"${process.env.SMTP_FROM_NAME || 'HR'}" <${process.env.SMTP_FROM_EMAIL || user || 'hr@company.com'}>`;
+
+  if (businessTransport) {
+    transportConfig = businessTransport.transporter;
+    from = businessTransport.from;
+  } else if (!host || !user || !pass) {
     console.warn('SMTP credentials missing. Generating Ethereal test account...');
     const testAccount = await nodemailer.createTestAccount();
     transportConfig = {
@@ -36,10 +44,10 @@ export async function sendOfferLetterEmail(
     };
   }
 
-  const transporter = nodemailer.createTransport(transportConfig);
+  const transporter = businessTransport ? businessTransport.transporter : nodemailer.createTransport(transportConfig);
 
   const mailOptions: nodemailer.SendMailOptions = {
-    from: `"${process.env.SMTP_FROM_NAME || 'HR'}" <${process.env.SMTP_FROM_EMAIL || user}>`,
+    from,
     to: toEmail,
     subject: subject,
     text: textContent,
@@ -58,7 +66,7 @@ export async function sendOfferLetterEmail(
 
   const info = await transporter.sendMail(mailOptions);
   
-  if (!host || !user || !pass) {
+  if (!businessTransport && (!host || !user || !pass)) {
     console.log('--- TEST EMAIL SENT ---');
     console.log('Preview URL: ' + nodemailer.getTestMessageUrl(info as any));
     console.log('-----------------------');

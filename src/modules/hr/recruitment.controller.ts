@@ -457,6 +457,7 @@ export class RecruitmentController {
           venue,
           acceptUrl,
           declineUrl,
+          businessId: req.user!.businessId,
         }).catch((err) => console.error("[InterviewMailer] Failed to send invite:", err));
       }
 
@@ -502,6 +503,7 @@ export class RecruitmentController {
             duration: duration || 60,
             type: type || "Face to Face",
             venue,
+            businessId: req.user!.businessId,
           }).catch((err) => console.error("[InterviewMailer] Failed to send interviewer notification:", err));
         }
       }

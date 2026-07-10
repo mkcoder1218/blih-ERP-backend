@@ -50,6 +50,7 @@ export type Env = {
     dialect: string;
   };
   dbSync: boolean;
+  smtpTlsRejectUnauthorized: boolean;
 };
 
 export const env: Env = {
@@ -87,7 +88,8 @@ export const env: Env = {
     dialect: (process.env.DB_DIALECT || "postgres").toLowerCase()
   },
 
-  dbSync: toBool(process.env.DB_SYNC, false)
+  dbSync: toBool(process.env.DB_SYNC, false),
+  smtpTlsRejectUnauthorized: toBool(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, true)
 };
 
 if (env.db.dialect !== "postgres") {

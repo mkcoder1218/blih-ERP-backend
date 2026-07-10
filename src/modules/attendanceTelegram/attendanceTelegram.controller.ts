@@ -17,6 +17,16 @@ export class AttendanceTelegramController {
     return ok(res, await this.service.sendTest(req.params.businessId, req.params.botType as any), "Telegram test sent");
   };
 
+  sendBusinessTest = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user?.businessId) return next({ statusCode: 401, message: "Business workspace is required" });
+    return ok(res, await this.service.sendTest(req.user.businessId, req.params.botType as any), "Telegram test sent");
+  };
+
+  sendBusinessGroupMessageTest = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user?.businessId) return next({ statusCode: 401, message: "Business workspace is required" });
+    return ok(res, await this.service.sendGroupMessageTest(req.user.businessId, req.body?.message), "Telegram message test sent");
+  };
+
   generateLinkCode = async (req: Request, res: Response, next: NextFunction) => {
     if (!req.user?.id || !req.user?.businessId) return next({ statusCode: 401, message: "Unauthorized" });
     return ok(res, { telegramLinkCode: await this.service.generateLinkCode(req.user.id, req.user.businessId) }, "Telegram link code generated");

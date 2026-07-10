@@ -138,6 +138,8 @@ import defineTelegramAccountLink from "./TelegramAccountLink";
 import defineTelegramLinkCode from "./TelegramLinkCode";
 import defineTelegramNotificationLog from "./TelegramNotificationLog";
 import defineUserExemption from "./UserExemption";
+import defineSmtpProvider from "./SmtpProvider";
+import defineBusinessSmtpSetting from "./BusinessSmtpSetting";
 
 export type DB = {
   sequelize: typeof sequelize;
@@ -278,6 +280,8 @@ export type DB = {
   TelegramLinkCode: any;
   TelegramNotificationLog: any;
   UserExemption: any;
+  SmtpProvider: any;
+  BusinessSmtpSetting: any;
 };
 
 export const db: DB = {
@@ -419,6 +423,8 @@ export const db: DB = {
   TelegramLinkCode: defineTelegramLinkCode(sequelize, DataTypes),
   TelegramNotificationLog: defineTelegramNotificationLog(sequelize, DataTypes),
   UserExemption: defineUserExemption(sequelize, DataTypes),
+  SmtpProvider: defineSmtpProvider(sequelize, DataTypes),
+  BusinessSmtpSetting: defineBusinessSmtpSetting(sequelize, DataTypes),
 };
 
 Object.values(db).forEach((model: any) => {

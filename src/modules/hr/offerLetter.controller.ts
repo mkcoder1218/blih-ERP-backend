@@ -349,7 +349,8 @@ export class OfferLetterController {
         renderedSubject.renderedContent,
         finalHtml,
         renderedText.renderedContent,
-        pdfPath
+        pdfPath,
+        req.user!.businessId
       );
 
       await letter.update({

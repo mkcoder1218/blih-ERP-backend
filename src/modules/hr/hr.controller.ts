@@ -693,7 +693,7 @@ export class HRController {
                try {
                  const pdfPath = await generateOfferLetterPdf(finalHtml, businessId, letter.id);
                  await letter.update({ pdfPath }, { transaction });
-                 await sendOfferLetterEmail(account.email, renderedSubject.renderedContent, finalHtml, renderedText.renderedContent, pdfPath);
+                 await sendOfferLetterEmail(account.email, renderedSubject.renderedContent, finalHtml, renderedText.renderedContent, pdfPath, businessId);
                } catch (emailErr) {
                  console.error("Failed to generate/send automated offer letter", emailErr);
                }
