@@ -431,9 +431,31 @@ class FinanceController {
         };
     }
     isUnpaidSalaryExportMarker(row) {
-        return Number(row?.basicSalary ?? row?.baseSalary ?? 0) === 1
-            && Number(row?.grossSalary ?? row?.grossPay ?? 0) === 1
-            && Number(row?.taxableAmount ?? 0) === 1;
+        const salaryInfo = row?.salaryInfo || {};
+        const originalSalaryValues = [
+            salaryInfo.baseSalary,
+            salaryInfo.monthlySalary,
+            salaryInfo.salary,
+            salaryInfo.netSalary,
+            salaryInfo.targetNetSalary,
+            salaryInfo.targetNetPay,
+            salaryInfo.netPay,
+            row?.targetNetSalary,
+        ].map((value) => Number(value ?? 0)).filter((value) => value > 0);
+        const hasUnpaidOriginalSalary = originalSalaryValues.some((value) => value <= 1);
+        const hasTokenPayroll = [
+            row?.basicSalary,
+            row?.baseSalary,
+            row?.grossSalary,
+            row?.grossPay,
+            row?.taxableAmount,
+            row?.netSalary,
+            row?.netPay,
+        ].some((value) => {
+            const numeric = Number(value ?? 0);
+            return numeric > 0 && numeric <= 2;
+        });
+        return hasUnpaidOriginalSalary || hasTokenPayroll;
     }
     rowsForExport(data, tab) {
         if (tab === 'salary')

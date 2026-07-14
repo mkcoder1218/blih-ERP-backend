@@ -90,6 +90,8 @@ const attendanceTelegram_routes_1 = require("./modules/attendanceTelegram/attend
 const inventory_routes_1 = require("./modules/inventory/inventory.routes");
 const calendar_routes_1 = require("./modules/calendar/calendar.routes");
 const googleCalendarWebhook_routes_1 = require("./modules/calendar/googleCalendarWebhook.routes");
+const userExemptions_routes_1 = require("./modules/userExemptions/userExemptions.routes");
+const smtp_routes_1 = require("./modules/smtp/smtp.routes");
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const swagger_1 = require("./config/swagger");
 const app = (0, express_1.default)();
@@ -141,6 +143,7 @@ apiRouter.get("/status", (req, res) => {
 });
 apiRouter.use("/auth", auth_routes_1.authRoutes);
 apiRouter.use("/users", user_routes_1.userRoutes);
+apiRouter.use("/user-exemptions", userExemptions_routes_1.userExemptionsRoutes);
 apiRouter.use("/businesses", business_routes_1.businessRoutes);
 apiRouter.use("/plans", plan_routes_1.planRoutes);
 apiRouter.use("/sector-focuses", sectorFocus_routes_1.sectorFocusRoutes);
@@ -157,6 +160,7 @@ apiRouter.use("/okr", okr_routes_1.okrRoutes);
 apiRouter.use("/client-portal", clientPortal_routes_1.clientPortalRoutes);
 apiRouter.use("/reporting", reporting_routes_1.reportingRoutes);
 apiRouter.use("/settings", settings_routes_1.settingsRoutes);
+apiRouter.use("/smtp", smtp_routes_1.smtpRoutes);
 apiRouter.use("/subscription", subscription_routes_1.subscriptionRoutes);
 apiRouter.use("/admin-ops", adminOps_routes_1.adminOpsRoutes);
 apiRouter.use("/people", people_routes_1.peopleRoutes);

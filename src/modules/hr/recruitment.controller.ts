@@ -18,6 +18,84 @@ export class RecruitmentController {
   private service = new RecruitmentService();
   private fileService = new FileService();
 
+  private normalizeRoleSet(req: Request) {
+    return new Set((req.user?.roles || []).map((role: string) => role.toUpperCase()));
+  }
+
+  private canCreatePositionRequest(req: Request) {
+    const roles = this.normalizeRoleSet(req);
+    return req.user?.isPlatformSuperAdmin || roles.has("DEPARTMENT_HEAD") || roles.has("DEPT_HEAD");
+  }
+
+  private canReviewHr(req: Request) {
+    const roles = this.normalizeRoleSet(req);
+    return req.user?.isPlatformSuperAdmin || roles.has("HR_MANAGER") || (req.user?.permissions || []).includes("hr.write");
+  }
+
+  private canFinalApprove(req: Request) {
+    const roles = this.normalizeRoleSet(req);
+    return req.user?.isPlatformSuperAdmin || roles.has("CEO") || roles.has("BUSINESS_ADMIN");
+  }
+
+  private reviewerForStage(stage: string) {
+    if (stage === "hr_review") return "HR";
+    if (stage === "final_approval") return "CEO / Business Admin";
+    if (stage === "approved") return "Completed";
+    if (stage === "rejected") return "Process stopped";
+    return "Department Head";
+  }
+
+  private stageLabel(stage: string) {
+    if (stage === "hr_review") return "HR Review";
+    if (stage === "final_approval") return "Final Approval";
+    if (stage === "approved") return "Approved";
+    if (stage === "rejected") return "Rejected";
+    return "Department Head Submission";
+  }
+
+  private appendApprovalHistory(metadata: any, entry: Record<string, any>) {
+    const history = Array.isArray(metadata.approvalHistory) ? metadata.approvalHistory : [];
+    metadata.approvalHistory = [
+      ...history,
+      {
+        at: new Date().toISOString(),
+        userId: entry.userId,
+        userName: entry.userName,
+        role: entry.role,
+        stage: entry.stage,
+        action: entry.action,
+        reason: entry.reason || null,
+      },
+    ];
+  }
+
+  private normalizeApprovalMetadata(raw: any) {
+    const metadata = JSON.parse(JSON.stringify(raw || {}));
+    const approvalStatus = String(metadata.approvalStatus || "pending").toLowerCase();
+    const approvals = Array.isArray(metadata.approvals) ? metadata.approvals : [];
+
+    if (!metadata.approvalStage) {
+      if (approvalStatus === "approved") metadata.approvalStage = "approved";
+      else if (approvalStatus === "declined" || approvalStatus === "rejected") metadata.approvalStage = "rejected";
+      else if (approvals.some((a: any) => a.role === "HR_MANAGER" || a.stage === "hr_review")) metadata.approvalStage = "final_approval";
+      else metadata.approvalStage = "hr_review";
+    }
+
+    if (!Array.isArray(metadata.approvalHistory)) {
+      metadata.approvalHistory = approvals.map((approval: any) => ({
+        stage: approval.stage || (approval.role === "HR_MANAGER" ? "hr_review" : "final_approval"),
+        action: "approved",
+        role: approval.role,
+        userId: approval.userId,
+        userName: approval.userName || approval.approvedBy || "Reviewer",
+        at: approval.approvedAt,
+        reason: null,
+      })).filter((entry: any) => entry.at);
+    }
+
+    return metadata;
+  }
+
   seedForms = async (req: Request, res: Response) => {
     await this.service.provisionForms(req.user!.businessId);
     successResponse(res, null, "Recruitment templates seeded.");
@@ -244,15 +322,37 @@ export class RecruitmentController {
 
   createOpening = async (req: Request, res: Response) => {
     try {
+      if (!this.canCreatePositionRequest(req)) {
+        return errorResponse(res, "Only a Department Head can submit a new position request.", 403);
+      }
+
       const incoming = { ...(req.body || {}) };
       const metadata = { ...(incoming.metadata || {}) };
-      if (!metadata.approvalStatus) metadata.approvalStatus = "pending";
+      metadata.approvalStatus = "pending";
+      metadata.approvalStage = "hr_review";
+      metadata.currentReviewer = this.reviewerForStage("hr_review");
+      metadata.submittedByUserId = req.user!.id;
+      metadata.submittedByName = req.user!.fullName;
+      metadata.submittedAt = new Date().toISOString();
+      metadata.approvals = [];
+      metadata.approvalHistory = [
+        {
+          stage: "department_head_submission",
+          action: "submitted",
+          role: "DEPARTMENT_HEAD",
+          userId: req.user!.id,
+          userName: req.user!.fullName,
+          at: metadata.submittedAt,
+          reason: null,
+        },
+      ];
       incoming.metadata = metadata;
 
       const opening = await db.JobOpening.create({
         ...incoming,
         businessId: req.user!.businessId,
         requestedByUserId: req.user!.id,
+        status: "draft",
       });
       await AuditLogService.log(
         "CREATED_JOB_OPENING",
@@ -269,7 +369,7 @@ export class RecruitmentController {
   };
 
   private mapJobRequest(o: any) {
-    const m = o.metadata || {};
+    const m = this.normalizeApprovalMetadata(o.metadata || {});
     const approvalStatus = (m.approvalStatus || "pending")
       .toString()
       .toLowerCase();
@@ -329,6 +429,13 @@ export class RecruitmentController {
       isPosted: ["open", "active", "published"].includes(o.status),
       views: Number(o.views || 0),
       approvals: m.approvals || [],
+      approvalStage: m.approvalStage,
+      approvalStageLabel: this.stageLabel(m.approvalStage),
+      currentReviewer: m.currentReviewer || this.reviewerForStage(m.approvalStage),
+      rejectionReason: m.rejectionReason || m.declineReason || null,
+      rejectedByUserId: m.rejectedByUserId || m.declinedByUserId || null,
+      rejectedAt: m.rejectedAt || m.declinedAt || null,
+      approvalHistory: m.approvalHistory || [],
       overview:
         o.description || m.overview || m.summary || "No overview provided.",
       requirements: toArray(m.requirements || m.requiredSkills),
@@ -337,9 +444,9 @@ export class RecruitmentController {
       dueDate: m.deadline || m.neededByDate || "TBD",
       expectedDate: m.expectedDate || m.neededByDate || "TBD",
       requestedBy: {
-        name: m.hiringManager || "Platform User",
+        name: m.submittedByName || m.hiringManager || "Platform User",
         dept: dept,
-        avatar: (m.hiringManager || "U")[0].toUpperCase(),
+        avatar: (m.submittedByName || m.hiringManager || "U")[0].toUpperCase(),
       },
       applicationFields: m.applicationFields || m.applicantFields || {},
     };
@@ -1261,42 +1368,75 @@ export class RecruitmentController {
       });
       if (!opening) return errorResponse(res, "Not found", 404);
 
-      const metadata = JSON.parse(JSON.stringify(opening.metadata || {}));
-      if (!metadata.approvals) metadata.approvals = [];
+      const metadata = this.normalizeApprovalMetadata(opening.metadata || {});
+      if (metadata.approvalStatus === "approved" || metadata.approvalStage === "approved") {
+        return errorResponse(res, "This position request is already fully approved.", 400);
+      }
+      if (metadata.approvalStatus === "declined" || metadata.approvalStage === "rejected") {
+        return errorResponse(res, "Rejected position requests cannot continue to final approval.", 400);
+      }
 
-      const userRoles = req.user!.roles || [];
-      let roleKey = "";
-      if (userRoles.includes("HR_MANAGER")) roleKey = "HR_MANAGER";
-      else if (userRoles.includes("BUSINESS_ADMIN")) roleKey = "BUSINESS_ADMIN";
-      else if (userRoles.includes("FINANCE_MANAGER"))
-        roleKey = "FINANCE_MANAGER";
+      const roles = this.normalizeRoleSet(req);
+      const now = new Date().toISOString();
 
-      if (!roleKey)
-        return errorResponse(res, "User does not have an approving role", 403);
+      if (metadata.approvalStage === "hr_review") {
+        if (!this.canReviewHr(req)) {
+          return errorResponse(res, "Only HR can complete the first review stage.", 403);
+        }
 
-      const already = (metadata.approvals || []).find(
-        (a: any) => a.role === roleKey,
-      );
-      if (already) return errorResponse(res, `Already approved as ${roleKey}`);
+        metadata.approvals = [
+          ...(Array.isArray(metadata.approvals) ? metadata.approvals : []),
+          {
+            stage: "hr_review",
+            role: "HR_MANAGER",
+            userId: req.user!.id,
+            userName: req.user!.fullName,
+            approvedAt: now,
+          },
+        ];
+        this.appendApprovalHistory(metadata, {
+          stage: "hr_review",
+          action: "approved",
+          role: "HR_MANAGER",
+          userId: req.user!.id,
+          userName: req.user!.fullName,
+        });
+        metadata.approvalStatus = "pending";
+        metadata.approvalStage = "final_approval";
+        metadata.currentReviewer = this.reviewerForStage("final_approval");
+      } else if (metadata.approvalStage === "final_approval") {
+        const hasHrApproval = (metadata.approvals || []).some((approval: any) => approval.stage === "hr_review" || approval.role === "HR_MANAGER");
+        if (!hasHrApproval) {
+          return errorResponse(res, "HR approval is required before final approval.", 400);
+        }
+        if (!this.canFinalApprove(req)) {
+          return errorResponse(res, "Only the CEO or Business Admin can provide final approval.", 403);
+        }
 
-      metadata.approvals.push({
-        role: roleKey,
-        userId: req.user!.id,
-        approvedAt: new Date().toISOString(),
-      });
-
-      const rolesInApprovals = metadata.approvals.map((a: any) => a.role);
-      const isFullyApproved = [
-        "HR_MANAGER",
-        "BUSINESS_ADMIN",
-        "FINANCE_MANAGER",
-      ].every((r) => rolesInApprovals.includes(r));
-
-      if (isFullyApproved) {
+        const finalRole = roles.has("CEO") ? "CEO" : roles.has("BUSINESS_ADMIN") ? "BUSINESS_ADMIN" : "PLATFORM_SUPER_ADMIN";
+        metadata.approvals = [
+          ...(Array.isArray(metadata.approvals) ? metadata.approvals : []),
+          {
+            stage: "final_approval",
+            role: finalRole,
+            userId: req.user!.id,
+            userName: req.user!.fullName,
+            approvedAt: now,
+          },
+        ];
+        this.appendApprovalHistory(metadata, {
+          stage: "final_approval",
+          action: "approved",
+          role: finalRole,
+          userId: req.user!.id,
+          userName: req.user!.fullName,
+        });
         metadata.approvalStatus = "approved";
+        metadata.approvalStage = "approved";
+        metadata.currentReviewer = this.reviewerForStage("approved");
         opening.status = "approved";
       } else {
-        metadata.approvalStatus = "pending";
+        return errorResponse(res, `Unsupported approval stage: ${metadata.approvalStage}`, 400);
       }
 
       opening.metadata = metadata;
@@ -1308,13 +1448,13 @@ export class RecruitmentController {
         "hr_job_openings",
         String(opening.id),
         null,
-        { role: roleKey, approvedByUserId: req.user!.id },
+        { stage: metadata.approvalStage, approvedByUserId: req.user!.id },
         req,
       );
       successResponse(
         res,
-        opening,
-        isFullyApproved ? "Fully Approved" : `Approved as ${roleKey}`,
+        this.mapJobRequest(opening),
+        metadata.approvalStatus === "approved" ? "Final approval completed." : "HR approved. Forwarded for final approval.",
       );
     } catch (e: any) {
       errorResponse(res, e.message);
@@ -1383,6 +1523,29 @@ export class RecruitmentController {
     }
   };
 
+  pauseJob = async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id;
+      const opening = await db.JobOpening.findOne({
+        where: { id, businessId: req.user!.businessId },
+      });
+      if (!opening) return errorResponse(res, "Not found", 404);
+
+      const pausableStatuses = ["open", "approved", "active", "published"];
+      if (!pausableStatuses.includes(opening.status)) {
+        return errorResponse(res, `Job cannot be paused (current status: ${opening.status})`, 400);
+      }
+
+      opening.status = "paused";
+      await opening.save();
+
+      await AuditLogService.log("PAUSED_JOB", "hr_job_openings", String(opening.id), null, {}, req);
+      successResponse(res, opening, "Job paused and hidden from active posting flow");
+    } catch (e: any) {
+      errorResponse(res, e.message);
+    }
+  };
+
   declineJobRequest = async (req: Request, res: Response) => {
     try {
       const id = req.params.id;
@@ -1391,12 +1554,51 @@ export class RecruitmentController {
       });
       if (!opening) return errorResponse(res, "Not found", 404);
 
-      const metadata = JSON.parse(JSON.stringify(opening.metadata || {}));
+      const metadata = this.normalizeApprovalMetadata(opening.metadata || {});
+      if (metadata.approvalStatus === "approved" || metadata.approvalStage === "approved") {
+        return errorResponse(res, "Approved position requests cannot be rejected.", 400);
+      }
+      if (metadata.approvalStatus === "declined" || metadata.approvalStage === "rejected") {
+        return errorResponse(res, "This position request is already rejected.", 400);
+      }
+
+      const rejectedStage = metadata.approvalStage;
+
+      if (rejectedStage === "hr_review" && !this.canReviewHr(req)) {
+        return errorResponse(res, "Only HR can reject a request during HR review.", 403);
+      }
+      if (rejectedStage === "final_approval" && !this.canFinalApprove(req)) {
+        return errorResponse(res, "Only the CEO or Business Admin can reject a request during final approval.", 403);
+      }
+
+      const roles = this.normalizeRoleSet(req);
+      const reviewerRole = rejectedStage === "hr_review"
+        ? "HR_MANAGER"
+        : roles.has("CEO")
+          ? "CEO"
+          : roles.has("BUSINESS_ADMIN")
+            ? "BUSINESS_ADMIN"
+            : "PLATFORM_SUPER_ADMIN";
+      const reason = req.body?.reason || "No reason provided.";
+
       metadata.approvalStatus = "declined";
+      metadata.approvalStage = "rejected";
+      metadata.currentReviewer = this.reviewerForStage("rejected");
+      metadata.rejectedByUserId = req.user!.id;
+      metadata.rejectedByName = req.user!.fullName;
+      metadata.rejectedAt = new Date().toISOString();
+      metadata.rejectionReason = reason;
       metadata.declinedByUserId = req.user!.id;
-      metadata.declinedAt = new Date().toISOString();
-      metadata.declineReason = req.body?.reason || null;
-      metadata.approvals = [];
+      metadata.declinedAt = metadata.rejectedAt;
+      metadata.declineReason = reason;
+      this.appendApprovalHistory(metadata, {
+        stage: rejectedStage,
+        action: "rejected",
+        role: reviewerRole,
+        userId: req.user!.id,
+        userName: req.user!.fullName,
+        reason,
+      });
 
       opening.status = "draft";
       opening.metadata = metadata;
@@ -1408,10 +1610,10 @@ export class RecruitmentController {
         "hr_job_openings",
         String(opening.id),
         null,
-        { declinedByUserId: req.user!.id },
+        { declinedByUserId: req.user!.id, reason },
         req,
       );
-      successResponse(res, opening, "Declined");
+      successResponse(res, this.mapJobRequest(opening), "Rejected");
     } catch (e: any) {
       errorResponse(res, e.message);
     }
@@ -1477,6 +1679,34 @@ export class RecruitmentController {
         Math.floor(offset / limit) + 1,
         limit,
       );
+    } catch (e: any) {
+      errorResponse(res, e.message);
+    }
+  };
+
+  updateTemplate = async (req: Request, res: Response) => {
+    try {
+      const template = await db.RecruitmentTemplate.findOne({
+        where: {
+          id: req.params.id,
+          businessId: req.user!.businessId,
+        },
+      });
+
+      if (!template) {
+        return errorResponse(res, "Recruitment template not found.", 404);
+      }
+
+      await template.update(req.body);
+      await AuditLogService.log(
+        "UPDATED_RECRUITMENT_TEMPLATE",
+        "hr_recruitment_templates",
+        String(template.id),
+        null,
+        req.body,
+        req,
+      );
+      successResponse(res, template, "Recruitment template updated.");
     } catch (e: any) {
       errorResponse(res, e.message);
     }

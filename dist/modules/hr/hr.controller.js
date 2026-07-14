@@ -517,7 +517,7 @@ class HRController {
                         try {
                             const pdfPath = await (0, offerLetterPdfGenerator_1.generateOfferLetterPdf)(finalHtml, businessId, letter.id);
                             await letter.update({ pdfPath }, { transaction });
-                            await (0, offerLetterMailer_1.sendOfferLetterEmail)(account.email, renderedSubject.renderedContent, finalHtml, renderedText.renderedContent, pdfPath);
+                            await (0, offerLetterMailer_1.sendOfferLetterEmail)(account.email, renderedSubject.renderedContent, finalHtml, renderedText.renderedContent, pdfPath, businessId);
                         }
                         catch (emailErr) {
                             console.error("Failed to generate/send automated offer letter", emailErr);

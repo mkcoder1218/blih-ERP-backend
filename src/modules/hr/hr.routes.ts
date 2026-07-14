@@ -151,6 +151,12 @@ router.delete(
   requireAnyPermission("job_template.manage"),
   asyncHandler(recruitmentController.deleteTemplate),
 );
+router.patch(
+  "/recruitment/templates/:id",
+  authRequired,
+  requireAnyPermission("job_template.manage"),
+  asyncHandler(recruitmentController.updateTemplate),
+);
 router.post(
   "/recruitment/templates/seed",
   authRequired,
@@ -166,7 +172,6 @@ router.get(
 router.post(
   "/recruitment/job-openings",
   authRequired,
-  requireAnyPermission("job.manage"),
   asyncHandler(recruitmentController.createOpening),
 );
 router.get(
@@ -184,7 +189,6 @@ router.get(
 router.post(
   "/recruitment/job-requests/:id/approve",
   authRequired,
-  requireAnyPermission("job.manage"),
   asyncHandler(recruitmentController.approveJobRequest),
 );
 router.post(
@@ -200,9 +204,14 @@ router.post(
   asyncHandler(recruitmentController.closeJob),
 );
 router.post(
-  "/recruitment/job-requests/:id/decline",
+  "/recruitment/job-requests/:id/pause",
   authRequired,
   requireAnyPermission("job.manage"),
+  asyncHandler(recruitmentController.pauseJob),
+);
+router.post(
+  "/recruitment/job-requests/:id/decline",
+  authRequired,
   asyncHandler(recruitmentController.declineJobRequest),
 );
 router.patch(

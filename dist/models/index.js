@@ -142,6 +142,9 @@ const TelegramBotSetting_1 = __importDefault(require("./TelegramBotSetting"));
 const TelegramAccountLink_1 = __importDefault(require("./TelegramAccountLink"));
 const TelegramLinkCode_1 = __importDefault(require("./TelegramLinkCode"));
 const TelegramNotificationLog_1 = __importDefault(require("./TelegramNotificationLog"));
+const UserExemption_1 = __importDefault(require("./UserExemption"));
+const SmtpProvider_1 = __importDefault(require("./SmtpProvider"));
+const BusinessSmtpSetting_1 = __importDefault(require("./BusinessSmtpSetting"));
 exports.db = {
     sequelize: sequelize_2.sequelize,
     Business: (0, Business_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -280,6 +283,9 @@ exports.db = {
     TelegramAccountLink: (0, TelegramAccountLink_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     TelegramLinkCode: (0, TelegramLinkCode_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     TelegramNotificationLog: (0, TelegramNotificationLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    UserExemption: (0, UserExemption_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    SmtpProvider: (0, SmtpProvider_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    BusinessSmtpSetting: (0, BusinessSmtpSetting_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
 };
 Object.values(exports.db).forEach((model) => {
     if (model && typeof model.associate === "function")

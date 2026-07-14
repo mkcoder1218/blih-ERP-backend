@@ -53,7 +53,8 @@ exports.env = {
         password: process.env.DB_PASSWORD || "",
         dialect: (process.env.DB_DIALECT || "postgres").toLowerCase()
     },
-    dbSync: toBool(process.env.DB_SYNC, false)
+    dbSync: toBool(process.env.DB_SYNC, false),
+    smtpTlsRejectUnauthorized: toBool(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, true)
 };
 if (exports.env.db.dialect !== "postgres") {
     throw new Error(`DB_DIALECT must be 'postgres' (got '${exports.env.db.dialect}')`);

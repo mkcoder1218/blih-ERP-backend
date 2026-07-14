@@ -52,6 +52,12 @@ exports.default = (sequelize, dataTypes) => {
         models.User.hasMany(models.OKREvaluation, { foreignKey: "evaluatedByUserId", as: "okrEvaluations" });
         models.User.hasMany(models.ClientPortalUser, { foreignKey: "userId", as: "clientPortalLinks" });
         models.User.hasMany(models.ReportRun, { foreignKey: "runByUserId", as: "reportRuns" });
+        if (models.UserExemption) {
+            models.User.hasMany(models.UserExemption, { foreignKey: "userId", as: "exemptions" });
+            models.User.hasMany(models.UserExemption, { foreignKey: "requestedBy", as: "requestedExemptions" });
+            models.User.hasMany(models.UserExemption, { foreignKey: "approvedBy", as: "approvedExemptions" });
+            models.User.hasMany(models.UserExemption, { foreignKey: "rejectedBy", as: "rejectedExemptions" });
+        }
     };
     return User;
 };
