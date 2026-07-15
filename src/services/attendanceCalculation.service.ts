@@ -1,9 +1,10 @@
-import type { BusinessAttendanceSettings } from "../types/attendance";
+import type { BusinessAttendanceSettings, WeekendWorkMode } from "../types/attendance";
 
 export type AttendanceEventType = "CHECK_IN" | "LUNCH_OUT" | "LUNCH_IN" | "CHECK_OUT";
 
 export type AttendanceStatus =
   | "NOT_STARTED"
+  | "PAID_DAY_OFF"
   | "IN_PROGRESS"
   | "ON_BREAK"
   | "COMPLETED"
@@ -27,6 +28,11 @@ export type AttendanceCalculation = {
   isComplete: boolean;
   isInProgress: boolean;
   currentStatus: AttendanceStatus;
+  workDayMode: WeekendWorkMode | "WEEKDAY";
+  scheduledDayUnits: number;
+  paidDayOffUnits: number;
+  fullWorkingDayUnits: number;
+  halfWorkingDayUnits: number;
 };
 
 export type NormalizedAttendanceDay = {
@@ -61,8 +67,28 @@ function localDateKey(dateUtc: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(dateUtc);
 }
 
-function isSaturday(dateUtc: Date, timeZone: string): boolean {
-  return new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(dateUtc) === "Sat";
+function localWeekdayShort(dateUtc: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(dateUtc);
+}
+
+export function weekendWorkModeForDate(dateUtc: Date, settings: BusinessAttendanceSettings): WeekendWorkMode | "WEEKDAY" {
+  const tz = settings.timezone || "UTC";
+  const weekday = localWeekdayShort(dateUtc, tz);
+  if (weekday === "Sat") return settings.saturdayWorkMode || "PAID_DAY_OFF";
+  if (weekday === "Sun") return settings.sundayWorkMode || "PAID_DAY_OFF";
+  return "WEEKDAY";
+}
+
+export function attendanceScheduleForDate(dateUtc: Date, settings: BusinessAttendanceSettings) {
+  const mode = weekendWorkModeForDate(dateUtc, settings);
+  const dailyMinutes = Number(settings.expectedDailyMinutes || 0);
+  if (mode === "PAID_DAY_OFF") {
+    return { mode, expectedMinutes: 0, scheduledDayUnits: 1, paidDayOffUnits: 1, fullWorkingDayUnits: 0, halfWorkingDayUnits: 0 };
+  }
+  if (mode === "HALF_WORKING_DAY") {
+    return { mode, expectedMinutes: Math.round(dailyMinutes / 2), scheduledDayUnits: 0.5, paidDayOffUnits: 0, fullWorkingDayUnits: 0, halfWorkingDayUnits: 0.5 };
+  }
+  return { mode, expectedMinutes: dailyMinutes, scheduledDayUnits: 1, paidDayOffUnits: 0, fullWorkingDayUnits: 1, halfWorkingDayUnits: 0 };
 }
 
 export function calculateAttendanceDay(params: {
@@ -123,8 +149,9 @@ export function calculateAttendanceDay(params: {
     }
   }
 
-  const saturdayTrackingOnly = isSaturday(dayStartUtc, tz);
-  const expectedMinutes = saturdayTrackingOnly ? 0 : Number(settings.expectedDailyMinutes || 0);
+  const schedule = attendanceScheduleForDate(dayStartUtc, settings);
+  const paidDayOff = schedule.mode === "PAID_DAY_OFF";
+  const expectedMinutes = schedule.expectedMinutes;
   const rawWorkedMinutes = totalWorkedMinutes;
   let penaltyMinutes = 0;
   let penaltyReason: string | null = null;
@@ -135,12 +162,12 @@ export function calculateAttendanceDay(params: {
   const nowLocalDate = localDateKey(nowUtc, tz);
   const workdayEnded = nowLocalDate > dayLocalDate || (nowLocalDate === dayLocalDate && localMinutes(nowUtc, tz) >= defaultEndMinutes);
 
-  if (!saturdayTrackingOnly && checkInAtUtc && !hasFinalCheckout && workdayEnded) {
+  if (!paidDayOff && checkInAtUtc && !hasFinalCheckout && workdayEnded) {
     const halfDayMinutes = Math.floor(expectedMinutes / 2);
     totalWorkedMinutes = halfDayMinutes;
     penaltyMinutes = Math.max(0, expectedMinutes - halfDayMinutes);
     penaltyReason = lunchBreakEnabled && !hasCompleteLunch ? "Missed lunch checkout and final checkout; half-day credit applied" : "Missed final checkout; half-day credit applied";
-  } else if (!saturdayTrackingOnly && checkInAtUtc && hasFinalCheckout && lunchBreakEnabled && !hasCompleteLunch) {
+  } else if (!paidDayOff && checkInAtUtc && hasFinalCheckout && lunchBreakEnabled && !hasCompleteLunch) {
     const lunchPenaltyMinutes = approvedLunchUseMinutes >= 60 ? 0 : Math.max(0, 120 - approvedLunchUseMinutes);
     penaltyMinutes = Math.min(lunchPenaltyMinutes, totalWorkedMinutes);
     totalWorkedMinutes = Math.max(0, totalWorkedMinutes - penaltyMinutes);
@@ -150,8 +177,8 @@ export function calculateAttendanceDay(params: {
   }
 
   const remainingMinutes = Math.max(0, expectedMinutes - totalWorkedMinutes);
-  const overtimeMinutes = saturdayTrackingOnly ? 0 : Math.max(0, totalWorkedMinutes - expectedMinutes);
-  const missingMinutes = saturdayTrackingOnly ? 0 : Math.max(0, expectedMinutes - totalWorkedMinutes);
+  const overtimeMinutes = paidDayOff ? 0 : Math.max(0, totalWorkedMinutes - expectedMinutes);
+  const missingMinutes = paidDayOff ? 0 : Math.max(0, expectedMinutes - totalWorkedMinutes);
 
   const isComplete = Boolean(checkOutAtUtc);
   const latestType = checkOutAtUtc
@@ -164,7 +191,8 @@ export function calculateAttendanceDay(params: {
   const isInProgress = !isComplete && Boolean(checkInAtUtc);
 
   let currentStatus: AttendanceStatus = "NOT_STARTED";
-  if (!checkInAtUtc) currentStatus = "NOT_STARTED";
+  if (paidDayOff && !checkInAtUtc) currentStatus = "PAID_DAY_OFF";
+  else if (!checkInAtUtc) currentStatus = "NOT_STARTED";
   else if (latestType === "LUNCH_OUT") currentStatus = "ON_BREAK";
   else if (latestType === "CHECK_OUT") currentStatus = "COMPLETED";
   else currentStatus = "IN_PROGRESS";
@@ -173,8 +201,8 @@ export function calculateAttendanceDay(params: {
   const expectedStartMinutes = parseHHmmToMinutes(settings.defaultStartTime || "09:00");
   const grace = Number(settings.lateGracePeriodMinutes || 0);
   const checkInMinutes = checkInAtUtc ? localMinutes(checkInAtUtc, tz) : null;
-  const isLate = !saturdayTrackingOnly && checkInMinutes !== null ? checkInMinutes > expectedStartMinutes + grace : false;
-  const lateByMinutes = !saturdayTrackingOnly && checkInMinutes !== null ? Math.max(0, checkInMinutes - (expectedStartMinutes + grace)) : 0;
+  const isLate = !paidDayOff && checkInMinutes !== null ? checkInMinutes > expectedStartMinutes + grace : false;
+  const lateByMinutes = !paidDayOff && checkInMinutes !== null ? Math.max(0, checkInMinutes - (expectedStartMinutes + grace)) : 0;
 
   if (isLate && (currentStatus === "IN_PROGRESS" || currentStatus === "COMPLETED" || currentStatus === "ON_BREAK")) currentStatus = "LATE";
   if (checkInAtUtc && !checkOutAtUtc && ordered.some((e) => e.type === "CHECK_IN") && ordered.some((e) => e.type === "LUNCH_OUT") && !ordered.some((e) => e.type === "LUNCH_IN")) {
@@ -196,7 +224,12 @@ export function calculateAttendanceDay(params: {
       lateByMinutes,
       isComplete,
       isInProgress,
-      currentStatus
+      currentStatus,
+      workDayMode: schedule.mode,
+      scheduledDayUnits: schedule.scheduledDayUnits,
+      paidDayOffUnits: schedule.paidDayOffUnits,
+      fullWorkingDayUnits: schedule.fullWorkingDayUnits,
+      halfWorkingDayUnits: schedule.halfWorkingDayUnits
     },
     normalized: { checkInAtUtc, lunchOutAtUtc, lunchInAtUtc, checkOutAtUtc }
   };

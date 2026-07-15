@@ -22,6 +22,7 @@ router.patch('/:id', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), 
 router.delete('/:id', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), asyncHandler(controller.deleteOfferLetter));
 router.post('/:id/generate-pdf', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), asyncHandler(controller.generatePdf));
 router.post('/:id/send', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), asyncHandler(controller.sendOfferLetter));
+router.post('/:id/terminate', authRequired, requireRole('HR_MANAGER', 'BUSINESS_ADMIN'), asyncHandler(controller.terminateOfferLetter));
 
 export const offerLetterRoutes = router;
 

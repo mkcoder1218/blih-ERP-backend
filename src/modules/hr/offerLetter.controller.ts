@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Op } from 'sequelize';
 import { db } from '../../models';
 import { errorResponse, successResponse, paginationResponse } from '../../utils/response';
 import { renderOfferLetter } from '../../utils/offerLetterRenderer';
@@ -64,8 +65,14 @@ export class OfferLetterController {
     try {
       const limit = Number(req.query.limit || 20);
       const offset = Number(req.query.offset || 0);
+      const where: any = { businessId: req.user!.businessId };
+      if (req.query.status) {
+        where.status = String(req.query.status).toUpperCase();
+      } else if (String(req.query.excludeRejected || "").toLowerCase() === "true") {
+        where.status = { [Op.ne]: 'REJECTED' };
+      }
       const result = await db.OfferLetter.findAndCountAll({
-        where: { businessId: req.user!.businessId },
+        where,
         limit, offset,
         order: [['createdAt', 'DESC']],
         include: [
@@ -359,6 +366,22 @@ export class OfferLetterController {
       });
 
       successResponse(res, letter, "Offer letter sent successfully");
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
+  terminateOfferLetter = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const letter = await db.OfferLetter.findOne({ where: { id, businessId: req.user!.businessId } });
+      if (!letter) return errorResponse(res, "Offer letter not found", 404);
+      if (letter.status === 'ACCEPTED') return errorResponse(res, "Accepted offers must be terminated from the employee contract record", 400);
+      const effectiveAt = req.body?.effectiveAt ? new Date(req.body.effectiveAt) : new Date();
+
+      await letter.update({
+        status: 'REJECTED',
+        rejectedAt: effectiveAt,
+      });
+      successResponse(res, letter, "Offer contract terminated");
     } catch (e: any) { errorResponse(res, e.message); }
   };
 

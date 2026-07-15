@@ -1,4 +1,5 @@
 
+import { Op } from 'sequelize';
 import { db } from '../../models';
 import { ACTIVE_EMPLOYMENT_STATUS, DEFAULT_EMPLOYMENT_STATUS } from '../../constants/employee.constants';
 
@@ -33,6 +34,9 @@ export class HRService {
   }
 
   async listRecords(where: any = {}, limit: number = 20, offset: number = 0) {
+     const userWhere = where.employmentStatus === 'terminated'
+       ? { status: { [Op.in]: ['active', 'inactive'] } }
+       : { status: 'active' };
      return db.EmployeeRecord.findAndCountAll({
         where,
         limit,
@@ -52,7 +56,7 @@ export class HRService {
                 },
              ],
              // Exclude self-registered users awaiting HR approval
-             where: { status: 'active' },
+             where: userWhere,
              required: true,
            },
            { model: db.Department, as: 'department', attributes: ['id', 'name'] },

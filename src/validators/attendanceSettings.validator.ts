@@ -3,6 +3,7 @@ import Joi from "joi";
 const timeHHmm = Joi.string()
   .pattern(/^([01]\d|2[0-3]):[0-5]\d$/)
   .message("Time must be in HH:mm format (24h).");
+const weekendWorkMode = Joi.string().valid("PAID_DAY_OFF", "HALF_WORKING_DAY", "FULL_WORKING_DAY");
 
 function isIanaTimezone(value: string): boolean {
   try {
@@ -41,6 +42,8 @@ export const upsertAttendanceSettingsSchema = Joi.object({
   defaultEndTime: timeHHmm.optional(),
   lateGracePeriodMinutes: Joi.number().integer().min(0).optional(),
   lateNoReasonPenaltyGraceMinutes: Joi.number().integer().min(0).optional(),
+  saturdayWorkMode: weekendWorkMode.optional(),
+  sundayWorkMode: weekendWorkMode.optional(),
 
   lunchBreakEnabled: Joi.boolean().optional(),
   lunchMode: Joi.string().valid("FIXED", "FLEXIBLE").optional(),

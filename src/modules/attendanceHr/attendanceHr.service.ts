@@ -51,7 +51,7 @@ export class AttendanceHrService {
   private deductionService = new AttendanceDeductionService();
   private telegram = new AttendanceTelegramService();
 
-  async buildDaily(businessId: string, opts: { dateYmd: string; departmentId?: string | null; status?: Status | null; search?: string | null; sortBy: string; sortOrder: string }) {
+  async buildDaily(businessId: string, opts: { dateYmd: string; departmentId?: string | null; status?: Status | null; search?: string | null; sortBy: string; sortOrder: string; page?: number; size?: number }) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     if (!settings) throw Object.assign(new Error("Attendance settings not found"), { statusCode: 400 });
     const tz = settings.timezone || "UTC";
@@ -283,7 +283,14 @@ export class AttendanceHrService {
       return (at - bt) * sortDir;
     });
 
-    return { date: opts.dateYmd, timezone: tz, settings, rows: filtered };
+    const size = Math.min(Math.max(Number(opts.size || 20), 1), 100);
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / size));
+    const page = Math.min(Math.max(Number(opts.page || 1), 1), totalPages);
+    const start = (page - 1) * size;
+    const pagedRows = filtered.slice(start, start + size);
+
+    return { date: opts.dateYmd, timezone: tz, settings, rows: pagedRows, total, page, size, totalPages };
   }
 
   async sendLateNoReasonPenaltyMessage(businessId: string, employeeId: string, dateYmd: string) {
@@ -524,6 +531,18 @@ export class AttendanceHrService {
       where: eventWhere,
       order: [["timestampUtc", "ASC"]]
     });
+    const leaves = await db.LeaveRequest.findAll({
+      where: {
+        businessId,
+        employeeUserId: eventWhere.employeeId,
+        status: "approved",
+        [Op.or]: [
+          { startDate: { [Op.between]: [opts.startDate, opts.endDate] } },
+          { endDate: { [Op.between]: [opts.startDate, opts.endDate] } },
+          { startDate: { [Op.lte]: opts.startDate }, endDate: { [Op.gte]: opts.endDate } },
+        ],
+      }
+    });
 
     const localDateKey = (d: Date) =>
       new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
@@ -536,6 +555,12 @@ export class AttendanceHrService {
       const arr = byEmpDate.get(k) || [];
       arr.push(ev);
       byEmpDate.set(k, arr);
+    }
+    const leavesByEmployee = new Map<string, any[]>();
+    for (const leave of leaves) {
+      const arr = leavesByEmployee.get((leave as any).employeeUserId) || [];
+      arr.push(leave);
+      leavesByEmployee.set((leave as any).employeeUserId, arr);
     }
 
     const rows: any[] = [];
@@ -561,7 +586,10 @@ export class AttendanceHrService {
         });
 
         const finalCalculation = isRemoteEmployee(roster.employeeRecord) ? applyRemoteAttendanceOverride(calculation) : calculation;
-        const status = finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
+        const approvedLeave = (leavesByEmployee.get(roster.employeeId) || []).find((leave: any) => leave.startDate <= dateYmd && dateYmd <= leave.endDate);
+        const status = approvedLeave
+          ? "ON_LEAVE"
+          : finalCalculation.currentStatus === "NOT_STARTED" && settings.attendanceEnabled ? "MISSED" : finalCalculation.currentStatus;
         if (opts.status && status !== opts.status) continue;
 
         rows.push({
@@ -577,6 +605,7 @@ export class AttendanceHrService {
           lunchInAtUtc: normalized.lunchInAtUtc,
           checkOutAtUtc: normalized.checkOutAtUtc,
           ...finalCalculation,
+          approvedLeaveDays: approvedLeave ? 1 : 0,
           currentStatus: status
         });
       }

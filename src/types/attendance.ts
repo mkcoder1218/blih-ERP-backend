@@ -10,4 +10,8 @@ export type BusinessAttendanceSettings = {
   fixedLunchStartTime?: string | null;
   fixedLunchEndTime?: string | null;
   allowMultipleLunchBreaks?: boolean;
+  saturdayWorkMode?: WeekendWorkMode | null;
+  sundayWorkMode?: WeekendWorkMode | null;
 };
+
+export type WeekendWorkMode = "PAID_DAY_OFF" | "HALF_WORKING_DAY" | "FULL_WORKING_DAY";

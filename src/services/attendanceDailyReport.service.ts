@@ -3,6 +3,8 @@ import { db } from "../models";
 import { businessDateEndUtc, businessDateStartUtc } from "../utils/timezone";
 import { AttendanceRosterResolver, type AttendanceRosterEmployeeDay } from "./attendanceRosterResolver.service";
 import { LatenessReasonRulesService } from "./latenessReasonRules.service";
+import { attendanceScheduleForDate } from "./attendanceCalculation.service";
+import type { BusinessAttendanceSettings } from "../types/attendance";
 
 export type AttendanceDailyReportPunches = {
   MorningCheckIn: string | null;
@@ -24,7 +26,12 @@ export type AttendanceDailyReportRow = AttendanceDailyReportPunches & {
   RegularHoursWorked: number;
   ApprovedOvertimeHours: number;
   ApprovedSpecialRequestMinutes: number;
-  LatenessStatus: "OnTime" | "Late-WithNotice" | "Late-NoNotice" | "Absent" | "IncompletePunch" | "ApprovedLeave";
+  ExpectedMinutes: number;
+  ScheduledWorkingDays: number;
+  FullWorkingDays: number;
+  HalfWorkingDays: number;
+  PaidDaysOff: number;
+  LatenessStatus: "OnTime" | "Late-WithNotice" | "Late-NoNotice" | "Absent" | "IncompletePunch" | "ApprovedLeave" | "PaidDayOff";
   MinutesLate: number;
   NoticeStatus: "Approved" | "Pending" | "None" | "Invalid" | "Rejected" | "Expired" | "NotApplicable";
   LatenessNoticesUsedWeek: number;
@@ -378,6 +385,17 @@ export class AttendanceDailyReportService {
       dailyReasonsByEmployeeDate.set(key, rows);
     }
 
+    const settingsJson = typeof settings?.toJSON === "function" ? settings.toJSON() : settings;
+    const calculationSettings = {
+      timezone: settingsJson?.timezone || ADDIS_ABABA_TZ,
+      expectedDailyMinutes: Number(settingsJson?.expectedDailyMinutes || STANDARD_WORK_MINUTES),
+      defaultStartTime: settingsJson?.defaultStartTime || "09:00",
+      defaultEndTime: settingsJson?.defaultEndTime || "17:00",
+      lateGracePeriodMinutes: Number(settingsJson?.lateGracePeriodMinutes || 0),
+      saturdayWorkMode: settingsJson?.saturdayWorkMode || "PAID_DAY_OFF",
+      sundayWorkMode: settingsJson?.sundayWorkMode || "PAID_DAY_OFF",
+    } as BusinessAttendanceSettings;
+
     return Promise.all(rosterRows.map(async (roster) => {
       const row = this.buildRow({
         roster,
@@ -391,6 +409,7 @@ export class AttendanceDailyReportService {
         dailyReasons: dailyReasonsByEmployeeDate.get(`${roster.employeeId}__${roster.dateYmd}`) || [],
         lateNoReasonPenaltyGraceMinutes,
         audience,
+        settings: calculationSettings,
       });
       const resolved = await row;
       if (audience !== "hr") {
@@ -413,8 +432,12 @@ export class AttendanceDailyReportService {
     dailyReasons: any[];
     lateNoReasonPenaltyGraceMinutes: number;
     audience: "hr" | "public";
+    settings: BusinessAttendanceSettings;
   }): Promise<AttendanceDailyReportRow> {
-    const { roster, events, corrections, leaves, notices, approvedOvertimeRequests, approvedSpecialRequestMinutes, lateByEventId, dailyReasons, lateNoReasonPenaltyGraceMinutes } = params;
+    const { roster, events, corrections, leaves, notices, approvedOvertimeRequests, approvedSpecialRequestMinutes, lateByEventId, dailyReasons, lateNoReasonPenaltyGraceMinutes, settings } = params;
+    const schedule = attendanceScheduleForDate(new Date(`${roster.dateYmd}T00:00:00.000Z`), settings);
+    const expectedMinutes = schedule.expectedMinutes;
+    const isPaidDayOff = schedule.mode === "PAID_DAY_OFF";
     const punchMap = buildPunchMap(events, corrections);
     const checkIn = punchMap.CHECK_IN ? new Date(punchMap.CHECK_IN.timestampUtc) : null;
     const lunchOut = punchMap.LUNCH_OUT ? new Date(punchMap.LUNCH_OUT.timestampUtc) : null;
@@ -450,7 +473,10 @@ export class AttendanceDailyReportService {
     let minutesLate = 0;
     let selectedDailyReasonEvaluation: { reason: any; evaluation: Awaited<ReturnType<LatenessReasonRulesService["evaluateDailyReason"]>> } | null = null;
 
-    if (!hasAnyPunch && hasApprovedLeave) {
+    if (isPaidDayOff && !hasAnyPunch) {
+      latenessStatus = "PaidDayOff";
+      noticeStatus = "NotApplicable";
+    } else if (!hasAnyPunch && hasApprovedLeave) {
       latenessStatus = "ApprovedLeave";
       noticeStatus = "NotApplicable";
     } else if (!hasAnyPunch && !hasApprovedLeave) {
@@ -509,16 +535,16 @@ export class AttendanceDailyReportService {
       const morning = minutesBetween(checkIn, lunchOut);
       const afternoon = minutesBetween(lunchIn, checkOut);
       const rawWorkedMinutes = Math.max(0, morning + afternoon - Math.max(0, MINIMUM_LUNCH_MINUTES - (lunchMinutesTaken || 0) - approvedSpecialRequestMinutes));
-      const rawExcessMinutes = Math.max(0, rawWorkedMinutes - STANDARD_WORK_MINUTES);
+      const rawExcessMinutes = Math.max(0, rawWorkedMinutes - expectedMinutes);
       approvedOvertimeMinutes = Math.min(rawExcessMinutes, approvedOvertimeMinutesForDay(approvedOvertimeRequests));
-      totalMinutes = Math.min(rawWorkedMinutes, STANDARD_WORK_MINUTES + approvedOvertimeMinutes);
+      totalMinutes = Math.min(rawWorkedMinutes, expectedMinutes + approvedOvertimeMinutes);
     } else if (checkIn && checkOut && approvedSpecialRequestMinutes >= MINIMUM_LUNCH_MINUTES) {
       const rawWorkedMinutes = minutesBetween(checkIn, checkOut);
-      const rawExcessMinutes = Math.max(0, rawWorkedMinutes - STANDARD_WORK_MINUTES);
+      const rawExcessMinutes = Math.max(0, rawWorkedMinutes - expectedMinutes);
       approvedOvertimeMinutes = Math.min(rawExcessMinutes, approvedOvertimeMinutesForDay(approvedOvertimeRequests));
-      totalMinutes = Math.min(rawWorkedMinutes, STANDARD_WORK_MINUTES + approvedOvertimeMinutes);
+      totalMinutes = Math.min(rawWorkedMinutes, expectedMinutes + approvedOvertimeMinutes);
     }
-    const regularMinutes = Math.min(totalMinutes, STANDARD_WORK_MINUTES);
+    const regularMinutes = Math.min(totalMinutes, expectedMinutes);
 
     const checkInExplanation = punchMap.CHECK_IN?.id ? lateByEventId.get(punchMap.CHECK_IN.id) : null;
     const dailyReasonText = dailyReasons
@@ -558,6 +584,11 @@ export class AttendanceDailyReportService {
       RegularHoursWorked: roundHours(regularMinutes),
       ApprovedOvertimeHours: roundHours(approvedOvertimeMinutes),
       ApprovedSpecialRequestMinutes: approvedSpecialRequestMinutes,
+      ExpectedMinutes: expectedMinutes,
+      ScheduledWorkingDays: schedule.scheduledDayUnits,
+      FullWorkingDays: schedule.fullWorkingDayUnits,
+      HalfWorkingDays: schedule.halfWorkingDayUnits,
+      PaidDaysOff: schedule.paidDayOffUnits,
       LatenessStatus: latenessStatus,
       MinutesLate: minutesLate,
       NoticeStatus: noticeStatus,

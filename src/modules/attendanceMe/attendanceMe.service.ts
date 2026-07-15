@@ -2,7 +2,7 @@ import { Op, Transaction } from "sequelize";
 import { db } from "../../models";
 import { haversineDistanceMeters } from "../../utils/geo";
 import { businessDateEndUtc, businessDateStartUtc, endOfBusinessDayUtc, startOfBusinessDayUtc } from "../../utils/timezone";
-import { calculateAttendanceDay } from "../../services/attendanceCalculation.service";
+import { calculateAttendanceDay, weekendWorkModeForDate } from "../../services/attendanceCalculation.service";
 import { AttendanceTelegramService } from "../attendanceTelegram/attendanceTelegram.service";
 import { LatenessReasonRulesService } from "../../services/latenessReasonRules.service";
 
@@ -61,10 +61,6 @@ function buildCooldown(lastEvent: any | null, now: Date, action: AttendanceEvent
 
 function localDateKey(date: Date, timeZone: string) {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
-}
-
-function isSaturday(date: Date, timeZone: string) {
-  return new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(date) === "Sat";
 }
 
 async function approvedLunchUseMinutesForDate(businessId: string, userId: string, dateYmd: string) {
@@ -241,8 +237,9 @@ export class AttendanceMeService {
     if (!settings.attendanceEnabled) throw Object.assign(new Error("Attendance is disabled"), { statusCode: 400 });
     const tz = settings.timezone || "UTC";
     const now = new Date();
-    const saturdayTrackingOnly = isSaturday(now, tz);
-    if (!saturdayTrackingOnly && (settings.latitude === null || settings.longitude === null)) throw Object.assign(new Error("Attendance location is not configured"), { statusCode: 400 });
+    const weekendMode = weekendWorkModeForDate(now, settings as any);
+    const paidWeekendOff = weekendMode === "PAID_DAY_OFF";
+    if (!paidWeekendOff && (settings.latitude === null || settings.longitude === null)) throw Object.assign(new Error("Attendance location is not configured"), { statusCode: 400 });
 
     // Lunch rules: allow disabling lunch events entirely.
     const lunchBreakEnabled = settings.lunchBreakEnabled !== false;
@@ -254,9 +251,9 @@ export class AttendanceMeService {
     const officeLat = Number(settings.latitude || 0);
     const officeLon = Number(settings.longitude || 0);
     const radius = Number(settings.allowedRadiusMeters || 0);
-    const dist = saturdayTrackingOnly ? 0 : hasInputLocation ? haversineDistanceMeters(Number(input.latitude), Number(input.longitude), officeLat, officeLon) : Number.POSITIVE_INFINITY;
-    if (!saturdayTrackingOnly && !hasInputLocation) throw Object.assign(new Error("Location permission required"), { statusCode: 400 });
-    if (!saturdayTrackingOnly && !(dist <= radius)) throw Object.assign(new Error("Outside allowed workplace radius"), { statusCode: 403 });
+    const dist = paidWeekendOff ? 0 : hasInputLocation ? haversineDistanceMeters(Number(input.latitude), Number(input.longitude), officeLat, officeLon) : Number.POSITIVE_INFINITY;
+    if (!paidWeekendOff && !hasInputLocation) throw Object.assign(new Error("Location permission required"), { statusCode: 400 });
+    if (!paidWeekendOff && !(dist <= radius)) throw Object.assign(new Error("Outside allowed workplace radius"), { statusCode: 403 });
 
     const startUtc = startOfBusinessDayUtc(now, tz);
     const endUtc = endOfBusinessDayUtc(now, tz);

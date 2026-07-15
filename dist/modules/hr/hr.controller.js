@@ -310,6 +310,50 @@ class HRController {
                 (0, response_1.errorResponse)(res, e.message);
             }
         };
+        this.terminateEmployeeContract = async (req, res) => {
+            const transaction = await models_1.db.sequelize.transaction();
+            try {
+                const businessId = req.user.businessId;
+                const targetUserId = req.params.userId;
+                const effectiveAt = req.body?.effectiveAt ? new Date(req.body.effectiveAt) : new Date();
+                const effectiveDate = req.body?.effectiveDate || effectiveAt.toISOString().slice(0, 10);
+                const reason = String(req.body?.reason || "Contract terminated by HR").trim();
+                const rec = await models_1.db.EmployeeRecord.findOne({
+                    where: { businessId, userId: targetUserId },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE,
+                });
+                const user = await models_1.db.User.findOne({
+                    where: { businessId, id: targetUserId },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE,
+                });
+                if (!rec || !user) {
+                    await transaction.rollback();
+                    return (0, response_1.errorResponse)(res, "Employee contract record not found", 404);
+                }
+                await rec.update({
+                    employmentStatus: employee_constants_1.TERMINATED_EMPLOYMENT_STATUS,
+                    contractEndDate: effectiveDate,
+                    metadata: {
+                        ...(rec.metadata || {}),
+                        contractTermination: {
+                            terminatedAt: effectiveAt.toISOString(),
+                            effectiveDate,
+                            reason,
+                            terminatedByUserId: req.user.id,
+                        },
+                    },
+                }, { transaction });
+                await user.update({ status: "inactive" }, { transaction });
+                await transaction.commit();
+                (0, response_1.successResponse)(res, { employeeRecord: rec, user }, "Contract terminated");
+            }
+            catch (e) {
+                await transaction.rollback();
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
         this.onboardEmployee = async (req, res) => {
             const transaction = await models_1.db.sequelize.transaction();
             try {

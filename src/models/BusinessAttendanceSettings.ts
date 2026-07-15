@@ -26,6 +26,8 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): BusinessAtte
       defaultEndTime: { type: dataTypes.STRING(5), allowNull: false, defaultValue: "17:00" },
       lateGracePeriodMinutes: { type: dataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       lateNoReasonPenaltyGraceMinutes: { type: dataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      saturdayWorkMode: { type: dataTypes.STRING(30), allowNull: false, defaultValue: "PAID_DAY_OFF" },
+      sundayWorkMode: { type: dataTypes.STRING(30), allowNull: false, defaultValue: "PAID_DAY_OFF" },
 
       lunchBreakEnabled: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       lunchMode: { type: dataTypes.STRING(20), allowNull: false, defaultValue: "FLEXIBLE" },

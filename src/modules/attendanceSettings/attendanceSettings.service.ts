@@ -13,7 +13,9 @@ const DEFAULTS = {
   defaultStartTime: "09:00",
   defaultEndTime: "17:00",
   lateGracePeriodMinutes: 0,
-  lateNoReasonPenaltyGraceMinutes: 0
+  lateNoReasonPenaltyGraceMinutes: 0,
+  saturdayWorkMode: "PAID_DAY_OFF",
+  sundayWorkMode: "PAID_DAY_OFF"
 };
 
 export class AttendanceSettingsService {

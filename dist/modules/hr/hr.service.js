@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HRService = void 0;
+const sequelize_1 = require("sequelize");
 const models_1 = require("../../models");
 const employee_constants_1 = require("../../constants/employee.constants");
 class HRService {
@@ -31,6 +32,9 @@ class HRService {
         return models_1.db.EmployeeRecord.findOne({ where: { businessId, userId } });
     }
     async listRecords(where = {}, limit = 20, offset = 0) {
+        const userWhere = where.employmentStatus === 'terminated'
+            ? { status: { [sequelize_1.Op.in]: ['active', 'inactive'] } }
+            : { status: 'active' };
         return models_1.db.EmployeeRecord.findAndCountAll({
             where,
             limit,
@@ -50,7 +54,7 @@ class HRService {
                         },
                     ],
                     // Exclude self-registered users awaiting HR approval
-                    where: { status: 'active' },
+                    where: userWhere,
                     required: true,
                 },
                 { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },

@@ -91,6 +91,12 @@ router.patch(
   validate(updateEmployeeRecordSchema),
   asyncHandler(controller.updateEmployeeRecord),
 );
+router.post(
+  "/records/:userId/terminate-contract",
+  authRequired,
+  requireAnyPermission("hr.write", "job.manage", "job.update"),
+  asyncHandler(controller.terminateEmployeeContract),
+);
 router.delete(
   "/records/:userId",
   authRequired,
