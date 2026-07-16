@@ -94,16 +94,17 @@ export class AttendanceWeeklyReportService {
       };
 
       const deduction = this.deductionService.calculate(daily);
-      existing.ScheduledWorkDays += 1;
+      const scheduledUnits = Number(daily.ScheduledWorkingDays ?? 1);
+      existing.ScheduledWorkDays += scheduledUnits;
       existing.NetHoursWorked += Number(daily.NetHoursWorked || 0);
       existing.HalfDayDeductions += deduction.HalfDayDeductions;
       existing.FullDayDeductions += deduction.FullDayDeductions;
 
-      if (daily.LatenessStatus === "OnTime") existing.DaysOnTime += 1;
-      if (daily.LatenessStatus === "Late-WithNotice") existing.DaysLateWithNotice += 1;
-      if (daily.LatenessStatus === "Late-NoNotice") existing.DaysLateNoNotice += 1;
-      if (daily.LatenessStatus === "Absent") existing.DaysAbsent += 1;
-      if (daily.LatenessStatus === "IncompletePunch") existing.DaysIncompletePunch += 1;
+      if (daily.LatenessStatus === "OnTime") existing.DaysOnTime += scheduledUnits;
+      if (daily.LatenessStatus === "Late-WithNotice") existing.DaysLateWithNotice += scheduledUnits;
+      if (daily.LatenessStatus === "Late-NoNotice") existing.DaysLateNoNotice += scheduledUnits;
+      if (daily.LatenessStatus === "Absent") existing.DaysAbsent += scheduledUnits;
+      if (daily.LatenessStatus === "IncompletePunch") existing.DaysIncompletePunch += scheduledUnits;
       if (daily.NoticeStatus === "Approved") existing.LatenessNoticesUsed += 1;
       if (daily.LatenessStatus === "Late-WithNotice" && daily.LatenessReasonCode) {
         if (!existing.LatenessNoticesUsedByReason) existing.LatenessNoticesUsedByReason = {};

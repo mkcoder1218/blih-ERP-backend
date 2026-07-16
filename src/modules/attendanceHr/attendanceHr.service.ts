@@ -51,6 +51,68 @@ export class AttendanceHrService {
   private deductionService = new AttendanceDeductionService();
   private telegram = new AttendanceTelegramService();
 
+  async removeAutoAddedAttendance(businessId: string, employeeId: string, dateYmd: string) {
+    const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
+    if (!settings) throw Object.assign(new Error("Attendance settings not found"), { statusCode: 400 });
+    const tz = settings.timezone || "UTC";
+    const startUtc = businessDateStartUtc(dateYmd, tz);
+    const endUtc = businessDateEndUtc(dateYmd, tz);
+
+    const employee = await db.User.findOne({ where: { id: employeeId, businessId } });
+    if (!employee) throw Object.assign(new Error("Employee not found"), { statusCode: 404 });
+
+    return db.sequelize.transaction(async (transaction: any) => {
+      const corrections = await db.AttendanceRequest.findAll({
+        where: {
+          businessId,
+          employeeUserId: employeeId,
+          requestType: "check_in_correction",
+          status: "approved",
+          fromAt: { [Op.gte]: startUtc, [Op.lt]: endUtc },
+        },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      const removableEvents: any[] = [];
+      for (const correction of corrections) {
+        if (!correction.fromAt || !correction.category) continue;
+        const event = await db.AttendanceEvent.findOne({
+          where: {
+            businessId,
+            employeeId,
+            type: correction.category,
+            timestampUtc: new Date(correction.fromAt),
+          },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+        if (event && !removableEvents.some((item) => item.id === event.id)) removableEvents.push(event);
+      }
+
+      if (!removableEvents.length) {
+        return { removed: 0, date: dateYmd, employeeId, message: "No auto-added attendance entries found for this date." };
+      }
+
+      const eventIds = removableEvents.map((event) => event.id);
+      if (db.AttendanceLateExplanation?.destroy) {
+        await db.AttendanceLateExplanation.destroy({ where: { businessId, attendanceEventId: { [Op.in]: eventIds } }, transaction });
+      }
+      if (db.AttendanceDailyReason?.destroy) {
+        await db.AttendanceDailyReason.destroy({ where: { businessId, attendanceEventId: { [Op.in]: eventIds } }, transaction });
+      }
+      await db.AttendanceEvent.destroy({ where: { businessId, id: { [Op.in]: eventIds } }, transaction });
+
+      return {
+        removed: removableEvents.length,
+        date: dateYmd,
+        employeeId,
+        removedTypes: removableEvents.map((event) => event.type),
+        message: `Removed ${removableEvents.length} auto-added attendance entr${removableEvents.length === 1 ? "y" : "ies"}.`,
+      };
+    });
+  }
+
   async buildDaily(businessId: string, opts: { dateYmd: string; departmentId?: string | null; status?: Status | null; search?: string | null; sortBy: string; sortOrder: string; page?: number; size?: number }) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     if (!settings) throw Object.assign(new Error("Attendance settings not found"), { statusCode: 400 });

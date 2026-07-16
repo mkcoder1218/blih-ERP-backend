@@ -8,7 +8,7 @@ import { AttendanceDeductionService } from "../../services/attendanceDeduction.s
 import { LatenessReasonRulesService } from "../../services/latenessReasonRules.service";
 import { toCsv } from "../../utils/csv";
 
-const DAILY_HEADERS = ["EmployeeName", "TotalDaysExpectedToWork", "TotalDaysWorked", "TotalMissedDays", "PenaltyDeductedHours", "PenaltyDeductionDetails", "DaysAvailableOrWorked", "MissedDays", "Date", "Department", "AssignedStartTime", "MorningCheckIn", "LunchCheckOut", "LunchCheckIn", "EveningCheckOut", "LunchMinutesTaken", "NetHoursWorked", "LatenessStatus", "MinutesLate", "NoticeStatus", "DeductionApplied", "LatenessReason_HROnly"];
+const DAILY_HEADERS = ["EmployeeName", "TotalDaysExpectedToWork", "TotalDaysWorked", "TotalMissedDays", "TotalFullWorkingDays", "TotalHalfWorkingDays", "PaidDaysOff", "ApprovedLeaveDays", "PenaltyDeductedHours", "PenaltyDeductionDetails", "DaysAvailableOrWorked", "MissedDays", "Date", "Department", "AssignedStartTime", "MorningCheckIn", "LunchCheckOut", "LunchCheckIn", "EveningCheckOut", "LunchMinutesTaken", "NetHoursWorked", "LatenessStatus", "MinutesLate", "NoticeStatus", "DeductionApplied", "LatenessReason_HROnly"];
 const DAILY_PUBLIC_HEADERS = DAILY_HEADERS.filter((header) => header !== "LatenessReason_HROnly");
 const WEEKLY_HEADERS = ["EmployeeName", "Department", "ScheduledWorkDays", "DaysOnTime", "DaysLateWithNotice", "DaysLateNoNotice", "DaysAbsent", "DaysIncompletePunch", "LatenessNoticesUsed", "PunctualityRatePercent", "NetHoursWorked", "HalfDayDeductions", "FullDayDeductions"];
 const MONTHLY_HEADERS = ["EmployeeName", "Department", "EmploymentCategory", "ScheduledWorkDays", "DaysOnTime", "DaysLateWithNotice", "DaysLateNoNotice", "DaysAbsent", "DaysIncompletePunch", "PunctualityRatePercent", "LatenessNoticesUsed", "TotalMinutesLate", "TotalHoursWorked", "ApprovedOvertimeHours", "HalfDayDeductions", "FullDayDeductions", "DeductedHours", "AnnualLeaveDaysUsed", "SickLeaveDaysUsed", "OtherLeaveDaysUsed", "AnnualLeaveBalanceRemaining", "AccountabilityFlag"];
@@ -17,6 +17,10 @@ type DailyAttendanceExportSummary = {
   expected: number;
   worked: number;
   missed: number;
+  fullWorkingDays: number;
+  halfWorkingDays: number;
+  paidDaysOff: number;
+  approvedLeaveDays: number;
   deductedHours: number;
   penaltyDetails: string[];
   workedDays: string[];
@@ -113,7 +117,7 @@ export class AttendanceHrController {
   }
 
   private emptyDailyAttendanceSummary(): DailyAttendanceExportSummary {
-    return { expected: 0, worked: 0, missed: 0, deductedHours: 0, penaltyDetails: [], workedDays: [], missedDays: [] };
+    return { expected: 0, worked: 0, missed: 0, fullWorkingDays: 0, halfWorkingDays: 0, paidDaysOff: 0, approvedLeaveDays: 0, deductedHours: 0, penaltyDetails: [], workedDays: [], missedDays: [] };
   }
 
   private dailyAttendanceSummaries(rows: Record<string, any>[]) {
@@ -124,12 +128,21 @@ export class AttendanceHrController {
       const status = String(row.LatenessStatus || "");
       const deduction = this.deductionService.calculate(row as any);
       const penaltyDetail = this.dailyPenaltyDetail(row, deduction);
-      summary.expected += 1;
+      const scheduledUnits = Number(row.ScheduledWorkingDays ?? 1);
+      const fullWorkingUnits = Number(row.FullWorkingDays ?? 0);
+      const halfWorkingUnits = Number(row.HalfWorkingDays ?? 0);
+      const paidDayOffUnits = Number(row.PaidDaysOff ?? 0);
+      const approvedLeaveUnits = Number(row.ApprovedLeaveDays ?? 0);
+      summary.expected += scheduledUnits;
+      summary.fullWorkingDays += fullWorkingUnits;
+      summary.halfWorkingDays += halfWorkingUnits;
+      summary.paidDaysOff += paidDayOffUnits;
+      summary.approvedLeaveDays += approvedLeaveUnits;
       if (status === "Absent") {
-        summary.missed += 1;
+        summary.missed += scheduledUnits;
         if (row.Date) summary.missedDays.push(String(row.Date));
-      } else if (status !== "ApprovedLeave") {
-        summary.worked += 1;
+      } else if (status !== "ApprovedLeave" && status !== "PaidDayOff") {
+        summary.worked += scheduledUnits;
         if (row.Date) summary.workedDays.push(String(row.Date));
       }
       summary.deductedHours += Number(deduction.DeductedHours || 0);
@@ -140,21 +153,38 @@ export class AttendanceHrController {
   }
 
   private dailySelectedEmployeeSummaryRows(rows: Record<string, any>[], summaries: ReturnType<AttendanceHrController["dailyAttendanceSummaries"]>, dateLabel: string, canViewHrOnly: boolean) {
-    const byEmployee = new Map<string, Record<string, any>>();
+    const rowsByEmployee = new Map<string, Record<string, any>[]>();
     for (const row of rows) {
       const key = String(row.EmployeeId || row.EmployeeName || "");
-      if (byEmployee.has(key)) continue;
+      const employeeRows = rowsByEmployee.get(key) || [];
+      employeeRows.push(row);
+      rowsByEmployee.set(key, employeeRows);
+    }
+
+    const byEmployee = new Map<string, Record<string, any>>();
+    for (const [key, employeeRows] of rowsByEmployee.entries()) {
+      const row = employeeRows[0];
       const summary = summaries.get(key) || this.emptyDailyAttendanceSummary();
+      const employeeDates = employeeRows.map((item) => String(item.Date || "")).filter(Boolean).sort();
+      const effectiveDateLabel = employeeDates.length
+        ? employeeDates[0] === employeeDates[employeeDates.length - 1]
+          ? employeeDates[0]
+          : `${employeeDates[0]} to ${employeeDates[employeeDates.length - 1]}`
+        : dateLabel;
       byEmployee.set(key, {
         EmployeeName: row.EmployeeName,
         TotalDaysExpectedToWork: summary.expected,
         TotalDaysWorked: summary.worked,
         TotalMissedDays: summary.missed,
+        TotalFullWorkingDays: summary.fullWorkingDays,
+        TotalHalfWorkingDays: summary.halfWorkingDays,
+        PaidDaysOff: summary.paidDaysOff,
+        ApprovedLeaveDays: summary.approvedLeaveDays,
         PenaltyDeductedHours: this.formatDeductedHours(summary.deductedHours),
         PenaltyDeductionDetails: summary.penaltyDetails.length ? summary.penaltyDetails.join("; ") : "No penalty deductions",
         DaysAvailableOrWorked: summary.workedDays.length ? summary.workedDays.join(", ") : "None",
         MissedDays: summary.missedDays.length ? summary.missedDays.join(", ") : "None",
-        Date: dateLabel,
+        Date: effectiveDateLabel,
         Department: row.Department || "",
         AssignedStartTime: row.AssignedStartTime || "",
         MorningCheckIn: "",
@@ -306,6 +336,19 @@ export class AttendanceHrController {
     }
   };
 
+  removeAutoAddedAttendance = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      this.assertCanManageReasonRules(req);
+      const businessId = req.user!.businessId;
+      const employeeId = req.params.employeeId;
+      const dateYmd = req.body?.date || new Date().toISOString().slice(0, 10);
+      const data = await this.service.removeAutoAddedAttendance(businessId, employeeId, dateYmd);
+      return ok(res, data, data.message || "Auto-added attendance removed");
+    } catch (e: any) {
+      return next({ statusCode: e.statusCode || 500, message: e.message || "Failed" });
+    }
+  };
+
   report = async (req: Request, res: Response) => {
     const businessId = req.user!.businessId;
     const q: any = req.query;
@@ -440,13 +483,17 @@ export class AttendanceHrController {
         const summary = summaries.get(String(row.EmployeeId || row.EmployeeName || "")) || this.emptyDailyAttendanceSummary();
         const deduction = this.deductionService.calculate(row);
         const penaltyDetail = this.dailyPenaltyDetail(row, deduction);
-        const isWorkedDay = row.LatenessStatus !== "Absent" && row.LatenessStatus !== "ApprovedLeave";
+        const isWorkedDay = row.LatenessStatus !== "Absent" && row.LatenessStatus !== "ApprovedLeave" && row.LatenessStatus !== "PaidDayOff";
         const isMissedDay = row.LatenessStatus === "Absent";
         return {
           EmployeeName: row.EmployeeName,
           TotalDaysExpectedToWork: summary.expected,
           TotalDaysWorked: summary.worked,
           TotalMissedDays: summary.missed,
+          TotalFullWorkingDays: summary.fullWorkingDays,
+          TotalHalfWorkingDays: summary.halfWorkingDays,
+          PaidDaysOff: summary.paidDaysOff,
+          ApprovedLeaveDays: summary.approvedLeaveDays,
           PenaltyDeductedHours: this.formatDeductedHours(deduction.DeductedHours),
           PenaltyDeductionDetails: penaltyDetail || "No penalty deductions",
           DaysAvailableOrWorked: isWorkedDay && row.Date ? row.Date : "None",

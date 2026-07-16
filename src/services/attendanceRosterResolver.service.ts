@@ -1,6 +1,7 @@
 import { ACTIVE_EMPLOYMENT_STATUS } from "../constants/employee.constants";
 import { db } from "../models";
 import { Op } from "sequelize";
+import type { WeekendWorkMode } from "../types/attendance";
 
 export type AttendanceRosterEmployeeDay = {
   dateYmd: string;
@@ -56,6 +57,26 @@ function isoWeekday(dateYmd: string): number {
   return day === 0 ? 7 : day;
 }
 
+function ymd(value: unknown): string | null {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  const raw = String(value);
+  return raw.length >= 10 ? raw.slice(0, 10) : null;
+}
+
+function weekendModeForIsoDay(isoDay: number, settings: any): WeekendWorkMode | null {
+  if (isoDay === 6) return (settings?.saturdayWorkMode || "PAID_DAY_OFF") as WeekendWorkMode;
+  if (isoDay === 7) return (settings?.sundayWorkMode || "PAID_DAY_OFF") as WeekendWorkMode;
+  return null;
+}
+
+function shouldIncludeRosterDate(dateYmd: string, scheduledWorkDays: number[], settings: any) {
+  const isoDay = isoWeekday(dateYmd);
+  const weekendMode = weekendModeForIsoDay(isoDay, settings);
+  if (weekendMode) return true;
+  return scheduledWorkDays.includes(isoDay);
+}
+
 export class AttendanceRosterResolver {
   async resolveExpectedEmployees(
     businessId: string,
@@ -84,13 +105,16 @@ export class AttendanceRosterResolver {
       employeeWhere.userId = opts.employeeId || { [Op.notIn]: exemptUserIds };
     }
 
-    const employees = await db.EmployeeRecord.findAll({
+    const [employees, attendanceSettings] = await Promise.all([
+      db.EmployeeRecord.findAll({
       where: employeeWhere,
       include: [
         { model: db.User, as: "user", attributes: ["id", "fullName", "email", "status"], where: { status: "active" }, required: true },
         { model: db.Department, as: "department", attributes: ["id", "name"] },
       ],
-    });
+      }),
+      db.BusinessAttendanceSettings.findOne({ where: { businessId } }),
+    ]);
 
     const rows: AttendanceRosterEmployeeDay[] = [];
     const dates = enumerateDates(opts.startDate, opts.endDate);
@@ -103,9 +127,13 @@ export class AttendanceRosterResolver {
       const department = (employee as any).department
         ? { id: (employee as any).department.id, name: (employee as any).department.name }
         : null;
+      const effectiveStartDate = ymd((employee as any).hireDate) || ymd((employee as any).contractStartDate);
+      const effectiveEndDate = ymd((employee as any).contractEndDate);
 
       for (const dateYmd of dates) {
-        if (!scheduledWorkDays.includes(isoWeekday(dateYmd))) continue;
+        if (effectiveStartDate && dateYmd < effectiveStartDate) continue;
+        if (effectiveEndDate && dateYmd > effectiveEndDate) continue;
+        if (!shouldIncludeRosterDate(dateYmd, scheduledWorkDays, attendanceSettings)) continue;
         rows.push({
           dateYmd,
           employeeId: user.id,

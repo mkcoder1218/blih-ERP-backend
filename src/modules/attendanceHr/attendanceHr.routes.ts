@@ -3,7 +3,7 @@ import { authRequired } from "../../middlewares/auth";
 import { requireAnyPermission } from "../../middlewares/permission";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
-import { dailyQuerySchema, dailyReportExportQuerySchema, employeeDailyParamsSchema, employeeDailyQuerySchema, exportQuerySchema, monthlyReportExportQuerySchema, reportQuerySchema, summaryQuerySchema, weeklyReportExportQuerySchema } from "../../validators/attendanceHr.validator";
+import { dailyQuerySchema, dailyReportExportQuerySchema, employeeDailyParamsSchema, employeeDailyQuerySchema, exportQuerySchema, monthlyReportExportQuerySchema, removeAutoAddedAttendanceSchema, reportQuerySchema, summaryQuerySchema, weeklyReportExportQuerySchema } from "../../validators/attendanceHr.validator";
 import { AttendanceHrController } from "./attendanceHr.controller";
 
 const router = Router();
@@ -41,6 +41,12 @@ router.post(
   "/employees/:employeeId/late-no-reason-message",
   validate(employeeDailyParamsSchema, "params"),
   asyncHandler(controller.sendLateNoReasonPenaltyMessage)
+);
+router.post(
+  "/employees/:employeeId/remove-auto-added-attendance",
+  validate(employeeDailyParamsSchema, "params"),
+  validate(removeAutoAddedAttendanceSchema),
+  asyncHandler(controller.removeAutoAddedAttendance)
 );
 
 router.get("/report", validate(reportQuerySchema, "query"), asyncHandler(controller.report));
