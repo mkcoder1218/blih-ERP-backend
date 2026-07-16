@@ -8,8 +8,10 @@ import { errorResponse, successResponse } from "../../utils/response";
 import { sendOnboardingInviteEmail } from "../../utils/onboardingMailer";
 import { DEFAULT_EMPLOYMENT_TYPE, EMPLOYMENT_TYPES, type EmploymentType } from "../../constants/employee.constants";
 import { env } from "../../config/env";
+import { OnboardingAnalyticsService } from "./onboardingAnalytics.service";
 
 export class CandidateOnboardingController {
+  private readonly analyticsService = new OnboardingAnalyticsService();
   private readonly policyTypes = [
     "terms-and-conditions",
     "privacy-policy",
@@ -409,6 +411,16 @@ export class CandidateOnboardingController {
       }
 
       successResponse(res, payload);
+    } catch (e: any) {
+      errorResponse(res, e.message);
+    }
+  };
+
+  // GET /api/v1/hr/onboarding/analytics — aggregated real onboarding data
+  analytics = async (req: Request, res: Response) => {
+    try {
+      const data = await this.analyticsService.getAnalytics(req.user!.businessId, req.query as any);
+      successResponse(res, data);
     } catch (e: any) {
       errorResponse(res, e.message);
     }

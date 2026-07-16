@@ -20,6 +20,16 @@ const attendanceTelegramController = new AttendanceTelegramController();
 
 router.use(authRequired);
 
+function requireAttendanceSettingsAccess(req: any, _res: any, next: any) {
+  if (!req.user) return next({ statusCode: 401, message: "Unauthorized" });
+  if (req.user.isPlatformSuperAdmin) return next();
+
+  const roles = new Set(req.user.roles || []);
+  if (roles.has("BUSINESS_ADMIN") && req.user.businessId === req.params.businessId) return next();
+
+  return next({ statusCode: 403, message: "Forbidden (role)" });
+}
+
 /**
  * @openapi
  * /api/v1/business:
@@ -134,15 +144,13 @@ router.patch(
 
 router.get(
   "/:businessId/attendance-settings",
-  requireRole("PLATFORM_SUPER_ADMIN"),
-  requirePermission("business.read"),
+  requireAttendanceSettingsAccess,
   asyncHandler(attendanceSettingsController.get)
 );
 
 router.put(
   "/:businessId/attendance-settings",
-  requireRole("PLATFORM_SUPER_ADMIN"),
-  requirePermission("business.update"),
+  requireAttendanceSettingsAccess,
   validate(upsertAttendanceSettingsSchema),
   asyncHandler(attendanceSettingsController.upsert)
 );

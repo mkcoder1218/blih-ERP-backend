@@ -82,6 +82,10 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): CandidateOnb
         type: dataTypes.DATE,
         allowNull: true,
       },
+      completedAt: {
+        type: dataTypes.DATE,
+        allowNull: true,
+      },
       initializedById: {
         type: dataTypes.UUID,
         allowNull: true,

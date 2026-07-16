@@ -20,6 +20,16 @@ const adminController = new businessAdmin_controller_1.BusinessAdminController()
 const attendanceSettingsController = new attendanceSettings_controller_1.AttendanceSettingsController();
 const attendanceTelegramController = new attendanceTelegram_controller_1.AttendanceTelegramController();
 router.use(auth_1.authRequired);
+function requireAttendanceSettingsAccess(req, _res, next) {
+    if (!req.user)
+        return next({ statusCode: 401, message: "Unauthorized" });
+    if (req.user.isPlatformSuperAdmin)
+        return next();
+    const roles = new Set(req.user.roles || []);
+    if (roles.has("BUSINESS_ADMIN") && req.user.businessId === req.params.businessId)
+        return next();
+    return next({ statusCode: 403, message: "Forbidden (role)" });
+}
 /**
  * @openapi
  * /api/v1/business:
@@ -112,8 +122,8 @@ router.post("/", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, permission
  */
 router.post("/:businessId/admin", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, permission_1.requirePermission)("user.create"), (0, validate_1.validate)(businessAdmin_validator_1.createBusinessAdminSchema), (0, asyncHandler_1.asyncHandler)(adminController.createBusinessAdmin));
 router.patch("/:id", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, permission_1.requirePermission)("business.update"), (0, validate_1.validate)(business_validator_1.updateBusinessSchema), (0, asyncHandler_1.asyncHandler)(controller.update));
-router.get("/:businessId/attendance-settings", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, permission_1.requirePermission)("business.read"), (0, asyncHandler_1.asyncHandler)(attendanceSettingsController.get));
-router.put("/:businessId/attendance-settings", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, permission_1.requirePermission)("business.update"), (0, validate_1.validate)(attendanceSettings_validator_1.upsertAttendanceSettingsSchema), (0, asyncHandler_1.asyncHandler)(attendanceSettingsController.upsert));
+router.get("/:businessId/attendance-settings", requireAttendanceSettingsAccess, (0, asyncHandler_1.asyncHandler)(attendanceSettingsController.get));
+router.put("/:businessId/attendance-settings", requireAttendanceSettingsAccess, (0, validate_1.validate)(attendanceSettings_validator_1.upsertAttendanceSettingsSchema), (0, asyncHandler_1.asyncHandler)(attendanceSettingsController.upsert));
 router.get("/:businessId/telegram-settings", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, permission_1.requirePermission)("business.read"), (0, asyncHandler_1.asyncHandler)(attendanceTelegramController.settings));
 router.put("/:businessId/telegram-settings/:botType", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, permission_1.requirePermission)("business.update"), (0, asyncHandler_1.asyncHandler)(attendanceTelegramController.upsertSetting));
 router.post("/:businessId/telegram-settings/:botType/test", (0, role_1.requireRole)("PLATFORM_SUPER_ADMIN"), (0, permission_1.requirePermission)("business.update"), (0, asyncHandler_1.asyncHandler)(attendanceTelegramController.sendTest));

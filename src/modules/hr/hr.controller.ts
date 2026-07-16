@@ -956,7 +956,7 @@ export class HRController {
             if (settings.onboardingId) {
                 const onboarding = await db.CandidateOnboarding.findOne({ where: { onboardingId: settings.onboardingId, businessId } });
                 if (onboarding) {
-                    await onboarding.update({ status: 'COMPLETED' });
+                    await onboarding.update({ status: 'COMPLETED', completedAt: new Date() });
                     await db.EmployeeRecord.update(
                         { employmentStatus: 'active' },
                         { where: { userId: user.id, businessId } },

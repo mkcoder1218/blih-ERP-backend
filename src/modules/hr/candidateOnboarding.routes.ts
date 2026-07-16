@@ -36,6 +36,14 @@ authRouter.get(
 
 // Must come before /:id
 authRouter.get(
+  "/analytics",
+  authRequired,
+  requireAnyPermission("hr.read", "hr.write"),
+  asyncHandler(controller.analytics)
+);
+
+// Must come before /:id
+authRouter.get(
   "/by-offer/:offerId",
   authRequired,
   requireAnyPermission("hr.read", "hr.write"),

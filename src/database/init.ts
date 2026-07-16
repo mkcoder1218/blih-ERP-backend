@@ -788,6 +788,7 @@ async function ensureCandidateOnboardingSchema() {
           defaultValue: 0,
         },
         submittedAt: { type: DataTypes.DATE, allowNull: true },
+        completedAt: { type: DataTypes.DATE, allowNull: true },
         initializedById: { type: DataTypes.UUID, allowNull: true },
         metadata: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
         createdAt: {
@@ -824,6 +825,17 @@ async function ensureCandidateOnboardingSchema() {
       } as any);
 
       console.log("candidate_onboardings table created.");
+    }
+
+    if (hasTable) {
+      const onboardingDesc: any = await qi.describeTable("candidate_onboardings");
+      if (!onboardingDesc.completedAt) {
+        await qi.addColumn("candidate_onboardings", "completedAt", {
+          type: DataTypes.DATE,
+          allowNull: true,
+        } as any);
+        console.log('candidate_onboardings: added column "completedAt"');
+      }
     }
 
     // Add onboardingInitialized column to offer_letters if missing
