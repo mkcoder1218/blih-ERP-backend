@@ -33,6 +33,7 @@ router.get("/records/:userId", auth_1.authRequired, (0, permission_1.requireAnyP
 // Allow HR updates for users with explicit HR write permission or job lifecycle manage permission
 router.patch("/records/:userId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write", "job.manage", "job.update"), (0, validate_1.validate)(hrEmployeeRecord_validator_1.updateEmployeeRecordSchema), (0, asyncHandler_1.asyncHandler)(controller.updateEmployeeRecord));
 router.post("/records/:userId/terminate-contract", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write", "job.manage", "job.update"), (0, asyncHandler_1.asyncHandler)(controller.terminateEmployeeContract));
+router.post("/records/:userId/return-contract", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write", "job.manage", "job.update"), (0, asyncHandler_1.asyncHandler)(controller.returnTerminatedEmployeeContract));
 router.delete("/records/:userId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(controller.deleteRecord));
 router.get("/organogram", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(controller.getOrganogram));
 router.patch("/records/me", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(controller.updateSelfRecord));

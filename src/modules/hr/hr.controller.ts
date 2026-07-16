@@ -11,6 +11,7 @@ import { PayrollTemplateService } from '../finance/payrollTemplate.service';
 import {
   DEFAULT_EMPLOYMENT_STATUS,
   DEFAULT_EMPLOYMENT_TYPE,
+  ACTIVE_EMPLOYMENT_STATUS,
   EMPLOYMENT_STATUSES,
   EMPLOYMENT_TYPES,
   TERMINATED_EMPLOYMENT_STATUS,
@@ -515,6 +516,60 @@ export class HRController {
 
        await transaction.commit();
        successResponse(res, { employeeRecord: rec, user }, "Contract terminated");
+     } catch (e: any) {
+       await transaction.rollback();
+       errorResponse(res, e.message);
+     }
+   };
+
+   returnTerminatedEmployeeContract = async (req: Request, res: Response) => {
+     const transaction = await db.sequelize.transaction();
+     try {
+       const businessId = req.user!.businessId;
+       const targetUserId = req.params.userId;
+       const returnedAt = req.body?.returnedAt ? new Date(req.body.returnedAt) : new Date();
+       const reason = String(req.body?.reason || "Employee returned by HR").trim();
+
+       const rec = await db.EmployeeRecord.findOne({
+         where: { businessId, userId: targetUserId },
+         transaction,
+         lock: transaction.LOCK.UPDATE,
+       });
+       const user = await db.User.findOne({
+         where: { businessId, id: targetUserId },
+         transaction,
+         lock: transaction.LOCK.UPDATE,
+       });
+
+       if (!rec || !user) {
+         await transaction.rollback();
+         return errorResponse(res, "Terminated employee contract record not found", 404);
+       }
+       if (rec.employmentStatus !== TERMINATED_EMPLOYMENT_STATUS) {
+         await transaction.rollback();
+         return errorResponse(res, "Only terminated employees can be returned", 400);
+       }
+
+       const currentMetadata = rec.metadata || {};
+       await rec.update({
+         employmentStatus: ACTIVE_EMPLOYMENT_STATUS,
+         contractEndDate: null,
+         metadata: {
+           ...currentMetadata,
+           contractTermination: null,
+           contractReturn: {
+             returnedAt: returnedAt.toISOString(),
+             reason,
+             returnedByUserId: req.user!.id,
+             previousTermination: currentMetadata.contractTermination || null,
+           },
+         },
+       }, { transaction });
+
+       await user.update({ status: "active" }, { transaction });
+
+       await transaction.commit();
+       successResponse(res, { employeeRecord: rec, user }, "Employee returned");
      } catch (e: any) {
        await transaction.rollback();
        errorResponse(res, e.message);

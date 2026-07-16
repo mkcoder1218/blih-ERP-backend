@@ -97,6 +97,12 @@ router.post(
   requireAnyPermission("hr.write", "job.manage", "job.update"),
   asyncHandler(controller.terminateEmployeeContract),
 );
+router.post(
+  "/records/:userId/return-contract",
+  authRequired,
+  requireAnyPermission("hr.write", "job.manage", "job.update"),
+  asyncHandler(controller.returnTerminatedEmployeeContract),
+);
 router.delete(
   "/records/:userId",
   authRequired,

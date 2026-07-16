@@ -354,6 +354,55 @@ class HRController {
                 (0, response_1.errorResponse)(res, e.message);
             }
         };
+        this.returnTerminatedEmployeeContract = async (req, res) => {
+            const transaction = await models_1.db.sequelize.transaction();
+            try {
+                const businessId = req.user.businessId;
+                const targetUserId = req.params.userId;
+                const returnedAt = req.body?.returnedAt ? new Date(req.body.returnedAt) : new Date();
+                const reason = String(req.body?.reason || "Employee returned by HR").trim();
+                const rec = await models_1.db.EmployeeRecord.findOne({
+                    where: { businessId, userId: targetUserId },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE,
+                });
+                const user = await models_1.db.User.findOne({
+                    where: { businessId, id: targetUserId },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE,
+                });
+                if (!rec || !user) {
+                    await transaction.rollback();
+                    return (0, response_1.errorResponse)(res, "Terminated employee contract record not found", 404);
+                }
+                if (rec.employmentStatus !== employee_constants_1.TERMINATED_EMPLOYMENT_STATUS) {
+                    await transaction.rollback();
+                    return (0, response_1.errorResponse)(res, "Only terminated employees can be returned", 400);
+                }
+                const currentMetadata = rec.metadata || {};
+                await rec.update({
+                    employmentStatus: employee_constants_1.ACTIVE_EMPLOYMENT_STATUS,
+                    contractEndDate: null,
+                    metadata: {
+                        ...currentMetadata,
+                        contractTermination: null,
+                        contractReturn: {
+                            returnedAt: returnedAt.toISOString(),
+                            reason,
+                            returnedByUserId: req.user.id,
+                            previousTermination: currentMetadata.contractTermination || null,
+                        },
+                    },
+                }, { transaction });
+                await user.update({ status: "active" }, { transaction });
+                await transaction.commit();
+                (0, response_1.successResponse)(res, { employeeRecord: rec, user }, "Employee returned");
+            }
+            catch (e) {
+                await transaction.rollback();
+                (0, response_1.errorResponse)(res, e.message);
+            }
+        };
         this.onboardEmployee = async (req, res) => {
             const transaction = await models_1.db.sequelize.transaction();
             try {
