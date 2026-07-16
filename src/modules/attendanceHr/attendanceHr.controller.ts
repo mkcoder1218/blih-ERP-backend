@@ -342,7 +342,7 @@ export class AttendanceHrController {
       const businessId = req.user!.businessId;
       const employeeId = req.params.employeeId;
       const dateYmd = req.body?.date || new Date().toISOString().slice(0, 10);
-      const data = await this.service.removeAutoAddedAttendance(businessId, employeeId, dateYmd);
+      const data = await this.service.removeAutoAddedAttendance(businessId, employeeId, dateYmd, req.body?.eventTypes || []);
       return ok(res, data, data.message || "Auto-added attendance removed");
     } catch (e: any) {
       return next({ statusCode: e.statusCode || 500, message: e.message || "Failed" });

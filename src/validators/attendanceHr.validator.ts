@@ -40,7 +40,11 @@ export const employeeDailyQuerySchema = Joi.object({
 });
 
 export const removeAutoAddedAttendanceSchema = Joi.object({
-  date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required()
+  date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
+  eventTypes: Joi.array()
+    .items(Joi.string().valid("CHECK_IN", "LUNCH_OUT", "LUNCH_IN", "CHECK_OUT"))
+    .min(1)
+    .optional()
 });
 
 export const reportQuerySchema = Joi.object({

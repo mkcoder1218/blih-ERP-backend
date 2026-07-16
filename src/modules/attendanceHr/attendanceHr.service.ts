@@ -51,7 +51,7 @@ export class AttendanceHrService {
   private deductionService = new AttendanceDeductionService();
   private telegram = new AttendanceTelegramService();
 
-  async removeAutoAddedAttendance(businessId: string, employeeId: string, dateYmd: string) {
+  async removeAutoAddedAttendance(businessId: string, employeeId: string, dateYmd: string, eventTypes: string[] = []) {
     const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId } });
     if (!settings) throw Object.assign(new Error("Attendance settings not found"), { statusCode: 400 });
     const tz = settings.timezone || "UTC";
@@ -74,21 +74,34 @@ export class AttendanceHrService {
         lock: transaction.LOCK.UPDATE,
       });
 
-      const removableEvents: any[] = [];
-      for (const correction of corrections) {
-        if (!correction.fromAt || !correction.category) continue;
-        const event = await db.AttendanceEvent.findOne({
-          where: {
-            businessId,
-            employeeId,
-            type: correction.category,
-            timestampUtc: new Date(correction.fromAt),
-          },
-          transaction,
-          lock: transaction.LOCK.UPDATE,
-        });
-        if (event && !removableEvents.some((item) => item.id === event.id)) removableEvents.push(event);
-      }
+      const visibleEventTypes = Array.from(
+        new Set(
+          eventTypes
+            .map((type) => String(type || "").trim())
+            .filter((type) => ["CHECK_IN", "LUNCH_OUT", "LUNCH_IN", "CHECK_OUT"].includes(type))
+        )
+      );
+      const correctionTypes = Array.from(
+        new Set(
+          corrections
+            .map((correction: any) => String(correction.category || "").trim())
+            .filter((type: string) => ["CHECK_IN", "LUNCH_OUT", "LUNCH_IN", "CHECK_OUT"].includes(type))
+        )
+      );
+      const targetTypes = visibleEventTypes.length ? visibleEventTypes : correctionTypes;
+
+      const removableEvents = targetTypes.length
+        ? await db.AttendanceEvent.findAll({
+            where: {
+              businessId,
+              employeeId,
+              type: { [Op.in]: targetTypes },
+              timestampUtc: { [Op.gte]: startUtc, [Op.lt]: endUtc },
+            },
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          })
+        : [];
 
       if (!removableEvents.length) {
         return { removed: 0, date: dateYmd, employeeId, message: "No auto-added attendance entries found for this date." };
@@ -102,6 +115,24 @@ export class AttendanceHrService {
         await db.AttendanceDailyReason.destroy({ where: { businessId, attendanceEventId: { [Op.in]: eventIds } }, transaction });
       }
       await db.AttendanceEvent.destroy({ where: { businessId, id: { [Op.in]: eventIds } }, transaction });
+      await db.AttendanceRequest.update(
+        {
+          status: "cancelled",
+          actionNote: "Auto-added attendance entry removed by HR.",
+          actionedAt: new Date(),
+        },
+        {
+          where: {
+            businessId,
+            employeeUserId: employeeId,
+            requestType: "check_in_correction",
+            status: "approved",
+            category: { [Op.in]: removableEvents.map((event: any) => event.type) },
+            fromAt: { [Op.gte]: startUtc, [Op.lt]: endUtc },
+          },
+          transaction,
+        }
+      );
 
       return {
         removed: removableEvents.length,
