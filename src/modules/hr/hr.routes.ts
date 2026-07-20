@@ -352,6 +352,18 @@ router.get(
   asyncHandler(perfController.listReviews),
 );
 router.get(
+  "/performance/probation",
+  authRequired,
+  requireAnyPermission("performance.read", "performance.manage", "onboarding.read", "onboarding.manage"),
+  asyncHandler(perfController.probationDashboard),
+);
+router.put(
+  "/performance/probation/weights",
+  authRequired,
+  requireAnyPermission("performance.manage", "settings.update"),
+  asyncHandler(perfController.updateProbationWeights),
+);
+router.get(
   "/performance/project-dashboard",
   authRequired,
   requireAnyPermission("performance.read", "performance.manage"),

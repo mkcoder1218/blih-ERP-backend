@@ -18,6 +18,8 @@ exports.default = (sequelize, dataTypes) => {
         hireDate: { type: dataTypes.DATE, allowNull: false },
         contractStartDate: { type: dataTypes.DATE, allowNull: true },
         probationEndDate: { type: dataTypes.DATE, allowNull: true },
+        probationCompletedAt: { type: dataTypes.DATE, allowNull: true },
+        completionEmailSentAt: { type: dataTypes.DATE, allowNull: true },
         contractEndDate: { type: dataTypes.DATE, allowNull: true },
         salaryInfo: { type: dataTypes.JSONB, defaultValue: {} },
         emergencyContact: { type: dataTypes.JSONB, defaultValue: {} },

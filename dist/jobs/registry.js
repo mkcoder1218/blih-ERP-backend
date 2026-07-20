@@ -15,6 +15,7 @@ const telegramDatabaseBackup_1 = require("./handlers/telegramDatabaseBackup");
 const googleCalendarImportSync_1 = require("./handlers/googleCalendarImportSync");
 const googleCalendarWatchRenewal_1 = require("./handlers/googleCalendarWatchRenewal");
 const googleCalendarSyncRetry_1 = require("./handlers/googleCalendarSyncRetry");
+const probationCompletionNotifier_1 = require("./handlers/probationCompletionNotifier");
 function initJobs() {
     console.log(`Background job worker flag: ${env_1.env.jobWorkerEnabled ? 'ENABLED' : 'DISABLED'} (timezone: ${env_1.env.jobTimezone})`);
     // Telegram attendance reports are user-configured operational notifications.
@@ -36,4 +37,5 @@ function initJobs() {
     runner_1.JobRunner.register(googleCalendarImportSync_1.googleCalendarImportSync);
     runner_1.JobRunner.register(googleCalendarWatchRenewal_1.googleCalendarWatchRenewal);
     runner_1.JobRunner.register(googleCalendarSyncRetry_1.googleCalendarSyncRetry);
+    runner_1.JobRunner.register(probationCompletionNotifier_1.probationCompletionNotifier);
 }

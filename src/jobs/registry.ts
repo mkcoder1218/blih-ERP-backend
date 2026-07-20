@@ -14,6 +14,7 @@ import { telegramDatabaseBackup } from './handlers/telegramDatabaseBackup';
 import { googleCalendarImportSync } from './handlers/googleCalendarImportSync';
 import { googleCalendarWatchRenewal } from './handlers/googleCalendarWatchRenewal';
 import { googleCalendarSyncRetry } from './handlers/googleCalendarSyncRetry';
+import { probationCompletionNotifier } from './handlers/probationCompletionNotifier';
 
 export function initJobs() {
    console.log(`Background job worker flag: ${env.jobWorkerEnabled ? 'ENABLED' : 'DISABLED'} (timezone: ${env.jobTimezone})`);
@@ -39,4 +40,5 @@ export function initJobs() {
    JobRunner.register(googleCalendarImportSync);
    JobRunner.register(googleCalendarWatchRenewal);
    JobRunner.register(googleCalendarSyncRetry);
+   JobRunner.register(probationCompletionNotifier);
 }

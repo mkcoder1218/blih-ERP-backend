@@ -642,6 +642,20 @@ export class HRPerformanceController {
        } catch (e: any) { errorResponse(res, e.message); }
    };
 
+   probationDashboard = async (req: Request, res: Response) => {
+       try {
+           const data = await this.service.getProbationDashboard(req.user!.businessId, req.query);
+           successResponse(res, data);
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
+   updateProbationWeights = async (req: Request, res: Response) => {
+       try {
+           const data = await this.service.updateProbationWeights(req.user!.businessId, req.body || {});
+           successResponse(res, data, 'Probation assessment weights updated.');
+       } catch (e: any) { errorResponse(res, e.message); }
+   };
+
    employeeEvaluationEvidence = async (req: Request, res: Response) => {
        try {
            const data = await this.service.getEmployeeEvaluationEvidence(req.user!.businessId, req.params.employeeUserId, req.query);

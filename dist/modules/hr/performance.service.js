@@ -4,10 +4,14 @@ exports.HRPerformanceService = exports.EXIT_DOCUMENT_DEFINITIONS = exports.EXIT_
 const models_1 = require("../../models");
 const employee_constants_1 = require("../../constants/employee.constants");
 const sequelize_1 = require("sequelize");
+const attendanceDailyReport_service_1 = require("../../services/attendanceDailyReport.service");
+const mailer_1 = require("../../services/mailer");
 const COMPLETED_TASK_STATUSES = new Set(['DONE', 'COMPLETED', 'APPROVED']);
 const APPROVED_TASK_STATUSES = new Set(['APPROVED']);
 const BLOCKED_TASK_STATUSES = new Set(['BLOCKED']);
 const EXCLUDED_BLOCKER_TYPES = new Set(['dependency', 'client', 'resource', 'management']);
+const PROBATION_WEIGHT_SETTING_KEY = 'probation_assessment_weights';
+const DEFAULT_PROBATION_WEIGHTS = { punctualityWeight: 30, attendanceWeight: 30, performanceWeight: 40 };
 const EXIT_STATUS_TRANSITIONS = {
     pending: new Set(['in_progress', 'cancelled', 'rejected', 'interview_scheduled']),
     interview_scheduled: new Set(['interview_completed', 'in_progress', 'cancelled', 'rejected']),
@@ -58,6 +62,218 @@ exports.EXIT_DOCUMENT_DEFINITIONS = [
     { documentKey: 'experience_letter', title: 'Experience Letter' }
 ];
 class HRPerformanceService {
+    constructor() {
+        this.dailyAttendanceReport = new attendanceDailyReport_service_1.AttendanceDailyReportService();
+    }
+    ymd(value) {
+        return value.toISOString().slice(0, 10);
+    }
+    clampScore(value) {
+        if (!Number.isFinite(value))
+            return 0;
+        return Math.max(0, Math.min(100, Math.round(value)));
+    }
+    normalizeReviewScore(value) {
+        const score = Number(value ?? 0);
+        if (!Number.isFinite(score) || score <= 0)
+            return 0;
+        return this.clampScore(score <= 5 ? score * 20 : score);
+    }
+    async probationWeights(businessId) {
+        const setting = await models_1.db.BusinessSetting.findOne({ where: { businessId, key: PROBATION_WEIGHT_SETTING_KEY } });
+        const raw = setting?.value || {};
+        const weights = {
+            punctualityWeight: Number(raw.punctualityWeight ?? DEFAULT_PROBATION_WEIGHTS.punctualityWeight),
+            attendanceWeight: Number(raw.attendanceWeight ?? DEFAULT_PROBATION_WEIGHTS.attendanceWeight),
+            performanceWeight: Number(raw.performanceWeight ?? DEFAULT_PROBATION_WEIGHTS.performanceWeight),
+        };
+        const total = weights.punctualityWeight + weights.attendanceWeight + weights.performanceWeight;
+        return total === 100 ? weights : DEFAULT_PROBATION_WEIGHTS;
+    }
+    async updateProbationWeights(businessId, input) {
+        const weights = {
+            punctualityWeight: Number(input?.punctualityWeight),
+            attendanceWeight: Number(input?.attendanceWeight),
+            performanceWeight: Number(input?.performanceWeight),
+        };
+        const total = weights.punctualityWeight + weights.attendanceWeight + weights.performanceWeight;
+        if (!Object.values(weights).every((value) => Number.isFinite(value) && value >= 0 && value <= 100) || total !== 100) {
+            throw new Error('Probation assessment weights must be valid percentages and total 100%.');
+        }
+        const [setting] = await models_1.db.BusinessSetting.findOrCreate({
+            where: { businessId, key: PROBATION_WEIGHT_SETTING_KEY },
+            defaults: { businessId, key: PROBATION_WEIGHT_SETTING_KEY, value: weights, category: 'performance', isPublic: false },
+        });
+        await setting.update({ value: weights, category: 'performance', isPublic: false });
+        return weights;
+    }
+    async probationAttendanceScores(businessId, employeeUserId, startDate, endDate) {
+        const rows = await this.dailyAttendanceReport.generate(businessId, { startDate, endDate, employeeId: employeeUserId });
+        const scheduledRows = rows.filter((row) => Number(row.ScheduledWorkingDays || 0) > 0 && Number(row.PaidDaysOff || 0) <= 0);
+        const scheduledDays = scheduledRows.reduce((sum, row) => sum + Number(row.ScheduledWorkingDays || 0), 0);
+        const expectedMinutes = scheduledRows.reduce((sum, row) => sum + Number(row.ExpectedMinutes || 0), 0);
+        const workedMinutes = scheduledRows.reduce((sum, row) => sum + Math.round(Number(row.NetHoursWorked || 0) * 60), 0);
+        const lateArrivals = scheduledRows.filter((row) => Number(row.MinutesLate || 0) > 0).length;
+        const absences = scheduledRows.filter((row) => row.LatenessStatus === 'Absent').length;
+        const missingCheckouts = scheduledRows.filter((row) => row.LatenessStatus === 'IncompletePunch').length;
+        const penaltyDays = scheduledRows.filter((row) => row.DeductionApplied).length;
+        const attendanceScore = expectedMinutes > 0 ? this.clampScore((workedMinutes / expectedMinutes) * 100) : 0;
+        const punctualityPenalty = lateArrivals * 5 + absences * 12 + missingCheckouts * 8 + penaltyDays * 5;
+        const punctualityScore = scheduledDays > 0 ? this.clampScore(100 - punctualityPenalty) : 0;
+        return {
+            punctualityScore,
+            attendanceScore,
+            breakdown: {
+                scheduledDays,
+                expectedMinutes,
+                workedMinutes,
+                lateArrivals,
+                absences,
+                missingCheckouts,
+                penaltyDays,
+            },
+        };
+    }
+    async probationReviewScore(businessId, employeeUserId, startDate, endDate) {
+        const reviews = await models_1.db.PerformanceReview.findAll({
+            where: {
+                businessId,
+                employeeUserId,
+                periodType: { [sequelize_1.Op.iLike]: 'probation' },
+                periodEnd: { [sequelize_1.Op.gte]: startDate, [sequelize_1.Op.lte]: endDate },
+            },
+            include: [{ model: models_1.db.User, as: 'reviewer', attributes: ['id', 'fullName', 'email'] }],
+            order: [['periodEnd', 'DESC']],
+        });
+        const scored = reviews.map((review) => this.normalizeReviewScore(review.score)).filter((score) => score > 0);
+        return {
+            performanceScore: scored.length ? this.clampScore(scored.reduce((sum, score) => sum + score, 0) / scored.length) : 0,
+            reviews: reviews.map((review) => ({
+                id: review.id,
+                periodStart: review.periodStart,
+                periodEnd: review.periodEnd,
+                score: this.normalizeReviewScore(review.score),
+                status: review.status,
+                reviewerName: review.reviewer?.fullName || review.reviewer?.email || null,
+                reviewData: review.reviewData || {},
+            })),
+        };
+    }
+    async getProbationDashboard(businessId, filters = {}) {
+        const now = new Date();
+        const weights = await this.probationWeights(businessId);
+        const where = {
+            businessId,
+            probationEndDate: { [sequelize_1.Op.ne]: null },
+            employmentStatus: { [sequelize_1.Op.ne]: employee_constants_1.TERMINATED_EMPLOYMENT_STATUS },
+        };
+        if (filters.departmentId)
+            where.departmentId = filters.departmentId;
+        if (filters.status === 'active')
+            where.probationEndDate = { [sequelize_1.Op.gt]: now };
+        if (filters.status === 'completed' || filters.status === 'pending_action')
+            where.probationEndDate = { [sequelize_1.Op.lte]: now };
+        if (filters.endFrom || filters.endTo) {
+            where.probationEndDate = {
+                ...(filters.endFrom ? { [sequelize_1.Op.gte]: new Date(String(filters.endFrom)) } : {}),
+                ...(filters.endTo ? { [sequelize_1.Op.lte]: new Date(String(filters.endTo)) } : {}),
+            };
+        }
+        const records = await models_1.db.EmployeeRecord.findAll({
+            where,
+            include: [
+                { model: models_1.db.User, as: 'user', attributes: ['id', 'fullName', 'email', 'status'], where: { status: { [sequelize_1.Op.ne]: 'inactive' } }, required: true },
+                { model: models_1.db.Department, as: 'department', attributes: ['id', 'name'] },
+                { model: models_1.db.Position, as: 'position', attributes: ['id', 'title'] },
+            ],
+            order: [['probationEndDate', 'ASC']],
+        });
+        const search = String(filters.search || '').trim().toLowerCase();
+        const rows = [];
+        for (const record of records) {
+            const employeeName = record.user?.fullName || record.user?.email || 'Employee';
+            const haystack = `${employeeName} ${record.user?.email || ''} ${record.department?.name || ''} ${record.position?.title || ''}`.toLowerCase();
+            if (search && !haystack.includes(search))
+                continue;
+            const startDateObj = new Date(record.contractStartDate || record.hireDate || record.createdAt);
+            const endDateObj = new Date(record.probationEndDate);
+            const startDate = this.ymd(startDateObj);
+            const endDate = this.ymd(endDateObj);
+            const daysRemaining = Math.max(0, Math.ceil((endDateObj.getTime() - now.getTime()) / 86400000));
+            const completed = endDateObj.getTime() <= now.getTime();
+            const attendance = await this.probationAttendanceScores(businessId, record.userId, startDate, endDate);
+            const review = await this.probationReviewScore(businessId, record.userId, startDateObj, endDateObj);
+            const finalScore = this.clampScore(attendance.punctualityScore * (weights.punctualityWeight / 100) +
+                attendance.attendanceScore * (weights.attendanceWeight / 100) +
+                review.performanceScore * (weights.performanceWeight / 100));
+            const status = completed ? (record.completionEmailSentAt ? 'Completed' : 'Pending HR action') : daysRemaining <= 7 ? 'Ending soon' : 'Active';
+            if (filters.status === 'pending_action' && status !== 'Pending HR action')
+                continue;
+            rows.push({
+                employeeId: record.userId,
+                employeeName,
+                employeeEmail: record.user?.email || null,
+                department: record.department ? { id: record.department.id, name: record.department.name } : null,
+                position: record.position ? { id: record.position.id, title: record.position.title } : null,
+                probationStartDate: startDate,
+                probationEndDate: endDate,
+                daysRemaining,
+                countdownLabel: completed ? 'Completed' : `${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`,
+                punctualityScore: attendance.punctualityScore,
+                attendanceScore: attendance.attendanceScore,
+                performanceScore: review.performanceScore,
+                finalScore,
+                status,
+                probationCompletedAt: record.probationCompletedAt,
+                completionEmailSentAt: record.completionEmailSentAt,
+                weights,
+                attendanceBreakdown: attendance.breakdown,
+                reviews: review.reviews,
+            });
+        }
+        const summary = {
+            activeProbation: rows.filter((row) => row.status === 'Active' || row.status === 'Ending soon').length,
+            endingWithin7Days: rows.filter((row) => row.daysRemaining > 0 && row.daysRemaining <= 7).length,
+            completed: rows.filter((row) => row.status === 'Completed').length,
+            pendingHrAction: rows.filter((row) => row.status === 'Pending HR action').length,
+        };
+        return { summary, weights, rows };
+    }
+    async processProbationCompletionNotifications() {
+        const now = new Date();
+        const records = await models_1.db.EmployeeRecord.findAll({
+            where: {
+                probationEndDate: { [sequelize_1.Op.lte]: now },
+                employmentStatus: { [sequelize_1.Op.ne]: employee_constants_1.TERMINATED_EMPLOYMENT_STATUS },
+                completionEmailSentAt: null,
+            },
+            include: [
+                { model: models_1.db.User, as: 'user', attributes: ['id', 'fullName', 'email'] },
+                { model: models_1.db.Business, attributes: ['id', 'name'] },
+            ],
+        });
+        let sent = 0;
+        for (const record of records) {
+            const hrManagers = await models_1.db.User.findAll({
+                where: { businessId: record.businessId, status: 'active' },
+                include: [{ model: models_1.db.Role, where: { key: 'HR_MANAGER' }, required: true }],
+            });
+            if (!record.probationCompletedAt)
+                await record.update({ probationCompletedAt: now });
+            const employeeName = record.user?.fullName || record.user?.email || 'Employee';
+            for (const manager of hrManagers) {
+                await (0, mailer_1.sendMail)({
+                    to: manager.email,
+                    subject: `Probation ended: ${employeeName}`,
+                    text: `The probation period for ${employeeName} has ended. Please contact the employee and process contract renewal or termination.`,
+                    html: `<p>The probation period for <strong>${employeeName}</strong> has ended. Please contact the employee and process contract renewal or termination.</p>`,
+                });
+            }
+            await record.update({ completionEmailSentAt: new Date() });
+            sent += hrManagers.length;
+        }
+        return { scanned: records.length, emailsSent: sent };
+    }
     async provisionForms(businessId) {
         const templates = [
             { key: 'performance_review', title: 'Performance Review Form' },

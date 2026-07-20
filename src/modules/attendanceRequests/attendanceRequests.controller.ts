@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { AuditLogService } from "../../services/auditLog.service";
 import { AttendanceRequestsService } from "./attendanceRequests.service";
 
@@ -45,7 +45,41 @@ export class AttendanceRequestsController {
       next({ statusCode: err.statusCode || 400, message: err.message });
     }
   };
+cancelWorkFromHome = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const record =
+      await this.svc.cancelWorkFromHome(
+        req.user!.businessId,
+        req.params.id,
+        req.user!.id
+      );
 
+    await AuditLogService.log(
+      "UPDATE",
+      "attendance_request",
+      req.params.id,
+      null,
+      {
+        status: "cancelled",
+        requestType: "work_from_home",
+      },
+      req
+    );
+
+    res.json({
+      attendanceRequest: record,
+    });
+  } catch (err: any) {
+    next({
+      statusCode: err.statusCode || 400,
+      message: err.message,
+    });
+  }
+};
   approve = async (req: Request, res: Response, next: NextFunction) => {
     try {
       await this.assertCanAction(req, req.params.id);

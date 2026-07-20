@@ -25,5 +25,12 @@ router.post("/lateness-notices/:id/reject", requireRole("HR_MANAGER", "BUSINESS_
 router.post("/lateness-notices/:id/invalid", requireRole("HR_MANAGER", "BUSINESS_ADMIN"), asyncHandler(ctrl.markInvalidLatenessNotice));
 router.post("/:id/approve", requireRole("HR_MANAGER", "BUSINESS_ADMIN"), asyncHandler(ctrl.approve));
 router.post("/:id/reject", requireRole("HR_MANAGER", "BUSINESS_ADMIN"), asyncHandler(ctrl.reject));
-
+router.post(
+  "/:id/cancel",
+  requireAnyPermission(
+    "attendance.self",
+    "attendance.manage"
+  ),
+  asyncHandler(ctrl.cancelWorkFromHome)
+)
 export const attendanceRequestsRoutes = router;
