@@ -8,6 +8,7 @@ import definePermission from "./Permission";
 import defineRolePermission from "./RolePermission";
 import defineUserRole from "./UserRole";
 import definePlan from "./Plan";
+import defineExitReason from "./ExitReason";
 import definePlanModule from "./PlanModule";
 import defineBusinessModule from "./BusinessModule";
 import defineSectorFocus from "./SectorFocus";
@@ -249,6 +250,7 @@ export type DB = {
   TrainingRecord: any;
   DisciplinaryCase: any;
   ExitProcess: any;
+  ExitReason: any;
   ExitClearanceStep: any;
   ExitInterview: any;
   ExitDocument: any;
@@ -391,6 +393,10 @@ export const db: DB = {
   PerformanceReview: definePerformanceReview(sequelize, DataTypes),
   TrainingRecord: defineTrainingRecord(sequelize, DataTypes),
   DisciplinaryCase: defineDisciplinaryCase(sequelize, DataTypes),
+  ExitReason: defineExitReason(
+    sequelize,
+    DataTypes,
+  ),
   ExitProcess: defineExitProcess(sequelize, DataTypes),
   ExitClearanceStep: defineExitClearanceStep(sequelize, DataTypes),
   ExitInterview: defineExitInterview(sequelize, DataTypes),
