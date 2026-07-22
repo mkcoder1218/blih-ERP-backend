@@ -10,6 +10,9 @@ concurrency:
   group: hostinger-backend-production
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: Validate backend
@@ -22,15 +25,85 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.12.0
-          cache: npm
+          node-version: "22.12.0"
 
-      - name: Install dependencies
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Verify project files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Current directory:"
+          pwd
+
+          echo "Repository root files:"
+          ls -la
+
+          if [ ! -f package.json ]; then
+            echo "::error::package.json was not found in the repository root."
+            exit 1
+          fi
+
+          if [ -f pnpm-lock.yaml ]; then
+            echo "Detected pnpm-lock.yaml"
+            exit 0
+          fi
+
+          if [ -f package-lock.json ]; then
+            echo "Detected package-lock.json"
+            exit 0
+          fi
+
+          echo "::error::No supported dependency lock file was found."
+          echo "::error::Commit either pnpm-lock.yaml or package-lock.json."
+          exit 1
+
+      - name: Install pnpm
+        if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          COREPACK_PNPM_VERSION="$(node -p "require('./package.json').packageManager || ''")"
+
+          if [[ "$COREPACK_PNPM_VERSION" == pnpm@* ]]; then
+            corepack prepare "$COREPACK_PNPM_VERSION" --activate
+          else
+            corepack prepare pnpm@10 --activate
+          fi
+
+          pnpm --version
+
+      - name: Install dependencies with pnpm
+        if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+        run: pnpm install --frozen-lockfile
+
+      - name: Install dependencies with npm
+        if: ${{ hashFiles('pnpm-lock.yaml') == '' && hashFiles('package-lock.json') != '' }}
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
         run: npm ci
 
-      - name: Build TypeScript
+      - name: Show runtime versions
+        shell: bash
+        run: |
+          node --version
+          npm --version
+
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm --version
+          fi
+
+      - name: Build TypeScript with pnpm
+        if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
+        run: pnpm run build
+
+      - name: Build TypeScript with npm
+        if: ${{ hashFiles('pnpm-lock.yaml') == '' && hashFiles('package-lock.json') != '' }}
         run: npm run build
 
   deploy:
@@ -47,19 +120,22 @@ jobs:
           SSH_USER: ${{ secrets.HOSTINGER_USER }}
           SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
           DEPLOY_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH }}
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
           missing=0
+
           for name in SSH_HOST SSH_PORT SSH_USER SSH_KEY DEPLOY_PATH; do
-            if [ -z "${!name}" ]; then
-              echo "Missing required deployment secret/env value: $name"
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required deployment secret: $name"
               missing=1
             fi
           done
 
           if [ "$missing" -ne 0 ]; then
-            echo "Add the missing HOSTINGER_* secrets to the repository or production environment secrets."
+            echo "Add the missing HOSTINGER_* values to the repository"
+            echo "or production environment secrets."
             exit 1
           fi
 
@@ -67,15 +143,16 @@ jobs:
         env:
           SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
           SSH_PORT: ${{ secrets.HOSTINGER_PORT || '22' }}
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
-          echo "Testing TCP connection to VPS SSH port..."
+          echo "Testing TCP connection to ${SSH_HOST}:${SSH_PORT}..."
 
           if timeout 10 bash -c "</dev/tcp/${SSH_HOST}/${SSH_PORT}"; then
             echo "SUCCESS: VPS SSH port is reachable."
           else
-            echo "FAILED: GitHub runner cannot reach VPS SSH port."
+            echo "::error::GitHub runner cannot reach the VPS SSH port."
             exit 1
           fi
 
@@ -85,7 +162,6 @@ jobs:
           DEPLOY_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH }}
           REPOSITORY: ${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
-
         with:
           host: ${{ secrets.HOSTINGER_HOST }}
           username: ${{ secrets.HOSTINGER_USER }}
@@ -94,25 +170,43 @@ jobs:
 
           timeout: 30s
           command_timeout: 30m
+          script_stop: true
 
           envs: DEPLOY_PATH,REPOSITORY,BRANCH
 
           script: |
-            set -eu
+            set -euo pipefail
 
-            if [ -z "$DEPLOY_PATH" ]; then
-              echo "HOSTINGER_DEPLOY_PATH secret is required"
+            if [ -z "${DEPLOY_PATH:-}" ]; then
+              echo "HOSTINGER_DEPLOY_PATH secret is required."
+              exit 1
+            fi
+
+            if [ -z "${REPOSITORY:-}" ]; then
+              echo "GitHub repository value is missing."
+              exit 1
+            fi
+
+            if [ -z "${BRANCH:-}" ]; then
+              echo "Git branch value is missing."
               exit 1
             fi
 
             mkdir -p "$DEPLOY_PATH"
 
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
-              git clone --branch "$BRANCH" "https://github.com/$REPOSITORY.git" "$DEPLOY_PATH"
+              echo "Cloning repository..."
+
+              git clone \
+                --branch "$BRANCH" \
+                --single-branch \
+                "https://github.com/$REPOSITORY.git" \
+                "$DEPLOY_PATH"
             fi
 
             cd "$DEPLOY_PATH"
 
+            echo "Updating repository..."
             git fetch origin "$BRANCH"
             git checkout "$BRANCH"
             git reset --hard "origin/$BRANCH"
@@ -123,10 +217,27 @@ jobs:
               exit 1
             fi
 
+            if [ ! -f docker-compose.yml ] && [ ! -f docker-compose.yaml ] && [ ! -f compose.yml ] && [ ! -f compose.yaml ]; then
+              echo "No Docker Compose file was found in $DEPLOY_PATH"
+              exit 1
+            fi
+
             chmod 600 .env.production
 
-            docker compose pull db
-            docker compose up -d --build --remove-orphans
+            echo "Validating Docker Compose configuration..."
+            docker compose config --quiet
+
+            echo "Pulling external images..."
+            docker compose pull --ignore-buildable
+
+            echo "Building and starting backend services..."
+            docker compose up \
+              -d \
+              --build \
+              --remove-orphans
+
+            echo "Removing unused Docker images..."
             docker image prune -f
 
+            echo "Deployment status:"
             docker compose ps
