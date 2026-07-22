@@ -22,23 +22,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22.12.0"
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Verify project files
+      - name: Verify required files
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "Current directory:"
+          echo "Repository root:"
           pwd
-
-          echo "Repository root files:"
           ls -la
 
           if [ ! -f package.json ]; then
@@ -46,65 +36,37 @@ jobs:
             exit 1
           fi
 
-          if [ -f pnpm-lock.yaml ]; then
-            echo "Detected pnpm-lock.yaml"
-            exit 0
+          if [ ! -f pnpm-lock.yaml ]; then
+            echo "::error::pnpm-lock.yaml was not found in the repository root."
+            echo "::error::Run pnpm install locally and commit pnpm-lock.yaml."
+            exit 1
           fi
 
-          if [ -f package-lock.json ]; then
-            echo "Detected package-lock.json"
-            exit 0
-          fi
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
 
-          echo "::error::No supported dependency lock file was found."
-          echo "::error::Commit either pnpm-lock.yaml or package-lock.json."
-          exit 1
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.12.0"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
 
-      - name: Install pnpm
-        if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
-        shell: bash
+      - name: Show runtime versions
         run: |
-          set -euo pipefail
-
-          COREPACK_PNPM_VERSION="$(node -p "require('./package.json').packageManager || ''")"
-
-          if [[ "$COREPACK_PNPM_VERSION" == pnpm@* ]]; then
-            corepack prepare "$COREPACK_PNPM_VERSION" --activate
-          else
-            corepack prepare pnpm@10 --activate
-          fi
-
+          node --version
           pnpm --version
 
-      - name: Install dependencies with pnpm
-        if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
+      - name: Install dependencies
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
         run: pnpm install --frozen-lockfile
 
-      - name: Install dependencies with npm
-        if: ${{ hashFiles('pnpm-lock.yaml') == '' && hashFiles('package-lock.json') != '' }}
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: "true"
-        run: npm ci
-
-      - name: Show runtime versions
-        shell: bash
-        run: |
-          node --version
-          npm --version
-
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm --version
-          fi
-
-      - name: Build TypeScript with pnpm
-        if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
+      - name: Build TypeScript
         run: pnpm run build
-
-      - name: Build TypeScript with npm
-        if: ${{ hashFiles('pnpm-lock.yaml') == '' && hashFiles('package-lock.json') != '' }}
-        run: npm run build
 
   deploy:
     name: Deploy to Hostinger VPS
@@ -128,14 +90,12 @@ jobs:
 
           for name in SSH_HOST SSH_PORT SSH_USER SSH_KEY DEPLOY_PATH; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::Missing required deployment secret: $name"
+              echo "::error::Missing required deployment value: $name"
               missing=1
             fi
           done
 
           if [ "$missing" -ne 0 ]; then
-            echo "Add the missing HOSTINGER_* values to the repository"
-            echo "or production environment secrets."
             exit 1
           fi
 
@@ -147,7 +107,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "Testing TCP connection to ${SSH_HOST}:${SSH_PORT}..."
+          echo "Testing ${SSH_HOST}:${SSH_PORT}..."
 
           if timeout 10 bash -c "</dev/tcp/${SSH_HOST}/${SSH_PORT}"; then
             echo "SUCCESS: VPS SSH port is reachable."
@@ -167,36 +127,22 @@ jobs:
           username: ${{ secrets.HOSTINGER_USER }}
           key: ${{ secrets.HOSTINGER_SSH_KEY }}
           port: ${{ secrets.HOSTINGER_PORT || '22' }}
-
           timeout: 30s
           command_timeout: 30m
           script_stop: true
-
           envs: DEPLOY_PATH,REPOSITORY,BRANCH
 
           script: |
             set -euo pipefail
 
             if [ -z "${DEPLOY_PATH:-}" ]; then
-              echo "HOSTINGER_DEPLOY_PATH secret is required."
-              exit 1
-            fi
-
-            if [ -z "${REPOSITORY:-}" ]; then
-              echo "GitHub repository value is missing."
-              exit 1
-            fi
-
-            if [ -z "${BRANCH:-}" ]; then
-              echo "Git branch value is missing."
+              echo "HOSTINGER_DEPLOY_PATH is required."
               exit 1
             fi
 
             mkdir -p "$DEPLOY_PATH"
 
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
-              echo "Cloning repository..."
-
               git clone \
                 --branch "$BRANCH" \
                 --single-branch \
@@ -206,38 +152,17 @@ jobs:
 
             cd "$DEPLOY_PATH"
 
-            echo "Updating repository..."
             git fetch origin "$BRANCH"
             git checkout "$BRANCH"
             git reset --hard "origin/$BRANCH"
 
             if [ ! -f .env.production ]; then
               echo ".env.production was not found in $DEPLOY_PATH"
-              echo "Create it manually on the VPS before deploying."
-              exit 1
-            fi
-
-            if [ ! -f docker-compose.yml ] && [ ! -f docker-compose.yaml ] && [ ! -f compose.yml ] && [ ! -f compose.yaml ]; then
-              echo "No Docker Compose file was found in $DEPLOY_PATH"
               exit 1
             fi
 
             chmod 600 .env.production
 
-            echo "Validating Docker Compose configuration..."
             docker compose config --quiet
-
-            echo "Pulling external images..."
-            docker compose pull --ignore-buildable
-
-            echo "Building and starting backend services..."
-            docker compose up \
-              -d \
-              --build \
-              --remove-orphans
-
-            echo "Removing unused Docker images..."
-            docker image prune -f
-
-            echo "Deployment status:"
+            docker compose up -d --build
             docker compose ps
