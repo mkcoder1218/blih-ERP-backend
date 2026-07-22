@@ -719,19 +719,67 @@ export class GoogleCalendarSyncService {
     };
   }
 
-  buildGoogleEventPayload(event: any, user?: any) {
-    const timeZone = user?.timeZone || user?.timezone || DEFAULT_TIME_ZONE;
+  buildGoogleEventPayload(
+    event: any,
+    user?: any,
+  ) {
+    const timeZone =
+      user?.timeZone ||
+      user?.timezone ||
+      DEFAULT_TIME_ZONE;
+
+    const recurrence = String(
+      event.recurrenceRule || "",
+    )
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) =>
+        line
+          .toUpperCase()
+          .startsWith("RRULE:"),
+      );
+
     return {
       summary: event.title,
-      description: event.description || undefined,
+      description:
+        event.description || undefined,
       location: event.location || undefined,
-      transparency: event.availabilityStatus === "AVAILABLE" ? "transparent" : "opaque",
+
+      transparency:
+        event.availabilityStatus === "AVAILABLE"
+          ? "transparent"
+          : "opaque",
+
       start: event.allDay
-        ? { date: new Date(event.startAt).toISOString().slice(0, 10) }
-        : { dateTime: new Date(event.startAt).toISOString(), timeZone },
+        ? {
+            date: new Date(event.startAt)
+              .toISOString()
+              .slice(0, 10),
+          }
+        : {
+            dateTime: new Date(
+              event.startAt,
+            ).toISOString(),
+            timeZone,
+          },
+
       end: event.allDay
-        ? { date: new Date(event.endAt).toISOString().slice(0, 10) }
-        : { dateTime: new Date(event.endAt).toISOString(), timeZone },
+        ? {
+            date: new Date(event.endAt)
+              .toISOString()
+              .slice(0, 10),
+          }
+        : {
+            dateTime: new Date(
+              event.endAt,
+            ).toISOString(),
+            timeZone,
+          },
+
+      recurrence:
+        recurrence.length > 0
+          ? recurrence
+          : undefined,
     };
   }
 

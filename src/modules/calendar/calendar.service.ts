@@ -6,7 +6,7 @@ import { GoogleCalendarSyncService } from "./googleCalendarSync.service";
 const VALID_AVAILABILITY = new Set(["AVAILABLE", "UNAVAILABLE"]);
 const VALID_ITEM_TYPES = new Set(["TASK", "EVENT", "AVAILABILITY", "MEETING"]);
 const VALID_MEETING_STATUS = new Set(["PENDING", "ACCEPTED", "DECLINED"]);
-
+import { normalizeRecurrenceRule } from "./calendarRecurrence";
 function assertAvailability(value: string) {
   if (!VALID_AVAILABILITY.has(value)) throw Object.assign(new Error("Invalid availability status."), { statusCode: 400 });
 }
@@ -72,6 +72,14 @@ export class CalendarService {
     if (endAt <= startAt) throw Object.assign(new Error("endAt must be after startAt."), { statusCode: 400 });
     const itemType = String(data.itemType || "EVENT").toUpperCase();
     assertItemType(itemType);
+    const recurrenceRule =
+      itemType === "TASK" ||
+      itemType === "AVAILABILITY" ||
+      itemType === "MEETING"
+        ? null
+        : normalizeRecurrenceRule(
+            data.recurrenceRule,
+          );
     const availabilityStatus = String(data.availabilityStatus || (itemType === "AVAILABILITY" ? "UNAVAILABLE" : "AVAILABLE")).toUpperCase();
     assertAvailability(availabilityStatus);
     const title = String(data.title || (itemType === "AVAILABILITY" ? availabilityStatus : "")).trim();
@@ -87,6 +95,9 @@ export class CalendarService {
       location: data.location || null,
       startAt,
       endAt,
+      recurrenceRule,
+      isRecurring: Boolean(recurrenceRule),
+      isRecurringInstance: false,
       allDay: Boolean(data.allDay),
       availabilityStatus,
       color: data.color || null,
@@ -104,6 +115,7 @@ export class CalendarService {
   }
 
   async update(businessId: string, userId: string, eventId: string, data: any) {
+
     if (eventId.startsWith("project-task:")) {
       return this.updateProjectTaskCalendarRow(businessId, userId, eventId.replace("project-task:", ""), data);
     }
@@ -133,6 +145,33 @@ export class CalendarService {
     if (data.color !== undefined) payload.color = data.color || null;
     if (data.projectId !== undefined) payload.projectId = data.projectId || null;
     if (data.metadata !== undefined) payload.metadata = data.metadata || {};
+    if (data.recurrenceRule !== undefined) {
+      const nextItemType =
+        payload.itemType || event.itemType;
+
+      const recurrenceRule =
+        nextItemType === "TASK" ||
+        nextItemType === "AVAILABILITY" ||
+        nextItemType === "MEETING"
+          ? null
+          : normalizeRecurrenceRule(
+              data.recurrenceRule,
+            );
+
+      payload.recurrenceRule = recurrenceRule;
+      payload.isRecurring = Boolean(recurrenceRule);
+      payload.isRecurringInstance = false;
+    }
+
+    if (
+      payload.itemType === "TASK" ||
+      payload.itemType === "AVAILABILITY" ||
+      payload.itemType === "MEETING"
+    ) {
+      payload.recurrenceRule = null;
+      payload.isRecurring = false;
+      payload.isRecurringInstance = false;
+    }
     if (Object.keys(payload).length) await event.update(payload);
 
     if ((event.itemType === "TASK" || payload.itemType === "TASK") && event.projectTaskId) {
