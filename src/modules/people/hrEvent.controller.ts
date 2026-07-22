@@ -192,9 +192,22 @@ export class HREventController {
       if (!apiKey) return errorResponse(res, 'Calendarific API key not configured. Save it in Settings first.', 400);
 
       // ── 2. Fetch from Calendarific ────────────────────────────────────────
-      const url = `https://calendarific.com/api/v2/holidays?api_key=${apiKey}&country=${country}&year=${year}`;
-      const fetch = (await import('node-fetch')).default;
-      const raw = await fetch(url);
+      const query = new URLSearchParams({
+        api_key: String(apiKey),
+        country: String(country),
+        year: String(year),
+      });
+
+      const url =
+        `https://calendarific.com/api/v2/holidays?${query.toString()}`;
+
+      const raw = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(15_000),
+      });
       if (!raw.ok) return errorResponse(res, `Calendarific API error: ${raw.status} ${raw.statusText}`, 502);
       const json: any = await raw.json();
 

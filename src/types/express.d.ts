@@ -18,3 +18,11 @@ declare global {
   }
 }
 
+
+declare global {
+  namespace Express {
+    interface Request {
+      portalUser?: Model<PortalUserAttributes> & PortalUserAttributes;
+    }
+  }
+}
