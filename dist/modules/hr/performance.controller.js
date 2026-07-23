@@ -11,9 +11,11 @@ const models_1 = require("../../models");
 const notification_service_1 = require("../notification/notification.service");
 const file_service_1 = require("../file/file.service");
 const crypto_1 = __importDefault(require("crypto"));
+const exitWorkflow_service_1 = require("./exit/exitWorkflow.service");
 class HRPerformanceController {
     constructor() {
         this.service = new performance_service_1.HRPerformanceService();
+        this.exitWorkflowService = new exitWorkflow_service_1.ExitWorkflowService();
         this.fileService = new file_service_1.FileService();
         this.seedForms = async (req, res) => {
             await this.service.provisionForms(req.user.businessId);
@@ -936,93 +938,82 @@ class HRPerformanceController {
         // POST /hr/exit/resign — employee submits offboarding request with rich text letter
         this.submitResignation = async (req, res) => {
             try {
-                const { effectiveDate, reason, letterHtml, templateId, templateSnapshot, formValues } = req.body;
                 const businessId = req.user.businessId;
-                if (!effectiveDate) {
-                    return (0, response_1.errorResponse)(res, 'effectiveDate is required', 400);
-                }
-                let wasRevision = false;
-                const ex = await models_1.db.sequelize.transaction(async (transaction) => {
-                    const existing = await models_1.db.ExitProcess.findOne({
-                        where: {
-                            businessId,
-                            employeeUserId: req.user.id,
-                        },
-                        order: [['createdAt', 'DESC']],
-                        transaction,
-                        lock: true,
-                    });
-                    if (existing && existing.status !== 'cancelled') {
-                        throw new Error('You already have an active offboarding request.');
-                    }
-                    wasRevision = Boolean(existing);
-                    const payload = {
-                        initiatedByUserId: req.user.id,
+                const exitProcess = await models_1.db.sequelize.transaction(async (transaction) => {
+                    const created = await this.exitWorkflowService.create({
+                        businessId,
                         employeeUserId: req.user.id,
-                        exitType: 'resignation',
-                        effectiveDate,
-                        reason: reason || null,
-                        status: 'pending',
-                        reviewedByUserId: null,
-                        reviewedAt: null,
-                        approvalNote: null,
-                        rejectionReason: null,
-                        clearanceData: {
-                            ...(existing?.clearanceData || {}),
-                            letterHtml: letterHtml || null,
-                            noticePeriodDays: 30,
-                            templateId: templateId || null,
-                            templateSnapshot: templateSnapshot || null,
-                            formValues: formValues || {},
+                        initiatedByUserId: req.user.id,
+                        initiatedByType: "employee",
+                        body: {
+                            ...req.body,
+                            exitType: "resignation",
                         },
-                    };
-                    const exitProcess = existing
-                        ? await existing.update(payload, { transaction })
-                        : await models_1.db.ExitProcess.create({ businessId, ...payload }, { transaction });
-                    await this.service.seedExitClearanceSteps(businessId, String(exitProcess.id), transaction);
-                    await this.service.seedExitDocuments(businessId, String(exitProcess.id), transaction);
-                    return exitProcess;
+                    }, transaction);
+                    await this.service.seedExitClearanceSteps(businessId, String(created.id), transaction);
+                    await this.service.seedExitDocuments(businessId, String(created.id), transaction);
+                    return created;
                 });
-                await auditLog_service_1.AuditLogService.log('SUBMIT_RESIGNATION', 'hr_exit_processes', String(ex.id), null, {}, req);
-                await this.logExitEvent(req, String(ex.id), wasRevision ? 'EXIT_REQUEST_REVISED' : 'EXIT_RESIGNATION_SUBMITTED', { status: ex.status });
-                // Notify all HR managers and business admins
+                await auditLog_service_1.AuditLogService.log("EXIT_EMPLOYEE_INITIATED", "hr_exit_processes", String(exitProcess.id), null, {
+                    exitMode: exitProcess.exitMode,
+                    noticePeriodDays: exitProcess.noticePeriodDays,
+                }, req);
+                await this.logExitEvent(req, String(exitProcess.id), "EXIT_EMPLOYEE_INITIATED", {
+                    status: exitProcess.status,
+                });
                 try {
                     const adminUsers = await models_1.db.User.findAll({
-                        where: { businessId, status: 'active' },
-                        include: [{
+                        where: {
+                            businessId,
+                            status: "active",
+                        },
+                        include: [
+                            {
                                 model: models_1.db.Role,
-                                through: { attributes: [] },
-                                where: { key: ['BUSINESS_ADMIN', 'HR_MANAGER'] },
+                                through: {
+                                    attributes: [],
+                                },
+                                where: {
+                                    key: [
+                                        "BUSINESS_ADMIN",
+                                        "HR_MANAGER",
+                                    ],
+                                },
                                 required: true,
-                            }],
-                        attributes: ['id'],
+                            },
+                        ],
+                        attributes: ["id"],
                     });
-                    const adminIds = adminUsers
-                        .map((u) => u.id)
+                    const recipientUserIds = adminUsers
+                        .map((user) => String(user.id))
                         .filter((id) => id !== req.user.id);
-                    if (adminIds.length > 0) {
-                        const employee = await models_1.db.User.findByPk(req.user.id, { attributes: ['fullName'] });
+                    if (recipientUserIds.length > 0) {
+                        const employee = await models_1.db.User.findByPk(req.user.id, {
+                            attributes: [
+                                "fullName",
+                            ],
+                        });
                         await notification_service_1.InternalNotifier.sendBulk({
                             businessId,
-                            recipientUserIds: adminIds,
+                            recipientUserIds,
                             senderUserId: req.user.id,
-                            moduleKey: 'hr',
-                            type: 'exit_submitted',
-                            title: 'New Offboarding Request',
-                            message: `${employee?.fullName || 'An employee'} has submitted an offboarding/resignation request. Last working day: ${new Date(effectiveDate).toLocaleDateString()}.`,
-                            entityType: 'ExitProcess',
-                            entityId: String(ex.id),
-                            priority: 'high',
+                            moduleKey: "hr",
+                            type: "exit_submitted",
+                            title: "New Exit Request",
+                            message: `${employee?.fullName || "An employee"} submitted an exit request.`,
+                            entityType: "ExitProcess",
+                            entityId: String(exitProcess.id),
+                            priority: "high",
                         });
                     }
                 }
-                catch (notifErr) {
-                    console.error('[ExitProcess] Failed to send admin notifications:', notifErr);
+                catch (notificationError) {
+                    console.error("[ExitProcess] Notification failed:", notificationError);
                 }
-                (0, response_1.successResponse)(res, ex, 'Offboarding request submitted successfully.', 201);
+                (0, response_1.successResponse)(res, exitProcess, "Exit request submitted successfully.", 201);
             }
-            catch (e) {
-                (0, response_1.errorResponse)(res, e.message, e.message === 'You already have an active offboarding request.' ? 400 : 500);
+            catch (error) {
+                (0, response_1.errorResponse)(res, error.message, 400);
             }
         };
         this.updateExitStatus = async (req, res) => {
@@ -1056,8 +1047,39 @@ class HRPerformanceController {
             }
         };
         this.approveExitRequest = async (req, res) => {
-            req.body.status = 'in_progress';
-            return this.updateExitStatus(req, res);
+            try {
+                const result = await this.exitWorkflowService.approve(req.user.businessId, req.params.id, {
+                    reviewedByUserId: req.user.id,
+                    effectiveDate: req.body.effectiveDate ||
+                        req.body.confirmedLastWorkingDate,
+                    approvalNote: req.body.approvalNote,
+                });
+                await auditLog_service_1.AuditLogService.log("EXIT_APPROVED", "hr_exit_processes", String(result.id), null, {
+                    status: result.status,
+                }, req);
+                await this.logExitEvent(req, String(result.id), "EXIT_APPROVED", {
+                    status: result.status,
+                });
+                await notification_service_1.InternalNotifier.send({
+                    businessId: req.user.businessId,
+                    recipientUserId: result.employeeUserId,
+                    senderUserId: req.user.id,
+                    moduleKey: "hr",
+                    type: "exit_approved",
+                    title: "Exit Request Approved",
+                    message: "Your exit request was approved and has moved to clearance.",
+                    entityType: "ExitProcess",
+                    entityId: String(result.id),
+                    priority: "high",
+                });
+                (0, response_1.successResponse)(res, result, "Exit request approved.");
+            }
+            catch (error) {
+                (0, response_1.errorResponse)(res, error.message, error.message ===
+                    "Exit process not found."
+                    ? 404
+                    : 400);
+            }
         };
         this.sendOffboardingForm = async (req, res) => {
             try {
@@ -1098,10 +1120,39 @@ class HRPerformanceController {
             }
         };
         this.rejectExitRequest = async (req, res) => {
-            if (!req.body.rejectionReason && !req.body.reason)
-                return (0, response_1.errorResponse)(res, 'rejectionReason is required', 400);
-            req.body.status = 'rejected';
-            return this.updateExitStatus(req, res);
+            try {
+                const result = await this.exitWorkflowService.reject(req.user.businessId, req.params.id, {
+                    reviewedByUserId: req.user.id,
+                    rejectionReason: req.body.rejectionReason ||
+                        req.body.reason,
+                });
+                await auditLog_service_1.AuditLogService.log("EXIT_REJECTED", "hr_exit_processes", String(result.id), null, {
+                    rejectionReason: result.rejectionReason,
+                }, req);
+                await this.logExitEvent(req, String(result.id), "EXIT_REJECTED", {
+                    rejectionReason: result.rejectionReason,
+                });
+                await notification_service_1.InternalNotifier.send({
+                    businessId: req.user.businessId,
+                    recipientUserId: result.employeeUserId,
+                    senderUserId: req.user.id,
+                    moduleKey: "hr",
+                    type: "exit_rejected",
+                    title: "Exit Request Rejected",
+                    message: result.rejectionReason ||
+                        "Your exit request was rejected.",
+                    entityType: "ExitProcess",
+                    entityId: String(result.id),
+                    priority: "high",
+                });
+                (0, response_1.successResponse)(res, result, "Exit request rejected.");
+            }
+            catch (error) {
+                (0, response_1.errorResponse)(res, error.message, error.message ===
+                    "Exit process not found."
+                    ? 404
+                    : 400);
+            }
         };
         this.disableExitAccount = async (req, res) => {
             try {
@@ -1127,32 +1178,47 @@ class HRPerformanceController {
         };
         this.createExitProcess = async (req, res) => {
             try {
-                const { employeeUserId, exitType, effectiveDate, reason } = req.body;
-                if (!employeeUserId || !effectiveDate)
-                    return (0, response_1.errorResponse)(res, 'employeeUserId and effectiveDate are required', 400);
-                if (!['termination', 'redundancy'].includes(exitType))
-                    return (0, response_1.errorResponse)(res, 'Only termination or redundancy can be HR initiated', 400);
-                const ex = await models_1.db.sequelize.transaction(async (transaction) => {
-                    const exitProcess = await models_1.db.ExitProcess.create({
+                const employeeUserId = String(req.body.employeeUserId ||
+                    "").trim();
+                if (!employeeUserId) {
+                    return (0, response_1.errorResponse)(res, "employeeUserId is required.", 400);
+                }
+                const exitProcess = await models_1.db.sequelize.transaction(async (transaction) => {
+                    const created = await this.exitWorkflowService.create({
                         businessId: req.user.businessId,
                         employeeUserId,
                         initiatedByUserId: req.user.id,
-                        exitType,
-                        reason: reason || null,
-                        effectiveDate,
-                        status: 'pending',
-                        clearanceData: {},
-                        finalPayData: { status: 'pending' },
-                    }, { transaction });
-                    await this.service.seedExitClearanceSteps(req.user.businessId, String(exitProcess.id), transaction);
-                    await this.service.seedExitDocuments(req.user.businessId, String(exitProcess.id), transaction);
-                    return exitProcess;
+                        initiatedByType: "employer",
+                        body: req.body,
+                    }, transaction);
+                    await this.service.seedExitClearanceSteps(req.user.businessId, String(created.id), transaction);
+                    await this.service.seedExitDocuments(req.user.businessId, String(created.id), transaction);
+                    return created;
                 });
-                await this.logExitEvent(req, String(ex.id), 'EXIT_HR_INITIATED', { exitType });
-                (0, response_1.successResponse)(res, ex, 'Exit process initiated.', 201);
+                await auditLog_service_1.AuditLogService.log("EXIT_EMPLOYER_INITIATED", "hr_exit_processes", String(exitProcess.id), null, {
+                    employeeUserId,
+                    exitType: exitProcess.exitType,
+                    exitMode: exitProcess.exitMode,
+                }, req);
+                await this.logExitEvent(req, String(exitProcess.id), "EXIT_EMPLOYER_INITIATED", {
+                    employeeUserId,
+                });
+                await notification_service_1.InternalNotifier.send({
+                    businessId: req.user.businessId,
+                    recipientUserId: employeeUserId,
+                    senderUserId: req.user.id,
+                    moduleKey: "hr",
+                    type: "exit_initiated",
+                    title: "Exit Process Started",
+                    message: "HR has started an exit process for your employment.",
+                    entityType: "ExitProcess",
+                    entityId: String(exitProcess.id),
+                    priority: "high",
+                });
+                (0, response_1.successResponse)(res, exitProcess, "Exit process initiated successfully.", 201);
             }
-            catch (e) {
-                (0, response_1.errorResponse)(res, e.message);
+            catch (error) {
+                (0, response_1.errorResponse)(res, error.message, 400);
             }
         };
         this.updateExitProcess = async (req, res) => {

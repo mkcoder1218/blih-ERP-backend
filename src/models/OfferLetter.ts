@@ -70,6 +70,15 @@ export class OfferLetter extends Model<OfferLetterAttributes, OfferLetterCreatio
     OfferLetter.belongsTo(models.Role, { foreignKey: 'roleId' });
     OfferLetter.belongsTo(models.Position, { foreignKey: 'positionId' });
     OfferLetter.belongsTo(models.User, { foreignKey: 'createdById', as: 'Creator' });
+    if (models.EmploymentContract) {
+      OfferLetter.hasMany(
+        models.EmploymentContract,
+        {
+          foreignKey: "offerId",
+          as: "employmentContracts",
+        },
+      );
+    }
   }
 }
 

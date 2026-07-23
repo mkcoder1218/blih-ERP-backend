@@ -13,6 +13,7 @@ const Permission_1 = __importDefault(require("./Permission"));
 const RolePermission_1 = __importDefault(require("./RolePermission"));
 const UserRole_1 = __importDefault(require("./UserRole"));
 const Plan_1 = __importDefault(require("./Plan"));
+const ExitReason_1 = __importDefault(require("./ExitReason"));
 const PlanModule_1 = __importDefault(require("./PlanModule"));
 const BusinessModule_1 = __importDefault(require("./BusinessModule"));
 const SectorFocus_1 = __importDefault(require("./SectorFocus"));
@@ -110,6 +111,8 @@ const ProjectChangeRequest_1 = __importDefault(require("./ProjectChangeRequest")
 const Vendor_1 = __importDefault(require("./Vendor"));
 const OfferLetterTemplate_1 = __importDefault(require("./OfferLetterTemplate"));
 const OfferLetter_1 = __importDefault(require("./OfferLetter"));
+const EmploymentContractTemplate_1 = __importDefault(require("./EmploymentContractTemplate"));
+const EmploymentContract_1 = __importDefault(require("./EmploymentContract"));
 const RecruitmentTemplate_1 = __importDefault(require("./RecruitmentTemplate"));
 const PayrollTemplate_1 = __importDefault(require("./PayrollTemplate"));
 const EmployeePayrollLink_1 = __importDefault(require("./EmployeePayrollLink"));
@@ -252,6 +255,7 @@ exports.db = {
     PerformanceReview: (0, PerformanceReview_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     TrainingRecord: (0, TrainingRecord_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     DisciplinaryCase: (0, DisciplinaryCase_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ExitReason: (0, ExitReason_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ExitProcess: (0, ExitProcess_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ExitClearanceStep: (0, ExitClearanceStep_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ExitInterview: (0, ExitInterview_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -261,6 +265,8 @@ exports.db = {
     Vendor: (0, Vendor_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     OfferLetterTemplate: (0, OfferLetterTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     OfferLetter: (0, OfferLetter_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    EmploymentContractTemplate: (0, EmploymentContractTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    EmploymentContract: (0, EmploymentContract_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     RecruitmentTemplate: (0, RecruitmentTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     PayrollTemplate: (0, PayrollTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     EmployeePayrollLink: (0, EmployeePayrollLink_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),

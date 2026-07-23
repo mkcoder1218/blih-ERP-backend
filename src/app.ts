@@ -1,11 +1,21 @@
 import express, { Router } from "express";
-import { addRequestId } from "./middlewares/requestId";
-import { globalRateLimiter, authRateLimiter, securityHeaders, compressResponses, preventParameterPollution, sanitizePayload } from "./middlewares/security";
-import { env } from "./config/env";
 import cors, { type CorsOptions } from "cors";
+import swaggerUi from "swagger-ui-express";
 
+import { addRequestId } from "./middlewares/requestId";
+import {
+  authRateLimiter,
+  compressResponses,
+  globalRateLimiter,
+  preventParameterPollution,
+  sanitizePayload,
+  securityHeaders,
+} from "./middlewares/security";
 import { notFound } from "./middlewares/notFound";
 import { errorHandler } from "./middlewares/errorHandler";
+
+import { env } from "./config/env";
+import { swaggerSpec } from "./config/swagger";
 
 import { authRoutes } from "./modules/auth/auth.routes";
 import { businessRoutes } from "./modules/business/business.routes";
@@ -30,10 +40,31 @@ import { activityRoutes } from "./modules/activityLog/activity.routes";
 import { dashboardRoutes } from "./modules/dashboardWidget/widget.routes";
 import { savedViewRoutes } from "./modules/savedView/view.routes";
 import { moduleTemplateRoutes } from "./modules/moduleTemplate/template.routes";
-import { hrRoutes, publicRecruitmentRoutes } from "./modules/hr/hr.routes";
-import { offerLetterRoutes, publicOfferLetterRoutes } from "./modules/hr/offerLetter.routes";
-import { candidateOnboardingRoutes, publicCandidateOnboardingRoutes } from "./modules/hr/candidateOnboarding.routes";
-import { crmRoutes, publicCRMRoutes } from "./modules/crm/crm.routes";
+
+import {
+  hrRoutes,
+  publicRecruitmentRoutes,
+} from "./modules/hr/hr.routes";
+
+import {
+  offerLetterRoutes,
+  publicOfferLetterRoutes,
+} from "./modules/hr/offerLetter.routes";
+
+import {
+  candidateOnboardingRoutes,
+  publicCandidateOnboardingRoutes,
+} from "./modules/hr/candidateOnboarding.routes";
+
+import {
+  employmentContractRoutes,
+} from "./modules/hr/employmentContract.routes";
+
+import {
+  crmRoutes,
+  publicCRMRoutes,
+} from "./modules/crm/crm.routes";
+
 import { projectsRoutes } from "./modules/projects/projects.routes";
 import { financeRoutes } from "./modules/finance/finance.routes";
 import { brainRoutes } from "./modules/brain/brain.routes";
@@ -61,39 +92,100 @@ import { googleCalendarWebhookRoutes } from "./modules/calendar/googleCalendarWe
 import { userExemptionsRoutes } from "./modules/userExemptions/userExemptions.routes";
 import { smtpRoutes } from "./modules/smtp/smtp.routes";
 
-import swaggerUi from "swagger-ui-express";
-import { swaggerSpec } from "./config/swagger";
-
 const app = express();
 
-// CORS must be first — before helmet, rat limiter, and everhing else.
-// The browser sends a preflight OPTIONS request before any authenticated request;
-// if CORS headers aren't on that response the browser blocks the actual request.
+/**
+ * CORS must run before security middleware.
+ *
+ * Browsers send an OPTIONS preflight request before many authenticated
+ * requests. If the preflight response does not include the correct CORS
+ * headers, the browser blocks the actual request.
+ */
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    console.log(`[CORS] incoming origin: '${origin ?? 'none'}'`);
-    // Allow requests with no origin (curl, Postman, server-to-server)
-    if (!origin) return callback(null, true);
-    // In development allow all localhost origins regardless of port
-    if (env.nodeEnv !== "production" && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
-      console.log(`[CORS] allowed (localhost dev): ${origin}`);
+    console.log(
+      `[CORS] incoming origin: '${origin ?? "none"}'`,
+    );
+
+    /**
+     * Allow requests with no Origin header.
+     *
+     * Examples:
+     * - Postman
+     * - curl
+     * - server-to-server requests
+     */
+    if (!origin) {
       return callback(null, true);
     }
-    // In production check against the explicit allowlist
+
+    /**
+     * During development, allow localhost on any port.
+     */
+    if (
+      env.nodeEnv !== "production" &&
+      /^https?:\/\/localhost(:\d+)?$/.test(origin)
+    ) {
+      console.log(
+        `[CORS] allowed (localhost dev): ${origin}`,
+      );
+
+      return callback(null, true);
+    }
+
+    /**
+     * During production, only allow configured origins.
+     */
     if (env.corsOrigins.includes(origin)) {
-      console.log(`[CORS] allowed (allowlist): ${origin}`);
+      console.log(
+        `[CORS] allowed (allowlist): ${origin}`,
+      );
+
       return callback(null, true);
     }
-    console.log(`[CORS] BLOCKED: '${origin}' not in [${env.corsOrigins.join(", ")}]`);
-    callback(new Error(`CORS: origin '${origin}' not allowed`));
+
+    console.log(
+      `[CORS] BLOCKED: '${origin}' not in [${env.corsOrigins.join(
+        ", ",
+      )}]`,
+    );
+
+    return callback(
+      new Error(
+        `CORS: origin '${origin}' not allowed`,
+      ),
+    );
   },
+
   credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "x-api-key"],
-  exposedHeaders: ["Content-Disposition"],
+
+  methods: [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+  ],
+
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Request-Id",
+    "x-api-key",
+  ],
+
+  exposedHeaders: [
+    "Content-Disposition",
+  ],
 };
+
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // explicitly handle preflight for all routes
+
+app.options(
+  "*",
+  cors(corsOptions),
+);
 
 app.use(addRequestId);
 app.use(securityHeaders);
@@ -101,88 +193,508 @@ app.use(compressResponses);
 app.use(preventParameterPollution);
 app.use(sanitizePayload);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static("uploads"));
+app.use(
+  express.json({
+    limit: "10mb",
+  }),
+);
 
-// TODO: re-enable rate limiting before production
-// app.use(`/api/${env.apiVersion}`, globalRateLimiter);
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "10mb",
+  }),
+);
+
+app.use(
+  "/uploads",
+  express.static("uploads"),
+);
+
+/**
+ * Re-enable before production if needed.
+ */
+// app.use(
+//   `/api/${env.apiVersion}`,
+//   globalRateLimiter,
+// );
 
 const apiRouter = Router();
 
-apiRouter.use("/hr/public/offers", publicOfferLetterRoutes); // canonical public path
-apiRouter.use("/offer-letters", publicOfferLetterRoutes);   // legacy path — keeps old stored links working
-apiRouter.use("/hr/public/onboarding", publicCandidateOnboardingRoutes); // public candidate onboarding
+/**
+ * Public HR routes
+ */
+apiRouter.use(
+  "/hr/public/offers",
+  publicOfferLetterRoutes,
+);
 
-apiRouter.get("/status", (req, res) => {
-   res.json({ status: "OK", version: env.apiVersion });
-});
+/**
+ * Legacy public offer route.
+ *
+ * This keeps previously stored offer links working.
+ */
+apiRouter.use(
+  "/offer-letters",
+  publicOfferLetterRoutes,
+);
 
-apiRouter.use("/auth", authRoutes);
-apiRouter.use("/users", userRoutes);
-apiRouter.use("/user-exemptions", userExemptionsRoutes);
-apiRouter.use("/businesses", businessRoutes);
-apiRouter.use("/plans", planRoutes);
-apiRouter.use("/sector-focuses", sectorFocusRoutes);
-apiRouter.use("/hr/public", publicRecruitmentRoutes);
-apiRouter.use("/hr/onboarding", candidateOnboardingRoutes);
-apiRouter.use("/hr", hrRoutes);
-apiRouter.use("/offer-letters", offerLetterRoutes);
-apiRouter.use("/crm/public", publicCRMRoutes);
-apiRouter.use("/crm", crmRoutes);
-apiRouter.use("/projects", projectsRoutes);
-apiRouter.use("/finance", financeRoutes);
-apiRouter.use("/brain", brainRoutes);
-apiRouter.use("/okr", okrRoutes);
-apiRouter.use("/client-portal", clientPortalRoutes);
-apiRouter.use("/reporting", reportingRoutes);
-apiRouter.use("/settings", settingsRoutes);
-apiRouter.use("/smtp", smtpRoutes);
-apiRouter.use("/subscription", subscriptionRoutes);
-apiRouter.use("/admin-ops", adminOpsRoutes);
-apiRouter.use("/people", peopleRoutes);
-apiRouter.use("/files", fileRoutes);
-apiRouter.use("/audit-logs", auditLogRoutes);
-apiRouter.use("/notification-preferences", notificationPreferenceRoutes);
-apiRouter.use("/activity-logs", activityRoutes);
-apiRouter.use("/business-modules", businessModuleRoutes);
-apiRouter.use("/attachments", attachmentRoutes);
-apiRouter.use("/module-templates", moduleTemplateRoutes);
-apiRouter.use("/dashboard-widgets", dashboardRoutes);
-apiRouter.use("/saved-views", savedViewRoutes);
-apiRouter.use("/notifications", notificationRoutes);
-apiRouter.use("/departments", departmentRoutes);
-apiRouter.use("/positions", positionRoutes);
-apiRouter.use("/profiles", businessUserProfileRoutes);
-apiRouter.use("/devices", devicesRoutes);
-apiRouter.use("/roles", roleRoutes);
-apiRouter.use("/permissions", permissionRoutes);
-apiRouter.use("/attendance", attendanceMeRoutes);
-apiRouter.use("/attendance/telegram", attendanceTelegramRoutes);
-apiRouter.use("/attendance/hr/late-reasons", attendanceHrLateReasonsRoutes);
-apiRouter.use("/attendance/hr", attendanceHrRoutes);
-apiRouter.use("/attendance-requests", attendanceRequestsRoutes);
-apiRouter.use("/attendance-special-requests", specialRequestsRoutes);
-apiRouter.use("/google-calendar", googleCalendarWebhookRoutes);
-apiRouter.use("/calendar", calendarRoutes);
-apiRouter.use("/overtime-requests", overtimeRoutes);
-apiRouter.use("/leave-requests", leaveRoutes);
-apiRouter.use("/policies", policyRoutes);
-apiRouter.use("/inventory", inventoryRoutes);
+apiRouter.use(
+  "/hr/public/onboarding",
+  publicCandidateOnboardingRoutes,
+);
 
-app.use(`/api/${env.apiVersion}`, apiRouter);
+apiRouter.use(
+  "/hr/public",
+  publicRecruitmentRoutes,
+);
 
-// Health stays out of versioning
-app.get('/health', (req, res) => res.json({ status: 'UP' }));
+/**
+ * API status
+ */
+apiRouter.get(
+  "/status",
+  (_req, res) => {
+    return res.json({
+      status: "OK",
+      version: env.apiVersion,
+    });
+  },
+);
 
-// Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customSiteTitle: 'Blih ERP API Docs',
-  customCss: '.swagger-ui .topbar { display: none }',
-  swaggerOptions: { persistAuthorization: true }
-}));
-app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
+/**
+ * Authentication and user management
+ */
+apiRouter.use(
+  "/auth",
+  authRoutes,
+);
 
+apiRouter.use(
+  "/users",
+  userRoutes,
+);
+
+apiRouter.use(
+  "/user-exemptions",
+  userExemptionsRoutes,
+);
+
+apiRouter.use(
+  "/businesses",
+  businessRoutes,
+);
+
+apiRouter.use(
+  "/plans",
+  planRoutes,
+);
+
+apiRouter.use(
+  "/sector-focuses",
+  sectorFocusRoutes,
+);
+
+/**
+ * HR onboarding
+ */
+apiRouter.use(
+  "/hr/onboarding",
+  candidateOnboardingRoutes,
+);
+
+/**
+ * Employment contracts
+ *
+ * Base endpoint:
+ * /api/v1/hr/employment-contracts
+ */
+apiRouter.use(
+  "/hr/employment-contracts",
+  employmentContractRoutes,
+);
+
+/**
+ * General HR routes
+ */
+apiRouter.use(
+  "/hr",
+  hrRoutes,
+);
+
+/**
+ * Offer letters
+ *
+ * Offer letters remain separate from employment contracts.
+ */
+apiRouter.use(
+  "/offer-letters",
+  offerLetterRoutes,
+);
+
+/**
+ * CRM
+ */
+apiRouter.use(
+  "/crm/public",
+  publicCRMRoutes,
+);
+
+apiRouter.use(
+  "/crm",
+  crmRoutes,
+);
+
+/**
+ * Projects
+ */
+apiRouter.use(
+  "/projects",
+  projectsRoutes,
+);
+
+/**
+ * Finance
+ */
+apiRouter.use(
+  "/finance",
+  financeRoutes,
+);
+
+/**
+ * Brain / AI
+ */
+apiRouter.use(
+  "/brain",
+  brainRoutes,
+);
+
+/**
+ * OKR
+ */
+apiRouter.use(
+  "/okr",
+  okrRoutes,
+);
+
+/**
+ * Client portal
+ */
+apiRouter.use(
+  "/client-portal",
+  clientPortalRoutes,
+);
+
+/**
+ * Reporting
+ */
+apiRouter.use(
+  "/reporting",
+  reportingRoutes,
+);
+
+/**
+ * Settings
+ */
+apiRouter.use(
+  "/settings",
+  settingsRoutes,
+);
+
+/**
+ * SMTP
+ */
+apiRouter.use(
+  "/smtp",
+  smtpRoutes,
+);
+
+/**
+ * Subscriptions
+ */
+apiRouter.use(
+  "/subscription",
+  subscriptionRoutes,
+);
+
+/**
+ * Admin operations
+ */
+apiRouter.use(
+  "/admin-ops",
+  adminOpsRoutes,
+);
+
+/**
+ * People
+ */
+apiRouter.use(
+  "/people",
+  peopleRoutes,
+);
+
+/**
+ * Files and attachments
+ */
+apiRouter.use(
+  "/files",
+  fileRoutes,
+);
+
+apiRouter.use(
+  "/attachments",
+  attachmentRoutes,
+);
+
+/**
+ * Auditing and activity
+ */
+apiRouter.use(
+  "/audit-logs",
+  auditLogRoutes,
+);
+
+apiRouter.use(
+  "/activity-logs",
+  activityRoutes,
+);
+
+/**
+ * Notification management
+ */
+apiRouter.use(
+  "/notification-preferences",
+  notificationPreferenceRoutes,
+);
+
+apiRouter.use(
+  "/notifications",
+  notificationRoutes,
+);
+
+/**
+ * Modules and templates
+ */
+apiRouter.use(
+  "/business-modules",
+  businessModuleRoutes,
+);
+
+apiRouter.use(
+  "/module-templates",
+  moduleTemplateRoutes,
+);
+
+/**
+ * Dashboard and saved views
+ */
+apiRouter.use(
+  "/dashboard-widgets",
+  dashboardRoutes,
+);
+
+apiRouter.use(
+  "/saved-views",
+  savedViewRoutes,
+);
+
+/**
+ * Organization structure
+ */
+apiRouter.use(
+  "/departments",
+  departmentRoutes,
+);
+
+apiRouter.use(
+  "/positions",
+  positionRoutes,
+);
+
+apiRouter.use(
+  "/profiles",
+  businessUserProfileRoutes,
+);
+
+/**
+ * Devices
+ */
+apiRouter.use(
+  "/devices",
+  devicesRoutes,
+);
+
+/**
+ * Roles and permissions
+ */
+apiRouter.use(
+  "/roles",
+  roleRoutes,
+);
+
+apiRouter.use(
+  "/permissions",
+  permissionRoutes,
+);
+
+/**
+ * Attendance
+ */
+apiRouter.use(
+  "/attendance",
+  attendanceMeRoutes,
+);
+
+apiRouter.use(
+  "/attendance/telegram",
+  attendanceTelegramRoutes,
+);
+
+apiRouter.use(
+  "/attendance/hr/late-reasons",
+  attendanceHrLateReasonsRoutes,
+);
+
+apiRouter.use(
+  "/attendance/hr",
+  attendanceHrRoutes,
+);
+
+apiRouter.use(
+  "/attendance-requests",
+  attendanceRequestsRoutes,
+);
+
+apiRouter.use(
+  "/attendance-special-requests",
+  specialRequestsRoutes,
+);
+
+/**
+ * Calendar
+ */
+apiRouter.use(
+  "/google-calendar",
+  googleCalendarWebhookRoutes,
+);
+
+apiRouter.use(
+  "/calendar",
+  calendarRoutes,
+);
+
+/**
+ * Overtime
+ */
+apiRouter.use(
+  "/overtime-requests",
+  overtimeRoutes,
+);
+
+/**
+ * Leave
+ */
+apiRouter.use(
+  "/leave-requests",
+  leaveRoutes,
+);
+
+/**
+ * Policies
+ */
+apiRouter.use(
+  "/policies",
+  policyRoutes,
+);
+
+/**
+ * Inventory
+ */
+apiRouter.use(
+  "/inventory",
+  inventoryRoutes,
+);
+
+/**
+ * Forms
+ */
+apiRouter.use(
+  "/form-definitions",
+  formDefinitionRoutes,
+);
+
+apiRouter.use(
+  "/form-submissions",
+  formSubmissionRoutes,
+);
+
+/**
+ * Approval workflows
+ */
+apiRouter.use(
+  "/approval-workflows",
+  approvalWorkflowRoutes,
+);
+
+apiRouter.use(
+  "/approval-requests",
+  approvalRequestRoutes,
+);
+
+/**
+ * Mount versioned API.
+ */
+app.use(
+  `/api/${env.apiVersion}`,
+  apiRouter,
+);
+
+/**
+ * Health endpoint is intentionally outside API versioning.
+ */
+app.get(
+  "/health",
+  (_req, res) => {
+    return res.json({
+      status: "UP",
+    });
+  },
+);
+
+/**
+ * Swagger documentation
+ */
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(
+    swaggerSpec,
+    {
+      customSiteTitle:
+        "Blih ERP API Docs",
+
+      customCss:
+        ".swagger-ui .topbar { display: none }",
+
+      swaggerOptions: {
+        persistAuthorization: true,
+      },
+    },
+  ),
+);
+
+app.get(
+  "/api-docs.json",
+  (_req, res) => {
+    return res.json(
+      swaggerSpec,
+    );
+  },
+);
+
+/**
+ * 404 and centralized error handling.
+ */
 app.use(notFound);
 app.use(errorHandler);
 

@@ -106,6 +106,8 @@ import defineProjectChangeRequest from "./ProjectChangeRequest";
 import defineVendor from "./Vendor";
 import defineOfferLetterTemplate from "./OfferLetterTemplate";
 import defineOfferLetter from "./OfferLetter";
+import defineEmploymentContractTemplate from "./EmploymentContractTemplate";
+import defineEmploymentContract from "./EmploymentContract";
 import defineRecruitmentTemplate from "./RecruitmentTemplate";
 import definePayrollTemplate from "./PayrollTemplate";
 import defineEmployeePayrollLink from "./EmployeePayrollLink";
@@ -259,6 +261,8 @@ export type DB = {
   Vendor: any;
   OfferLetterTemplate: any;
   OfferLetter: any;
+  EmploymentContractTemplate: any;
+  EmploymentContract: any;
   RecruitmentTemplate: any;
   PayrollTemplate: any;
   EmployeePayrollLink: any;
@@ -404,8 +408,29 @@ export const db: DB = {
   Proposal: defineProposal(sequelize, DataTypes),
   ProjectChangeRequest: defineProjectChangeRequest(sequelize, DataTypes),
   Vendor: defineVendor(sequelize, DataTypes),
-  OfferLetterTemplate: defineOfferLetterTemplate(sequelize, DataTypes),
-  OfferLetter: defineOfferLetter(sequelize, DataTypes),
+  OfferLetterTemplate:
+    defineOfferLetterTemplate(
+      sequelize,
+      DataTypes,
+    ),
+
+  OfferLetter:
+    defineOfferLetter(
+      sequelize,
+      DataTypes,
+    ),
+
+  EmploymentContractTemplate:
+    defineEmploymentContractTemplate(
+      sequelize,
+      DataTypes,
+    ),
+
+  EmploymentContract:
+    defineEmploymentContract(
+      sequelize,
+      DataTypes,
+    ),
   RecruitmentTemplate: defineRecruitmentTemplate(sequelize, DataTypes),
   PayrollTemplate: definePayrollTemplate(sequelize, DataTypes),
   EmployeePayrollLink: defineEmployeePayrollLink(sequelize, DataTypes),

@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HRPerformanceService = exports.EXIT_DOCUMENT_DEFINITIONS = exports.EXIT_CLEARANCE_STEP_DEFINITIONS = void 0;
-const models_1 = require("../../models");
-const employee_constants_1 = require("../../constants/employee.constants");
 const sequelize_1 = require("sequelize");
+const employee_constants_1 = require("../../constants/employee.constants");
+const models_1 = require("../../models");
 const attendanceDailyReport_service_1 = require("../../services/attendanceDailyReport.service");
 const mailer_1 = require("../../services/mailer");
 const COMPLETED_TASK_STATUSES = new Set(['DONE', 'COMPLETED', 'APPROVED']);
@@ -309,55 +309,124 @@ class HRPerformanceService {
         }
     }
     async processExit(businessId, exitId, status, options = {}) {
-        const p = await models_1.db.ExitProcess.findOne({ where: { id: exitId, businessId } });
-        if (!p)
+        const exitProcess = await models_1.db.ExitProcess.findOne({
+            where: {
+                id: exitId,
+                businessId,
+            },
+        });
+        if (!exitProcess) {
             throw new Error("Exit process not found.");
-        const currentStatus = String(p.status || 'pending');
+        }
+        const currentStatus = String(exitProcess.status || "pending");
         if (!EXIT_STATUS_TRANSITIONS[currentStatus]?.has(status)) {
             throw new Error(`Invalid exit status transition from ${currentStatus} to ${status}.`);
         }
-        const employeeUserId = p.employeeUserId;
-        const payload = { status };
-        if (['in_progress', 'completed', 'rejected', 'cancelled'].includes(status)) {
-            payload.reviewedByUserId = options.reviewedByUserId;
-            payload.reviewedAt = new Date();
+        const employeeUserId = exitProcess.employeeUserId;
+        const payload = {
+            status,
+        };
+        if ([
+            "in_progress",
+            "clearance_pending",
+            "completed",
+            "rejected",
+            "cancelled",
+        ].includes(status)) {
+            payload.reviewedByUserId =
+                options.reviewedByUserId;
+            payload.reviewedAt =
+                new Date();
         }
-        if (status === 'in_progress') {
-            payload.effectiveDate = options.effectiveDate || p.effectiveDate;
-            payload.approvalNote = options.approvalNote ?? p.approvalNote;
+        if (status === "in_progress" ||
+            status === "clearance_pending") {
+            payload.effectiveDate =
+                options.effectiveDate ||
+                    exitProcess.effectiveDate;
+            payload.approvalNote =
+                options.approvalNote ??
+                    exitProcess.approvalNote;
             payload.rejectionReason = null;
+            /*
+             * Approval starts the notice or clearance
+             * process. It must not put the employee
+             * on leave or deactivate the account.
+             */
+            const employeeRecord = await models_1.db.EmployeeRecord.findOne({
+                where: {
+                    businessId,
+                    userId: employeeUserId,
+                },
+            });
+            if (employeeRecord &&
+                employeeRecord.employmentStatus !==
+                    employee_constants_1.ACTIVE_EMPLOYMENT_STATUS) {
+                await employeeRecord.update({
+                    employmentStatus: employee_constants_1.ACTIVE_EMPLOYMENT_STATUS,
+                });
+            }
         }
-        if (['rejected', 'cancelled'].includes(status)) {
-            payload.rejectionReason = options.rejectionReason ?? p.rejectionReason;
+        if (status === "rejected" ||
+            status === "cancelled") {
+            payload.rejectionReason =
+                options.rejectionReason ??
+                    exitProcess.rejectionReason;
+            const employeeRecord = await models_1.db.EmployeeRecord.findOne({
+                where: {
+                    businessId,
+                    userId: employeeUserId,
+                },
+            });
+            if (employeeRecord &&
+                employeeRecord.employmentStatus !==
+                    employee_constants_1.ACTIVE_EMPLOYMENT_STATUS) {
+                await employeeRecord.update({
+                    employmentStatus: employee_constants_1.ACTIVE_EMPLOYMENT_STATUS,
+                });
+            }
         }
-        if (status === 'completed') {
-            this.assertLeaveWindowComplete(p);
-            if (!p.offboardingFormSubmittedAt)
-                throw new Error('Employee offboarding form must be submitted before final approval.');
-            await this.assertOffboardingCanComplete(businessId, p);
-            const emp = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
-            if (emp)
-                await emp.update({ employmentStatus: employee_constants_1.TERMINATED_EMPLOYMENT_STATUS });
-            await models_1.db.User.update({ status: 'inactive' }, { where: { id: employeeUserId, businessId } });
-            payload.accountDisabledAt = new Date();
-            payload.accountDisabledByUserId = options.reviewedByUserId;
+        if (status === "completed") {
+            /*
+             * Do not use the old leave-window rule.
+             * Exit notice is controlled by effectiveDate
+             * and noticePeriodDays.
+             */
+            const effectiveDate = exitProcess.effectiveDate
+                ? new Date(exitProcess.effectiveDate)
+                : null;
+            if (!effectiveDate) {
+                throw new Error("A final working date is required before completing the exit.");
+            }
+            effectiveDate.setHours(23, 59, 59, 999);
+            if (effectiveDate.getTime() >
+                Date.now()) {
+                const daysRemaining = Math.ceil((effectiveDate.getTime() -
+                    Date.now()) /
+                    86400000);
+                throw new Error(`The exit cannot be completed before the final working date (${daysRemaining} day(s) remaining).`);
+            }
+            await this.assertOffboardingCanComplete(businessId, exitProcess);
+            const employeeRecord = await models_1.db.EmployeeRecord.findOne({
+                where: {
+                    businessId,
+                    userId: employeeUserId,
+                },
+            });
+            if (employeeRecord) {
+                await employeeRecord.update({
+                    employmentStatus: employee_constants_1.TERMINATED_EMPLOYMENT_STATUS,
+                });
+            }
+            /*
+             * Keep actual user deactivation in
+             * disableOffboardingAccount().
+             *
+             * Completion means employment ended,
+             * while account deactivation remains
+             * an explicit final action.
+             */
         }
-        else if (status === 'in_progress') {
-            const leaveStartedAt = new Date();
-            const leaveEndsAt = new Date(leaveStartedAt);
-            leaveEndsAt.setDate(leaveEndsAt.getDate() + 30);
-            payload.leaveStartedAt = p.leaveStartedAt || leaveStartedAt;
-            payload.leaveEndsAt = p.leaveEndsAt || leaveEndsAt;
-            const emp = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
-            if (emp)
-                await emp.update({ employmentStatus: employee_constants_1.ON_LEAVE_EMPLOYMENT_STATUS });
-        }
-        else if (status === 'cancelled' && currentStatus === 'in_progress') {
-            const emp = await models_1.db.EmployeeRecord.findOne({ where: { businessId, userId: employeeUserId } });
-            if (emp)
-                await emp.update({ employmentStatus: employee_constants_1.ACTIVE_EMPLOYMENT_STATUS });
-        }
-        return p.update(payload);
+        return exitProcess.update(payload);
     }
     assertLeaveWindowComplete(exitProcess) {
         const leaveEndsAt = exitProcess.leaveEndsAt ? new Date(exitProcess.leaveEndsAt) : null;
@@ -700,7 +769,7 @@ class HRPerformanceService {
             }];
     }
     async restrictDisciplinaryAccess(businessId, requestingUser) {
-        // A generic bounding utility structurally resolving HR mapping roles 
+        // A generic bounding utility structurally resolving HR mapping roles
         const isHRAdmin = requestingUser.roles.some((role) => ['SUPER_ADMIN', 'BUSINESS_ADMIN', 'HR_MANAGER'].includes(role));
         if (!isHRAdmin) {
             throw new Error("Strict structural isolation prevents non-HR operators resolving sensitive disciplinary cases.");

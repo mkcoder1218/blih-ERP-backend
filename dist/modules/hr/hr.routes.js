@@ -1,19 +1,25 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.publicRecruitmentRoutes = exports.hrRoutes = void 0;
 const express_1 = require("express");
 const auth_1 = require("../../middlewares/auth");
 const permission_1 = require("../../middlewares/permission");
 const requireActiveModule_1 = require("../../middlewares/requireActiveModule");
-const asyncHandler_1 = require("../../utils/asyncHandler");
-const hr_controller_1 = require("./hr.controller");
-const recruitment_controller_1 = require("./recruitment.controller");
-const performance_controller_1 = require("./performance.controller");
 const validate_1 = require("../../middlewares/validate");
+const asyncHandler_1 = require("../../utils/asyncHandler");
 const hrEmployeeRecord_validator_1 = require("../../validators/hrEmployeeRecord.validator");
+const exitResource_controller_1 = require("./exit/exitResource.controller");
+const exitReason_routes_1 = __importDefault(require("./exitReasons/exitReason.routes"));
+const hr_controller_1 = require("./hr.controller");
+const performance_controller_1 = require("./performance.controller");
+const recruitment_controller_1 = require("./recruitment.controller");
 const router = (0, express_1.Router)();
 const controller = new hr_controller_1.HRController();
 const recruitmentController = new recruitment_controller_1.RecruitmentController();
+const exitResourceController = new exitResource_controller_1.ExitResourceController();
 const perfController = new performance_controller_1.HRPerformanceController();
 // Apply module boundary globally
 router.use((0, requireActiveModule_1.requireActiveModule)("hr"));
@@ -106,32 +112,80 @@ router.post("/disciplinary/analyze-attendance/send", auth_1.authRequired, (0, pe
 router.delete("/disciplinary/analyze-attendance", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage", "attendance.manage"), (0, asyncHandler_1.asyncHandler)(perfController.resetAttendanceDisciplineAnalysis));
 router.post("/disciplinary", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage", "hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.createDisciplinaryCase));
 router.patch("/disciplinary/:id", auth_1.authRequired, (0, permission_1.requireAnyPermission)("performance.manage", "hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateDisciplinaryCase));
-router.post("/exit/resign", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.submitResignation));
+// ─────────────────────────────────────────────────────────────
+// Exit creation
+// ─────────────────────────────────────────────────────────────
+router.post("/exit/resign", auth_1.authRequired, (0, permission_1.requireAnyPermission)("exit.self"), (0, asyncHandler_1.asyncHandler)(perfController.submitResignation));
 router.post("/exit", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.createExitProcess));
+// ─────────────────────────────────────────────────────────────
+// Exit lists and analytics
+// Static routes must remain before `/exit/:id`.
+// ─────────────────────────────────────────────────────────────
 router.get("/exit", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.listExitProcesses));
+router.get("/exit/me", auth_1.authRequired, (0, permission_1.requireAnyPermission)("exit.self"), (0, asyncHandler_1.asyncHandler)(perfController.getMyExitProcess));
 router.get("/exit/analytics", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.getExitAnalytics));
+// Exit Reason CRUD is mounted here:
+//
+// GET    /exit/reasons
+// POST   /exit/reasons
+// PATCH  /exit/reasons/reorder
+// PATCH  /exit/reasons/:id
+// DELETE /exit/reasons/:id
+router.use(exitReason_routes_1.default);
+// ─────────────────────────────────────────────────────────────
+// Exit interviews
+// ─────────────────────────────────────────────────────────────
 router.get("/exit/interviews", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.listExitInterviews));
 router.patch("/exit/interviews/:interviewId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitInterview));
 router.post("/exit/interviews/:interviewId/complete", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.completeExitInterview));
 router.post("/exit/interviews/:interviewId/send-reminder", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.sendExitInterviewReminder));
-router.get("/exit/me", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.getMyExitProcess));
-router.post("/exit/:id/interviews", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.createExitInterview));
+// ─────────────────────────────────────────────────────────────
+// Single exit process
+// ─────────────────────────────────────────────────────────────
+router.get("/exit/:id", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write", "exit.self"), (0, asyncHandler_1.asyncHandler)(perfController.getExitProcess));
+router.patch("/exit/:id", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitProcess));
+router.get("/exit/:id/timeline", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write", "exit.self"), (0, asyncHandler_1.asyncHandler)(perfController.getExitTimeline));
+// ─────────────────────────────────────────────────────────────
+// Review
+// ─────────────────────────────────────────────────────────────
+router.post("/exit/:id/approve", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.approveExitRequest));
+router.post("/exit/:id/reject", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.rejectExitRequest));
+// Keep only for legacy calls while the frontend is migrated.
+// New UI should use approve/reject and clearance actions.
+router.patch("/exit/:id/status", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitStatus));
+// ─────────────────────────────────────────────────────────────
+// Clearance
+// ─────────────────────────────────────────────────────────────
+router.get("/exit/:id/clearance", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write", "exit.self"), (0, asyncHandler_1.asyncHandler)(perfController.listExitClearance));
+router.get("/exit/:id/resources", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write", "exit.self"), (0, asyncHandler_1.asyncHandler)(exitResourceController.list));
+router.post("/exit/:id/resources", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(exitResourceController.register));
+router.patch("/exit/:id/resources/:resourceId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(exitResourceController.updateReturn));
+router.post("/exit/:id/clearance/:stepId/complete", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.completeExitClearanceStep));
+router.post("/exit/:id/clearance/:stepId/waive", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.waiveExitClearanceStep));
+router.patch("/exit/:id/clearance/:stepId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitClearanceStep));
+// ─────────────────────────────────────────────────────────────
+// Final payment
+// ─────────────────────────────────────────────────────────────
+router.patch("/exit/:id/final-pay", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write", "finance.manage", "payroll.run"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitFinalPay));
+// ─────────────────────────────────────────────────────────────
+// Documents
+// ─────────────────────────────────────────────────────────────
 router.get("/exit/:id/documents", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write", "exit.self"), (0, asyncHandler_1.asyncHandler)(perfController.listExitDocuments));
 router.post("/exit/:id/documents/:documentId/upload", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), upload_1.upload.single("file"), (0, asyncHandler_1.asyncHandler)(perfController.uploadExitDocument));
 router.post("/exit/:id/documents/:documentId/verify", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.verifyExitDocument));
 router.patch("/exit/:id/documents/:documentId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitDocument));
 router.get("/exit/:id/documents/download-all", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write", "exit.self"), (0, asyncHandler_1.asyncHandler)(perfController.downloadExitDocuments));
-router.get("/exit/:id", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.getExitProcess));
-router.patch("/exit/:id", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitProcess));
-router.get("/exit/:id/timeline", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.read", "hr.write", "exit.self"), (0, asyncHandler_1.asyncHandler)(perfController.getExitTimeline));
-router.patch("/exit/:id/final-pay", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write", "finance.manage", "payroll.run"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitFinalPay));
-router.get("/exit/:id/clearance", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write", "exit.self"), (0, asyncHandler_1.asyncHandler)(perfController.listExitClearance));
-router.post("/exit/:id/clearance/:stepId/complete", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.completeExitClearanceStep));
-router.post("/exit/:id/clearance/:stepId/waive", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.waiveExitClearanceStep));
-router.patch("/exit/:id/clearance/:stepId", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitClearanceStep));
-router.patch("/exit/:id/status", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.updateExitStatus));
+// ─────────────────────────────────────────────────────────────
+// Exit interview for one process
+// ─────────────────────────────────────────────────────────────
+router.post("/exit/:id/interviews", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.createExitInterview));
+// ─────────────────────────────────────────────────────────────
+// Offboarding form
+// ─────────────────────────────────────────────────────────────
 router.post("/exit/:id/offboarding-form/send", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.sendOffboardingForm));
-router.post("/exit/:id/offboarding-form", auth_1.authRequired, (0, asyncHandler_1.asyncHandler)(perfController.submitOffboardingForm));
-router.post("/exit/:id/approve", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.approveExitRequest));
-router.post("/exit/:id/reject", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.rejectExitRequest));
+router.post("/exit/:id/offboarding-form", auth_1.authRequired, (0, permission_1.requireAnyPermission)("exit.self"), (0, asyncHandler_1.asyncHandler)(perfController.submitOffboardingForm));
+// ─────────────────────────────────────────────────────────────
+// Account closure
+// Must only happen after clearance completion.
+// ─────────────────────────────────────────────────────────────
 router.post("/exit/:id/disable-account", auth_1.authRequired, (0, permission_1.requireAnyPermission)("hr.write"), (0, asyncHandler_1.asyncHandler)(perfController.disableExitAccount));
