@@ -309,7 +309,7 @@ module.exports = {
               type: Sequelize.UUID,
               allowNull: true,
               references: {
-                model: "employee_records",
+                model: "hr_employee_records",
                 key: "id",
               },
               onUpdate: "CASCADE",
