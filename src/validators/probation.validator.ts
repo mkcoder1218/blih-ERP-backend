@@ -133,3 +133,37 @@ export const listProbationsQuerySchema =
       .iso()
       .optional(),
   });
+
+const probationDecisionSchema = Joi.string().valid(
+  "CONFIRM_EMPLOYMENT",
+  "EXTEND_PROBATION",
+  "TERMINATE_EMPLOYMENT",
+  "REQUEST_MORE_INFORMATION",
+);
+
+const criterionScoreSchema = Joi.object({
+  criterionId: Joi.string().uuid().required(),
+  score: Joi.number().min(0).max(100).precision(2).required(),
+  comment: Joi.string().trim().allow("", null).max(3000).optional(),
+});
+
+export const probationReviewSchema = Joi.object({
+  recommendation: probationDecisionSchema.required(),
+  comments: Joi.string().trim().allow("", null).max(5000).optional(),
+  scores: Joi.array().items(criterionScoreSchema).min(1).required(),
+});
+
+export const probationFinalDecisionSchema = Joi.object({
+  decision: Joi.string().valid(
+    "CONFIRM_EMPLOYMENT",
+    "EXTEND_PROBATION",
+    "TERMINATE_EMPLOYMENT",
+  ).required(),
+  comments: Joi.string().trim().allow("", null).max(5000).optional(),
+  extensionMonths: Joi.when("decision", {
+    is: "EXTEND_PROBATION",
+    then: Joi.number().integer().min(1).max(12).required(),
+    otherwise: Joi.number().integer().min(1).max(12).optional(),
+  }),
+  newExpectedEndDate: Joi.date().iso().optional(),
+});

@@ -8,6 +8,8 @@ import {
   initializeProbationSchema,
   listProbationsQuerySchema,
   replacePositionCompetenciesSchema,
+  probationReviewSchema,
+  probationFinalDecisionSchema,
 } from "../../validators/probation.validator";
 import { ProbationController } from "./probation.controller";
 
@@ -83,6 +85,42 @@ router.get(
     "query",
   ),
   asyncHandler(controller.list),
+);
+
+router.get(
+  "/mine/current",
+  authRequired,
+  asyncHandler(controller.getMine),
+);
+
+router.post(
+  "/:probationId/manager-review",
+  authRequired,
+  requireAnyPermission("performance.manage", "hr.write"),
+  validate(probationReviewSchema),
+  asyncHandler(controller.submitManagerReview),
+);
+
+router.post(
+  "/:probationId/hr-review",
+  authRequired,
+  requireAnyPermission("performance.manage", "hr.write"),
+  validate(probationReviewSchema),
+  asyncHandler(controller.submitHrReview),
+);
+
+router.post(
+  "/:probationId/final-decision",
+  authRequired,
+  requireAnyPermission("performance.manage", "hr.write"),
+  validate(probationFinalDecisionSchema),
+  asyncHandler(controller.makeFinalDecision),
+);
+
+router.post(
+  "/:probationId/acknowledge",
+  authRequired,
+  asyncHandler(controller.acknowledge),
 );
 
 router.get(

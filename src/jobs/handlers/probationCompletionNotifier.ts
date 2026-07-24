@@ -1,14 +1,14 @@
-import type { JobDefinition } from '../runner';
-import { HRPerformanceService } from '../../modules/hr/performance.service';
+import type { JobDefinition } from "../runner";
+import { ProbationReminderService } from "../../modules/hr/probation.reminder.service";
 
-const service = new HRPerformanceService();
+const service = new ProbationReminderService();
 
 export const probationCompletionNotifier: JobDefinition = {
-  name: 'probation-completion-notifier',
-  type: 'hr',
-  cronExpression: '0 8 * * *',
+  name: "probation-lifecycle-reminders",
+  type: "hr",
+  cronExpression: "0 8 * * *",
   handler: async () => {
-    const result = await service.processProbationCompletionNotifications();
-    console.log(`[ProbationCompletionNotifier] scanned=${result.scanned} emailsSent=${result.emailsSent}`);
-  }
+    const result = await service.run();
+    console.log(`[ProbationLifecycleReminders] scanned=${result.scanned} notifications=${result.notificationsSent} emails=${result.emailsSent}`);
+  },
 };

@@ -8,6 +8,7 @@ import {
   successResponse,
 } from "../../utils/response";
 import { ProbationService } from "./probation.service";
+import { ProbationLifecycleService } from "./probation.lifecycle.service";
 
 function resolveErrorStatus(
   message: string,
@@ -37,6 +38,9 @@ function resolveErrorStatus(
 export class ProbationController {
   private readonly service =
     new ProbationService();
+
+  private readonly lifecycle =
+    new ProbationLifecycleService();
 
   getPositionCompetencies = async (
     req: Request,
@@ -194,4 +198,97 @@ export class ProbationController {
       );
     }
   };
+
+
+  submitManagerReview = async (req: Request, res: Response) => {
+    try {
+      const data = await this.lifecycle.submitManagerReview(
+        req.user!.businessId,
+        req.user!.id,
+        req.params.probationId,
+        req.body,
+      );
+      await AuditLogService.log(
+        "SUBMITTED_PROBATION_MANAGER_REVIEW",
+        "EmployeeProbation",
+        req.params.probationId,
+        null,
+        { recommendation: req.body.recommendation },
+        req,
+      );
+      successResponse(res, data, "Manager review submitted.");
+    } catch (error: any) {
+      errorResponse(res, error.message, resolveErrorStatus(error.message));
+    }
+  };
+
+  submitHrReview = async (req: Request, res: Response) => {
+    try {
+      const data = await this.lifecycle.submitHrReview(
+        req.user!.businessId,
+        req.user!.id,
+        req.params.probationId,
+        req.body,
+      );
+      await AuditLogService.log(
+        "SUBMITTED_PROBATION_HR_REVIEW",
+        "EmployeeProbation",
+        req.params.probationId,
+        null,
+        { recommendation: req.body.recommendation },
+        req,
+      );
+      successResponse(res, data, "HR review submitted.");
+    } catch (error: any) {
+      errorResponse(res, error.message, resolveErrorStatus(error.message));
+    }
+  };
+
+  makeFinalDecision = async (req: Request, res: Response) => {
+    try {
+      const data = await this.lifecycle.makeFinalDecision(
+        req.user!.businessId,
+        req.user!.id,
+        req.params.probationId,
+        req.body,
+      );
+      await AuditLogService.log(
+        "APPROVED_PROBATION_FINAL_DECISION",
+        "EmployeeProbation",
+        req.params.probationId,
+        null,
+        { decision: req.body.decision, childProbationId: data.childProbationId },
+        req,
+      );
+      successResponse(res, data, "Final probation decision completed.");
+    } catch (error: any) {
+      errorResponse(res, error.message, resolveErrorStatus(error.message));
+    }
+  };
+
+  acknowledge = async (req: Request, res: Response) => {
+    try {
+      const data = await this.lifecycle.acknowledge(
+        req.user!.businessId,
+        req.user!.id,
+        req.params.probationId,
+      );
+      successResponse(res, data, "Probation decision acknowledged.");
+    } catch (error: any) {
+      errorResponse(res, error.message, resolveErrorStatus(error.message));
+    }
+  };
+
+  getMine = async (req: Request, res: Response) => {
+    try {
+      const data = await this.lifecycle.myProbation(
+        req.user!.businessId,
+        req.user!.id,
+      );
+      successResponse(res, data);
+    } catch (error: any) {
+      errorResponse(res, error.message, resolveErrorStatus(error.message));
+    }
+  };
+
 }
