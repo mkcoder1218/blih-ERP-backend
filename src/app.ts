@@ -13,7 +13,7 @@ import {
 } from "./middlewares/security";
 import { notFound } from "./middlewares/notFound";
 import { errorHandler } from "./middlewares/errorHandler";
-
+import { probationRoutes } from "./modules/hr/probation.routes";
 import { env } from "./config/env";
 import { swaggerSpec } from "./config/swagger";
 
@@ -321,7 +321,10 @@ apiRouter.use(
   "/hr",
   hrRoutes,
 );
-
+apiRouter.use(
+  "/hr/probation",
+  probationRoutes,
+);
 /**
  * Offer letters
  *

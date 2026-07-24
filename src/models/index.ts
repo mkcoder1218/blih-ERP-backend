@@ -17,6 +17,7 @@ import defineProfileDraft from "./ProfileDraft";
 import defineAuditLog from "./AuditLog";
 import defineDepartment from "./Department";
 import definePosition from "./Position";
+import definePositionCompetency from "./PositionCompetency";
 import defineBusinessUserProfile from "./BusinessUserProfile";
 import defineApprovalWorkflow from "./ApprovalWorkflow";
 import defineApprovalStep from "./ApprovalStep";
@@ -36,6 +37,8 @@ import defineModuleTemplate from "./ModuleTemplate";
 import defineModuleTemplateForm from "./ModuleTemplateForm";
 import defineModuleTemplateWorkflow from "./ModuleTemplateWorkflow";
 import defineEmployeeRecord from "./EmployeeRecord";
+import defineEmployeeProbation from "./EmployeeProbation";
+import defineEmployeeProbationCriterion from "./EmployeeProbationCriterion";
 import defineLeaveBalance from "./LeaveBalance";
 import defineAttendanceRecord from "./AttendanceRecord";
 import defineLead from "./Lead";
@@ -106,8 +109,6 @@ import defineProjectChangeRequest from "./ProjectChangeRequest";
 import defineVendor from "./Vendor";
 import defineOfferLetterTemplate from "./OfferLetterTemplate";
 import defineOfferLetter from "./OfferLetter";
-import defineEmploymentContractTemplate from "./EmploymentContractTemplate";
-import defineEmploymentContract from "./EmploymentContract";
 import defineRecruitmentTemplate from "./RecruitmentTemplate";
 import definePayrollTemplate from "./PayrollTemplate";
 import defineEmployeePayrollLink from "./EmployeePayrollLink";
@@ -143,9 +144,12 @@ import defineTelegramNotificationLog from "./TelegramNotificationLog";
 import defineUserExemption from "./UserExemption";
 import defineSmtpProvider from "./SmtpProvider";
 import defineBusinessSmtpSetting from "./BusinessSmtpSetting";
+import defineEmploymentContractTemplate from "./EmploymentContractTemplate";
+import defineEmploymentContract from "./EmploymentContract";
 
 export type DB = {
   sequelize: typeof sequelize;
+
   Business: any;
   BusinessAttendanceSettings: any;
   AttendanceEvent: any;
@@ -157,11 +161,13 @@ export type DB = {
   SpecialRequest: any;
   LeaveTemplate: any;
   LeaveRequest: any;
+
   User: any;
   Role: any;
   Permission: any;
   RolePermission: any;
   UserRole: any;
+
   Plan: any;
   PlanModule: any;
   SectorFocus: any;
@@ -169,33 +175,46 @@ export type DB = {
   ProfileDraft: any;
   BusinessModule: any;
   AuditLog: any;
+
   Department: any;
   Position: any;
+  PositionCompetency: any;
   BusinessUserProfile: any;
+
   ApprovalWorkflow: any;
   ApprovalStep: any;
   ApprovalRequest: any;
   ApprovalAction: any;
+
   FormDefinition: any;
   FormField: any;
   FormSubmission: any;
+
   FileAsset: any;
   EntityAttachment: any;
+
   Notification: any;
   NotificationPreference: any;
   ActivityLog: any;
+
   DashboardWidget: any;
   SavedView: any;
+
   ModuleTemplate: any;
   ModuleTemplateForm: any;
   ModuleTemplateWorkflow: any;
+
   EmployeeRecord: any;
+  EmployeeProbation: any;
+  EmployeeProbationCriterion: any;
   LeaveBalance: any;
   AttendanceRecord: any;
+
   Lead: any;
   Client: any;
   Deal: any;
   Interaction: any;
+
   Project: any;
   ProjectMilestone: any;
   ProjectMember: any;
@@ -204,6 +223,7 @@ export type DB = {
   ProjectIssue: any;
   ProjectActivityLog: any;
   ProjectWorkflowForm: any;
+
   Invoice: any;
   InvoiceItem: any;
   Payment: any;
@@ -214,35 +234,44 @@ export type DB = {
   FinanceBenefit: any;
   FinanceBenefitEnrollment: any;
   BudgetReallocationRequest: any;
+
   KnowledgeCategory: any;
   KnowledgeArticle: any;
   KnowledgeRevision: any;
   TrainingMaterial: any;
+
   Objective: any;
   KeyResult: any;
   OKRProgressUpdate: any;
   OKREvaluation: any;
+
   ClientPortalUser: any;
   ClientPortalAccess: any;
   ClientRequest: any;
   ClientFeedback: any;
+
   ReportDefinition: any;
   ReportRun: any;
   MetricSnapshot: any;
+
   BusinessSetting: any;
   BusinessBranding: any;
   BusinessLocalization: any;
+
   Subscription: any;
   SubscriptionInvoice: any;
   SubscriptionPayment: any;
   UsageLimit: any;
+
   Feature: any;
   PlanFeature: any;
   UsageRecord: any;
+
   SupportAccessLog: any;
   AdminImpersonationSession: any;
   SystemHealthLog: any;
   BackgroundJobLog: any;
+
   HRCase: any;
   JobOpening: any;
   JobApplication: any;
@@ -251,40 +280,51 @@ export type DB = {
   PerformanceReview: any;
   TrainingRecord: any;
   DisciplinaryCase: any;
+
   ExitProcess: any;
   ExitReason: any;
   ExitClearanceStep: any;
   ExitInterview: any;
   ExitDocument: any;
+
   Proposal: any;
   ProjectChangeRequest: any;
   Vendor: any;
+
   OfferLetterTemplate: any;
   OfferLetter: any;
+  RecruitmentTemplate: any;
+
   EmploymentContractTemplate: any;
   EmploymentContract: any;
-  RecruitmentTemplate: any;
+
   PayrollTemplate: any;
   EmployeePayrollLink: any;
   SalaryDeduction: any;
+
   Skill: any;
   InterviewSkill: any;
   InterviewerNote: any;
   CandidateOnboarding: any;
+
   PromotionRequest: any;
   HREvent: any;
+
   UserCalendarEvent: any;
   UserCalendarMeetingRequest: any;
   CalendarSyncRetryJob: any;
   CalendarSyncAuditLog: any;
+
   Policy: any;
   PolicyAcceptance: any;
   InventoryItem: any;
   TrustedDevice: any;
+
   TelegramBotSetting: any;
   TelegramAccountLink: any;
   TelegramLinkCode: any;
   TelegramNotificationLog: any;
+
   UserExemption: any;
   SmtpProvider: any;
   BusinessSmtpSetting: any;
@@ -292,172 +332,395 @@ export type DB = {
 
 export const db: DB = {
   sequelize,
+
   Business: defineBusiness(sequelize, DataTypes),
-  BusinessAttendanceSettings: defineBusinessAttendanceSettings(sequelize, DataTypes),
-  AttendanceEvent: defineAttendanceEvent(sequelize, DataTypes),
-  AttendanceLateReason: defineAttendanceLateReason(sequelize, DataTypes),
-  AttendanceLateExplanation: defineAttendanceLateExplanation(sequelize, DataTypes),
-  AttendanceRequest: defineAttendanceRequest(sequelize, DataTypes),
-  AttendanceDailyReason: defineAttendanceDailyReason(sequelize, DataTypes),
-  OvertimeRequest: defineOvertimeRequest(sequelize, DataTypes),
-  SpecialRequest: defineSpecialRequest(sequelize, DataTypes),
-  LeaveTemplate: defineLeaveTemplate(sequelize, DataTypes),
-  LeaveRequest: defineLeaveRequest(sequelize, DataTypes),
-  User: defineUser(sequelize, DataTypes),
-  Role: defineRole(sequelize, DataTypes),
-  Permission: definePermission(sequelize, DataTypes),
-  RolePermission: defineRolePermission(sequelize, DataTypes),
-  UserRole: defineUserRole(sequelize, DataTypes),
-  Plan: definePlan(sequelize, DataTypes),
-  PlanModule: definePlanModule(sequelize, DataTypes),
-  SectorFocus: defineSectorFocus(sequelize, DataTypes),
-  ProfileTemplate: defineProfileTemplate(sequelize, DataTypes),
-  ProfileDraft: defineProfileDraft(sequelize, DataTypes),
-  BusinessModule: defineBusinessModule(sequelize, DataTypes),
-  AuditLog: defineAuditLog(sequelize, DataTypes),
-  Department: defineDepartment(sequelize, DataTypes),
-  Position: definePosition(sequelize, DataTypes),
-  BusinessUserProfile: defineBusinessUserProfile(sequelize, DataTypes),
-  ApprovalWorkflow: defineApprovalWorkflow(sequelize, DataTypes),
-  ApprovalStep: defineApprovalStep(sequelize, DataTypes),
-  ApprovalRequest: defineApprovalRequest(sequelize, DataTypes),
-  ApprovalAction: defineApprovalAction(sequelize, DataTypes),
-  FormDefinition: defineFormDefinition(sequelize, DataTypes),
-  FormField: defineFormField(sequelize, DataTypes),
-  FormSubmission: defineFormSubmission(sequelize, DataTypes),
-  FileAsset: defineFileAsset(sequelize, DataTypes),
-  EntityAttachment: defineEntityAttachment(sequelize, DataTypes),
-  Notification: defineNotification(sequelize, DataTypes),
-  NotificationPreference: defineNotificationPreference(sequelize, DataTypes),
-  ActivityLog: defineActivityLog(sequelize, DataTypes),
-  DashboardWidget: defineDashboardWidget(sequelize, DataTypes),
-  SavedView: defineSavedView(sequelize, DataTypes),
-  ModuleTemplate: defineModuleTemplate(sequelize, DataTypes),
-  ModuleTemplateForm: defineModuleTemplateForm(sequelize, DataTypes),
-  ModuleTemplateWorkflow: defineModuleTemplateWorkflow(sequelize, DataTypes),
-  EmployeeRecord: defineEmployeeRecord(sequelize, DataTypes),
-  LeaveBalance: defineLeaveBalance(sequelize, DataTypes),
-  AttendanceRecord: defineAttendanceRecord(sequelize, DataTypes),
-  Lead: defineLead(sequelize, DataTypes),
-  Client: defineClient(sequelize, DataTypes),
-  Deal: defineDeal(sequelize, DataTypes),
-  Interaction: defineInteraction(sequelize, DataTypes),
-  Project: defineProject(sequelize, DataTypes),
-  ProjectMilestone: defineProjectMilestone(sequelize, DataTypes),
-  ProjectMember: defineProjectMember(sequelize, DataTypes),
-  ProjectTask: defineProjectTask(sequelize, DataTypes),
-  TaskComment: defineTaskComment(sequelize, DataTypes),
-  ProjectIssue: defineProjectIssue(sequelize, DataTypes),
-  ProjectActivityLog: defineProjectActivityLog(sequelize, DataTypes),
-  ProjectWorkflowForm: defineProjectWorkflowForm(sequelize, DataTypes),
-  Invoice: defineInvoice(sequelize, DataTypes),
-  InvoiceItem: defineInvoiceItem(sequelize, DataTypes),
-  Payment: definePayment(sequelize, DataTypes),
-  Expense: defineExpense(sequelize, DataTypes),
-  Budget: defineBudget(sequelize, DataTypes),
-  SalaryAdjustmentRequest: defineSalaryAdjustmentRequest(sequelize, DataTypes),
-  PayrollRecord: definePayrollRecord(sequelize, DataTypes),
-  FinanceBenefit: defineFinanceBenefit(sequelize, DataTypes),
-  FinanceBenefitEnrollment: defineFinanceBenefitEnrollment(sequelize, DataTypes),
-  BudgetReallocationRequest: defineBudgetReallocationRequest(sequelize, DataTypes),
-  KnowledgeCategory: defineKnowledgeCategory(sequelize, DataTypes),
-  KnowledgeArticle: defineKnowledgeArticle(sequelize, DataTypes),
-  KnowledgeRevision: defineKnowledgeRevision(sequelize, DataTypes),
-  TrainingMaterial: defineTrainingMaterial(sequelize, DataTypes),
-  Objective: defineObjective(sequelize, DataTypes),
-  KeyResult: defineKeyResult(sequelize, DataTypes),
-  OKRProgressUpdate: defineOKRProgressUpdate(sequelize, DataTypes),
-  OKREvaluation: defineOKREvaluation(sequelize, DataTypes),
-  ClientPortalUser: defineClientPortalUser(sequelize, DataTypes),
-  ClientPortalAccess: defineClientPortalAccess(sequelize, DataTypes),
-  ClientRequest: defineClientRequest(sequelize, DataTypes),
-  ClientFeedback: defineClientFeedback(sequelize, DataTypes),
-  ReportDefinition: defineReportDefinition(sequelize, DataTypes),
-  ReportRun: defineReportRun(sequelize, DataTypes),
-  MetricSnapshot: defineMetricSnapshot(sequelize, DataTypes),
-  BusinessSetting: defineBusinessSetting(sequelize, DataTypes),
-  BusinessBranding: defineBusinessBranding(sequelize, DataTypes),
-  BusinessLocalization: defineBusinessLocalization(sequelize, DataTypes),
-  Subscription: defineSubscription(sequelize, DataTypes),
-  SubscriptionInvoice: defineSubscriptionInvoice(sequelize, DataTypes),
-  SubscriptionPayment: defineSubscriptionPayment(sequelize, DataTypes),
-  UsageLimit: defineUsageLimit(sequelize, DataTypes),
-  Feature: defineFeature(sequelize, DataTypes),
-  PlanFeature: definePlanFeature(sequelize, DataTypes),
-  UsageRecord: defineUsageRecord(sequelize, DataTypes),
-  SupportAccessLog: defineSupportAccessLog(sequelize, DataTypes),
-  AdminImpersonationSession: defineAdminImpersonationSession(sequelize, DataTypes),
-  SystemHealthLog: defineSystemHealthLog(sequelize, DataTypes),
-  BackgroundJobLog: defineBackgroundJobLog(sequelize, DataTypes),
-  HRCase: defineHRCase(sequelize, DataTypes),
-  JobOpening: defineJobOpening(sequelize, DataTypes),
-  JobApplication: defineJobApplication(sequelize, DataTypes),
-  Interview: defineInterview(sequelize, DataTypes),
-  OnboardingTask: defineOnboardingTask(sequelize, DataTypes),
-  PerformanceReview: definePerformanceReview(sequelize, DataTypes),
-  TrainingRecord: defineTrainingRecord(sequelize, DataTypes),
-  DisciplinaryCase: defineDisciplinaryCase(sequelize, DataTypes),
-  ExitReason: defineExitReason(
+
+  BusinessAttendanceSettings: defineBusinessAttendanceSettings(
     sequelize,
     DataTypes,
   ),
+
+  AttendanceEvent: defineAttendanceEvent(sequelize, DataTypes),
+
+  AttendanceLateReason: defineAttendanceLateReason(
+    sequelize,
+    DataTypes,
+  ),
+
+  AttendanceLateExplanation: defineAttendanceLateExplanation(
+    sequelize,
+    DataTypes,
+  ),
+
+  AttendanceRequest: defineAttendanceRequest(sequelize, DataTypes),
+
+  AttendanceDailyReason: defineAttendanceDailyReason(
+    sequelize,
+    DataTypes,
+  ),
+
+  OvertimeRequest: defineOvertimeRequest(sequelize, DataTypes),
+
+  SpecialRequest: defineSpecialRequest(sequelize, DataTypes),
+
+  LeaveTemplate: defineLeaveTemplate(sequelize, DataTypes),
+
+  LeaveRequest: defineLeaveRequest(sequelize, DataTypes),
+
+  User: defineUser(sequelize, DataTypes),
+  Role: defineRole(sequelize, DataTypes),
+  Permission: definePermission(sequelize, DataTypes),
+
+  RolePermission: defineRolePermission(sequelize, DataTypes),
+
+  UserRole: defineUserRole(sequelize, DataTypes),
+
+  Plan: definePlan(sequelize, DataTypes),
+
+  PlanModule: definePlanModule(sequelize, DataTypes),
+
+  SectorFocus: defineSectorFocus(sequelize, DataTypes),
+
+  ProfileTemplate: defineProfileTemplate(sequelize, DataTypes),
+
+  ProfileDraft: defineProfileDraft(sequelize, DataTypes),
+
+  BusinessModule: defineBusinessModule(sequelize, DataTypes),
+
+  AuditLog: defineAuditLog(sequelize, DataTypes),
+
+  Department: defineDepartment(sequelize, DataTypes),
+
+  Position: definePosition(sequelize, DataTypes),
+
+  PositionCompetency: definePositionCompetency(
+    sequelize,
+    DataTypes,
+  ),
+
+  BusinessUserProfile: defineBusinessUserProfile(
+    sequelize,
+    DataTypes,
+  ),
+
+  ApprovalWorkflow: defineApprovalWorkflow(sequelize, DataTypes),
+
+  ApprovalStep: defineApprovalStep(sequelize, DataTypes),
+
+  ApprovalRequest: defineApprovalRequest(sequelize, DataTypes),
+
+  ApprovalAction: defineApprovalAction(sequelize, DataTypes),
+
+  FormDefinition: defineFormDefinition(sequelize, DataTypes),
+
+  FormField: defineFormField(sequelize, DataTypes),
+
+  FormSubmission: defineFormSubmission(sequelize, DataTypes),
+
+  FileAsset: defineFileAsset(sequelize, DataTypes),
+
+  EntityAttachment: defineEntityAttachment(sequelize, DataTypes),
+
+  Notification: defineNotification(sequelize, DataTypes),
+
+  NotificationPreference: defineNotificationPreference(
+    sequelize,
+    DataTypes,
+  ),
+
+  ActivityLog: defineActivityLog(sequelize, DataTypes),
+
+  DashboardWidget: defineDashboardWidget(sequelize, DataTypes),
+
+  SavedView: defineSavedView(sequelize, DataTypes),
+
+  ModuleTemplate: defineModuleTemplate(sequelize, DataTypes),
+
+  ModuleTemplateForm: defineModuleTemplateForm(
+    sequelize,
+    DataTypes,
+  ),
+
+  ModuleTemplateWorkflow: defineModuleTemplateWorkflow(
+    sequelize,
+    DataTypes,
+  ),
+
+  EmployeeRecord: defineEmployeeRecord(sequelize, DataTypes),
+
+  EmployeeProbation: defineEmployeeProbation(sequelize, DataTypes),
+
+  EmployeeProbationCriterion: defineEmployeeProbationCriterion(
+    sequelize,
+    DataTypes,
+  ),
+
+  LeaveBalance: defineLeaveBalance(sequelize, DataTypes),
+
+  AttendanceRecord: defineAttendanceRecord(sequelize, DataTypes),
+
+  Lead: defineLead(sequelize, DataTypes),
+  Client: defineClient(sequelize, DataTypes),
+  Deal: defineDeal(sequelize, DataTypes),
+
+  Interaction: defineInteraction(sequelize, DataTypes),
+
+  Project: defineProject(sequelize, DataTypes),
+
+  ProjectMilestone: defineProjectMilestone(sequelize, DataTypes),
+
+  ProjectMember: defineProjectMember(sequelize, DataTypes),
+
+  ProjectTask: defineProjectTask(sequelize, DataTypes),
+
+  TaskComment: defineTaskComment(sequelize, DataTypes),
+
+  ProjectIssue: defineProjectIssue(sequelize, DataTypes),
+
+  ProjectActivityLog: defineProjectActivityLog(
+    sequelize,
+    DataTypes,
+  ),
+
+  ProjectWorkflowForm: defineProjectWorkflowForm(
+    sequelize,
+    DataTypes,
+  ),
+
+  Invoice: defineInvoice(sequelize, DataTypes),
+
+  InvoiceItem: defineInvoiceItem(sequelize, DataTypes),
+
+  Payment: definePayment(sequelize, DataTypes),
+
+  Expense: defineExpense(sequelize, DataTypes),
+
+  Budget: defineBudget(sequelize, DataTypes),
+
+  SalaryAdjustmentRequest: defineSalaryAdjustmentRequest(
+    sequelize,
+    DataTypes,
+  ),
+
+  PayrollRecord: definePayrollRecord(sequelize, DataTypes),
+
+  FinanceBenefit: defineFinanceBenefit(sequelize, DataTypes),
+
+  FinanceBenefitEnrollment: defineFinanceBenefitEnrollment(
+    sequelize,
+    DataTypes,
+  ),
+
+  BudgetReallocationRequest: defineBudgetReallocationRequest(
+    sequelize,
+    DataTypes,
+  ),
+
+  KnowledgeCategory: defineKnowledgeCategory(sequelize, DataTypes),
+
+  KnowledgeArticle: defineKnowledgeArticle(sequelize, DataTypes),
+
+  KnowledgeRevision: defineKnowledgeRevision(sequelize, DataTypes),
+
+  TrainingMaterial: defineTrainingMaterial(sequelize, DataTypes),
+
+  Objective: defineObjective(sequelize, DataTypes),
+
+  KeyResult: defineKeyResult(sequelize, DataTypes),
+
+  OKRProgressUpdate: defineOKRProgressUpdate(sequelize, DataTypes),
+
+  OKREvaluation: defineOKREvaluation(sequelize, DataTypes),
+
+  ClientPortalUser: defineClientPortalUser(sequelize, DataTypes),
+
+  ClientPortalAccess: defineClientPortalAccess(sequelize, DataTypes),
+
+  ClientRequest: defineClientRequest(sequelize, DataTypes),
+
+  ClientFeedback: defineClientFeedback(sequelize, DataTypes),
+
+  ReportDefinition: defineReportDefinition(sequelize, DataTypes),
+
+  ReportRun: defineReportRun(sequelize, DataTypes),
+
+  MetricSnapshot: defineMetricSnapshot(sequelize, DataTypes),
+
+  BusinessSetting: defineBusinessSetting(sequelize, DataTypes),
+
+  BusinessBranding: defineBusinessBranding(sequelize, DataTypes),
+
+  BusinessLocalization: defineBusinessLocalization(
+    sequelize,
+    DataTypes,
+  ),
+
+  Subscription: defineSubscription(sequelize, DataTypes),
+
+  SubscriptionInvoice: defineSubscriptionInvoice(
+    sequelize,
+    DataTypes,
+  ),
+
+  SubscriptionPayment: defineSubscriptionPayment(
+    sequelize,
+    DataTypes,
+  ),
+
+  UsageLimit: defineUsageLimit(sequelize, DataTypes),
+
+  Feature: defineFeature(sequelize, DataTypes),
+
+  PlanFeature: definePlanFeature(sequelize, DataTypes),
+
+  UsageRecord: defineUsageRecord(sequelize, DataTypes),
+
+  SupportAccessLog: defineSupportAccessLog(sequelize, DataTypes),
+
+  AdminImpersonationSession: defineAdminImpersonationSession(
+    sequelize,
+    DataTypes,
+  ),
+
+  SystemHealthLog: defineSystemHealthLog(sequelize, DataTypes),
+
+  BackgroundJobLog: defineBackgroundJobLog(sequelize, DataTypes),
+
+  HRCase: defineHRCase(sequelize, DataTypes),
+
+  JobOpening: defineJobOpening(sequelize, DataTypes),
+
+  JobApplication: defineJobApplication(sequelize, DataTypes),
+
+  Interview: defineInterview(sequelize, DataTypes),
+
+  OnboardingTask: defineOnboardingTask(sequelize, DataTypes),
+
+  PerformanceReview: definePerformanceReview(sequelize, DataTypes),
+
+  TrainingRecord: defineTrainingRecord(sequelize, DataTypes),
+
+  DisciplinaryCase: defineDisciplinaryCase(sequelize, DataTypes),
+
+  ExitReason: defineExitReason(sequelize, DataTypes),
+
   ExitProcess: defineExitProcess(sequelize, DataTypes),
+
   ExitClearanceStep: defineExitClearanceStep(sequelize, DataTypes),
+
   ExitInterview: defineExitInterview(sequelize, DataTypes),
+
   ExitDocument: defineExitDocument(sequelize, DataTypes),
+
   Proposal: defineProposal(sequelize, DataTypes),
-  ProjectChangeRequest: defineProjectChangeRequest(sequelize, DataTypes),
+
+  ProjectChangeRequest: defineProjectChangeRequest(
+    sequelize,
+    DataTypes,
+  ),
+
   Vendor: defineVendor(sequelize, DataTypes),
-  OfferLetterTemplate:
-    defineOfferLetterTemplate(
-      sequelize,
-      DataTypes,
-    ),
 
-  OfferLetter:
-    defineOfferLetter(
-      sequelize,
-      DataTypes,
-    ),
+  OfferLetterTemplate: defineOfferLetterTemplate(
+    sequelize,
+    DataTypes,
+  ),
 
-  EmploymentContractTemplate:
-    defineEmploymentContractTemplate(
-      sequelize,
-      DataTypes,
-    ),
+  OfferLetter: defineOfferLetter(sequelize, DataTypes),
 
-  EmploymentContract:
-    defineEmploymentContract(
-      sequelize,
-      DataTypes,
-    ),
-  RecruitmentTemplate: defineRecruitmentTemplate(sequelize, DataTypes),
+  RecruitmentTemplate: defineRecruitmentTemplate(
+    sequelize,
+    DataTypes,
+  ),
+
+  EmploymentContractTemplate: defineEmploymentContractTemplate(
+    sequelize,
+    DataTypes,
+  ),
+
+  EmploymentContract: defineEmploymentContract(
+    sequelize,
+    DataTypes,
+  ),
+
   PayrollTemplate: definePayrollTemplate(sequelize, DataTypes),
-  EmployeePayrollLink: defineEmployeePayrollLink(sequelize, DataTypes),
+
+  EmployeePayrollLink: defineEmployeePayrollLink(
+    sequelize,
+    DataTypes,
+  ),
+
   SalaryDeduction: defineSalaryDeduction(sequelize, DataTypes),
+
   Skill: defineSkill(sequelize, DataTypes),
+
   InterviewSkill: defineInterviewSkill(sequelize, DataTypes),
+
   InterviewerNote: defineInterviewerNote(sequelize, DataTypes),
-  CandidateOnboarding: defineCandidateOnboarding(sequelize, DataTypes),
+
+  CandidateOnboarding: defineCandidateOnboarding(
+    sequelize,
+    DataTypes,
+  ),
+
   PromotionRequest: definePromotionRequest(sequelize, DataTypes),
+
   HREvent: defineHREvent(sequelize, DataTypes),
+
   UserCalendarEvent: defineUserCalendarEvent(sequelize, DataTypes),
-  UserCalendarMeetingRequest: defineUserCalendarMeetingRequest(sequelize, DataTypes),
-  CalendarSyncRetryJob: defineCalendarSyncRetryJob(sequelize, DataTypes),
-  CalendarSyncAuditLog: defineCalendarSyncAuditLog(sequelize, DataTypes),
+
+  UserCalendarMeetingRequest: defineUserCalendarMeetingRequest(
+    sequelize,
+    DataTypes,
+  ),
+
+  CalendarSyncRetryJob: defineCalendarSyncRetryJob(
+    sequelize,
+    DataTypes,
+  ),
+
+  CalendarSyncAuditLog: defineCalendarSyncAuditLog(
+    sequelize,
+    DataTypes,
+  ),
+
   Policy: definePolicy(sequelize, DataTypes),
+
   PolicyAcceptance: definePolicyAcceptance(sequelize, DataTypes),
+
   InventoryItem: defineInventoryItem(sequelize, DataTypes),
+
   TrustedDevice: defineTrustedDevice(sequelize, DataTypes),
-  TelegramBotSetting: defineTelegramBotSetting(sequelize, DataTypes),
-  TelegramAccountLink: defineTelegramAccountLink(sequelize, DataTypes),
+
+  TelegramBotSetting: defineTelegramBotSetting(
+    sequelize,
+    DataTypes,
+  ),
+
+  TelegramAccountLink: defineTelegramAccountLink(
+    sequelize,
+    DataTypes,
+  ),
+
   TelegramLinkCode: defineTelegramLinkCode(sequelize, DataTypes),
-  TelegramNotificationLog: defineTelegramNotificationLog(sequelize, DataTypes),
+
+  TelegramNotificationLog: defineTelegramNotificationLog(
+    sequelize,
+    DataTypes,
+  ),
+
   UserExemption: defineUserExemption(sequelize, DataTypes),
+
   SmtpProvider: defineSmtpProvider(sequelize, DataTypes),
-  BusinessSmtpSetting: defineBusinessSmtpSetting(sequelize, DataTypes),
+
+  BusinessSmtpSetting: defineBusinessSmtpSetting(
+    sequelize,
+    DataTypes,
+  ),
 };
 
 Object.values(db).forEach((model: any) => {
-  if (model && typeof model.associate === "function") model.associate(db);
+  if (model && typeof model.associate === "function") {
+    model.associate(db);
+  }
 });
