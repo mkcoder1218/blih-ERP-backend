@@ -2,6 +2,70 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    const tableExists = await queryInterface.tableExists('policies');
+    if (!tableExists) {
+      await queryInterface.createTable('policies', {
+        id: { type: Sequelize.UUID, defaultValue: Sequelize.UUIDV4, primaryKey: true },
+        businessId: { type: Sequelize.UUID, allowNull: true },
+        categoryId: { type: Sequelize.UUID, allowNull: true },
+        policyType: { type: Sequelize.STRING(120), allowNull: false, defaultValue: 'GENERAL' },
+        title: { type: Sequelize.STRING(255), allowNull: false },
+        slug: { type: Sequelize.STRING(160), allowNull: false },
+        summary: { type: Sequelize.TEXT, allowNull: true },
+        contentHtml: { type: Sequelize.TEXT, allowNull: true },
+        contentJson: { type: Sequelize.JSONB, allowNull: true },
+        contentText: { type: Sequelize.TEXT, allowNull: true },
+        version: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 1 },
+        versionLabel: { type: Sequelize.STRING(80), allowNull: true },
+        status: { type: Sequelize.STRING(40), allowNull: false, defaultValue: 'draft' },
+        visibility: { type: Sequelize.STRING(40), allowNull: false, defaultValue: 'company' },
+        confidentialityLevel: { type: Sequelize.STRING(40), allowNull: false, defaultValue: 'normal' },
+        isRequired: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
+        requiresAcceptance: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
+        requiresSignature: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
+        requiresReacceptanceOnUpdate: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
+        effectiveFrom: { type: Sequelize.DATE, allowNull: true },
+        effectiveUntil: { type: Sequelize.DATE, allowNull: true },
+        reviewDueAt: { type: Sequelize.DATE, allowNull: true },
+        publishedAt: { type: Sequelize.DATE, allowNull: true },
+        archivedAt: { type: Sequelize.DATE, allowNull: true },
+        ownerUserId: { type: Sequelize.UUID, allowNull: true },
+        ownerDepartmentId: { type: Sequelize.UUID, allowNull: true },
+        createdById: { type: Sequelize.UUID, allowNull: true },
+        updatedById: { type: Sequelize.UUID, allowNull: true },
+        submittedByUserId: { type: Sequelize.UUID, allowNull: true },
+        reviewedByUserId: { type: Sequelize.UUID, allowNull: true },
+        approvedByUserId: { type: Sequelize.UUID, allowNull: true },
+        publishedByUserId: { type: Sequelize.UUID, allowNull: true },
+        archivedByUserId: { type: Sequelize.UUID, allowNull: true },
+        submittedAt: { type: Sequelize.DATE, allowNull: true },
+        reviewedAt: { type: Sequelize.DATE, allowNull: true },
+        approvedAt: { type: Sequelize.DATE, allowNull: true },
+        appliesToAllEmployees: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
+        publicShareEnabled: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
+        supersededByPolicyId: { type: Sequelize.UUID, allowNull: true },
+        supersededByVersionId: { type: Sequelize.UUID, allowNull: true },
+        acceptanceCount: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
+        metadata: { type: Sequelize.JSONB, allowNull: false, defaultValue: {} },
+        createdAt: { type: Sequelize.DATE, allowNull: false },
+        updatedAt: { type: Sequelize.DATE, allowNull: false },
+        deletedAt: { type: Sequelize.DATE, allowNull: true }
+      });
+
+      await queryInterface.addIndex('policies', ['businessId']);
+      await queryInterface.addIndex('policies', ['categoryId']);
+      await queryInterface.addIndex('policies', ['policyType', 'status']);
+      await queryInterface.addIndex('policies', ['slug']);
+      await queryInterface.addIndex('policies', ['status']);
+      await queryInterface.addIndex('policies', ['visibility']);
+      await queryInterface.addIndex('policies', ['ownerUserId']);
+      await queryInterface.addIndex('policies', ['effectiveFrom']);
+      await queryInterface.addIndex('policies', ['effectiveUntil']);
+      await queryInterface.addIndex('policies', ['reviewDueAt']);
+      await queryInterface.addIndex('policies', ['publishedAt']);
+      return;
+    }
+
     const tableInfo = await queryInterface.describeTable('policies');
 
     if (!tableInfo.categoryId) {
@@ -164,6 +228,11 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
+    const tableExists = await queryInterface.tableExists('policies');
+    if (!tableExists) {
+      return;
+    }
+
     const tableInfo = await queryInterface.describeTable('policies');
     const cols = [
       'categoryId', 'confidentialityLevel', 'visibility', 'versionLabel',
