@@ -43,6 +43,7 @@ const requestId_1 = require("./middlewares/requestId");
 const security_1 = require("./middlewares/security");
 const notFound_1 = require("./middlewares/notFound");
 const errorHandler_1 = require("./middlewares/errorHandler");
+const probation_routes_1 = require("./modules/hr/probation.routes");
 const env_1 = require("./config/env");
 const swagger_1 = require("./config/swagger");
 const auth_routes_1 = require("./modules/auth/auth.routes");
@@ -92,6 +93,7 @@ const overtime_routes_1 = require("./modules/overtime/overtime.routes");
 const specialRequests_routes_1 = require("./modules/specialRequests/specialRequests.routes");
 const leave_routes_1 = require("./modules/leave/leave.routes");
 const policy_routes_1 = require("./modules/policy/policy.routes");
+const policy_public_routes_1 = require("./modules/policy/policy.public.routes");
 const devices_routes_1 = require("./modules/devices/devices.routes");
 const attendanceTelegram_routes_1 = require("./modules/attendanceTelegram/attendanceTelegram.routes");
 const inventory_routes_1 = require("./modules/inventory/inventory.routes");
@@ -226,6 +228,7 @@ apiRouter.use("/hr/employment-contracts", employmentContract_routes_1.employment
  * General HR routes
  */
 apiRouter.use("/hr", hr_routes_1.hrRoutes);
+apiRouter.use("/hr/probation", probation_routes_1.probationRoutes);
 /**
  * Offer letters
  *
@@ -343,6 +346,7 @@ apiRouter.use("/overtime-requests", overtime_routes_1.overtimeRoutes);
  * Leave
  */
 apiRouter.use("/leave-requests", leave_routes_1.leaveRoutes);
+apiRouter.use("/public", policy_public_routes_1.policyPublicRoutes);
 /**
  * Policies
  */

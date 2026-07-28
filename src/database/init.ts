@@ -1092,4 +1092,26 @@ async function ensureNewModelsSchema() {
     await qi.addIndex("user_calendar_meeting_requests", ["businessId", "requesterUserId", "status"], { name: "calendar_meetings_requester_status_idx" } as any);
     console.log("user_calendar_meeting_requests table created.");
   }
+
+  // ── Brain Articles schema hardening ────────────────────────────────────────
+  if (await tableExists("brain_articles")) {
+    const desc: any = await qi.describeTable("brain_articles").catch(() => null);
+    if (desc) {
+      const colsToAdd: Array<[string, any]> = [
+        ["contentText", { type: DataTypes.TEXT, allowNull: true }],
+        ["submittedAt", { type: DataTypes.DATE, allowNull: true }],
+        ["submittedByUserId", { type: DataTypes.UUID, allowNull: true }],
+        ["reviewedAt", { type: DataTypes.DATE, allowNull: true }],
+        ["reviewedByUserId", { type: DataTypes.UUID, allowNull: true }],
+        ["publishedByUserId", { type: DataTypes.UUID, allowNull: true }],
+        ["archivedAt", { type: DataTypes.DATE, allowNull: true }],
+        ["archivedByUserId", { type: DataTypes.UUID, allowNull: true }],
+      ];
+      for (const [col, spec] of colsToAdd) {
+        if (!desc[col]) {
+          await qi.addColumn("brain_articles", col, spec);
+        }
+      }
+    }
+  }
 }

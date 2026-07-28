@@ -13,10 +13,18 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): KnowledgeArt
     slug: { type: dataTypes.STRING(500), allowNull: false },
     summary: { type: dataTypes.TEXT, allowNull: true },
     content: { type: dataTypes.TEXT, allowNull: true },
-    visibility: { type: dataTypes.STRING(50), defaultValue: "internal" }, // internal, department, public
-    status: { type: dataTypes.STRING(50), defaultValue: "draft" }, // draft, in_review, published, archived
+    contentText: { type: dataTypes.TEXT, allowNull: true },
+    visibility: { type: dataTypes.STRING(50), defaultValue: "company" }, // company, department, private
+    status: { type: dataTypes.STRING(50), defaultValue: "draft" }, // draft, in_review, changes_requested, approved, published, archived
     version: { type: dataTypes.INTEGER, defaultValue: 1 },
+    submittedAt: { type: dataTypes.DATE, allowNull: true },
+    submittedByUserId: { type: dataTypes.UUID, allowNull: true },
+    reviewedAt: { type: dataTypes.DATE, allowNull: true },
+    reviewedByUserId: { type: dataTypes.UUID, allowNull: true },
     publishedAt: { type: dataTypes.DATE, allowNull: true },
+    publishedByUserId: { type: dataTypes.UUID, allowNull: true },
+    archivedAt: { type: dataTypes.DATE, allowNull: true },
+    archivedByUserId: { type: dataTypes.UUID, allowNull: true },
     metadata: { type: dataTypes.JSONB, defaultValue: {} }
   }, { tableName: "brain_articles", timestamps: true, paranoid: true }) as KnowledgeArticleModel;
 

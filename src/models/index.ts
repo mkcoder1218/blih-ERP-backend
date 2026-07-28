@@ -67,6 +67,8 @@ import defineKnowledgeCategory from "./KnowledgeCategory";
 import defineKnowledgeArticle from "./KnowledgeArticle";
 import defineKnowledgeRevision from "./KnowledgeRevision";
 import defineTrainingMaterial from "./TrainingMaterial";
+import defineProcedure from "./Procedure";
+import defineProcedureRevision from "./ProcedureRevision";
 import defineObjective from "./Objective";
 import defineKeyResult from "./KeyResult";
 import defineOKRProgressUpdate from "./OKRProgressUpdate";
@@ -135,6 +137,11 @@ import defineCalendarSyncRetryJob from "./CalendarSyncRetryJob";
 import defineCalendarSyncAuditLog from "./CalendarSyncAuditLog";
 import definePolicy from "./Policy";
 import definePolicyAcceptance from "./PolicyAcceptance";
+import definePolicyCategory from "./PolicyCategory";
+import definePolicyVersion from "./PolicyVersion";
+import definePolicyAssignment from "./PolicyAssignment";
+import definePolicyPublicShare from "./PolicyPublicShare";
+import definePolicyNotificationLog from "./PolicyNotificationLog";
 import defineInventoryItem from "./InventoryItem";
 import defineTrustedDevice from "./TrustedDevice";
 import defineTelegramBotSetting from "./TelegramBotSetting";
@@ -239,6 +246,8 @@ export type DB = {
   KnowledgeArticle: any;
   KnowledgeRevision: any;
   TrainingMaterial: any;
+  Procedure: any;
+  ProcedureRevision: any;
 
   Objective: any;
   KeyResult: any;
@@ -317,6 +326,11 @@ export type DB = {
 
   Policy: any;
   PolicyAcceptance: any;
+  PolicyCategory: any;
+  PolicyVersion: any;
+  PolicyAssignment: any;
+  PolicyPublicShare: any;
+  PolicyNotificationLog: any;
   InventoryItem: any;
   TrustedDevice: any;
 
@@ -524,6 +538,10 @@ export const db: DB = {
 
   TrainingMaterial: defineTrainingMaterial(sequelize, DataTypes),
 
+  Procedure: defineProcedure(sequelize, DataTypes),
+
+  ProcedureRevision: defineProcedureRevision(sequelize, DataTypes),
+
   Objective: defineObjective(sequelize, DataTypes),
 
   KeyResult: defineKeyResult(sequelize, DataTypes),
@@ -687,6 +705,16 @@ export const db: DB = {
   Policy: definePolicy(sequelize, DataTypes),
 
   PolicyAcceptance: definePolicyAcceptance(sequelize, DataTypes),
+
+  PolicyCategory: definePolicyCategory(sequelize, DataTypes),
+
+  PolicyVersion: definePolicyVersion(sequelize, DataTypes),
+
+  PolicyAssignment: definePolicyAssignment(sequelize, DataTypes),
+
+  PolicyPublicShare: definePolicyPublicShare(sequelize, DataTypes),
+
+  PolicyNotificationLog: definePolicyNotificationLog(sequelize, DataTypes),
 
   InventoryItem: defineInventoryItem(sequelize, DataTypes),
 

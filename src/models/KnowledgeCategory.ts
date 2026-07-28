@@ -11,7 +11,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): KnowledgeCat
     name: { type: dataTypes.STRING(255), allowNull: false },
     key: { type: dataTypes.STRING(120), allowNull: false },
     description: { type: dataTypes.TEXT, allowNull: true },
-    visibility: { type: dataTypes.STRING(50), defaultValue: "internal" }, // internal, department, public
+    visibility: { type: dataTypes.STRING(50), defaultValue: "company" }, // company, department, private
     status: { type: dataTypes.STRING(50), defaultValue: "active" }
   }, { tableName: "brain_categories", timestamps: true, paranoid: true }) as KnowledgeCategoryModel;
 

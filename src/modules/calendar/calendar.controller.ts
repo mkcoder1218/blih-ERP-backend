@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { CalendarService } from "./calendar.service";
 
 export class CalendarController {
@@ -42,7 +42,9 @@ export class CalendarController {
 
   remove = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await this.svc.remove(req.user!.businessId, req.user!.id, req.params.id);
+      const deleteScope = req.query.deleteScope as 'THIS_EVENT' | 'ALL_EVENTS' | undefined;
+      const instanceDate = req.query.instanceDate as string | undefined;
+      await this.svc.remove(req.user!.businessId, req.user!.id, req.params.id, deleteScope, instanceDate);
       res.status(204).send();
     } catch (err: any) {
       next({ statusCode: err.statusCode || 400, message: err.message });

@@ -1,108 +1,90 @@
 import request from "supertest";
-import app from "../src/app";
-import { db } from "../src/models";
+import express from "express";
+import { sanitizeArticleContent } from "../src/modules/brain/brain.sanitizer";
 
-describe("Brain Module — Tenant Isolation, Articles, Revisions & Publish", () => {
-  let userAToken: string;
-  let userBToken: string;
+jest.mock("../src/middlewares/auth", () => ({
+  authRequired: (req: any, _res: any, next: any) => next()
+}));
 
-  beforeAll(async () => {
-    await db.sequelize.sync({ alter: true });
-    // Setup: seed two businesses, activate brain module, create users with tokens
+jest.mock("../src/middlewares/module", () => ({
+  requireActiveModule: () => (_req: any, _res: any, next: any) => next()
+}));
+
+import { brainRoutes } from "../src/modules/brain/brain.routes";
+
+const app = express();
+app.use(express.json());
+
+// Inject test authorization
+let mockUser: any = null;
+
+app.use((req, res, next) => {
+  if (mockUser) {
+    req.user = mockUser;
+  }
+  next();
+});
+
+app.use("/api/v1/brain", brainRoutes);
+
+describe("Brain Module Foundation Tests", () => {
+  const bizA = "00000000-0000-0000-0000-000000000001";
+  const bizB = "00000000-0000-0000-0000-000000000002";
+  const userA = "11111111-1111-1111-1111-111111111111";
+  const userB = "22222222-2222-2222-2222-222222222222";
+
+  beforeEach(() => {
+    mockUser = null;
   });
 
-  afterAll(async () => {
-    await db.sequelize.close();
-  });
+  describe("Rich-Text Sanitizer Utility", () => {
+    it("strips script tags, event handlers, and dangerous iframe elements", () => {
+      const maliciousHtml = `
+        <h1>Safe Header</h1>
+        <script>alert('xss')</script>
+        <p onclick="alert('click')">Paragraph with <a href="javascript:alert(1)">bad link</a> and <a href="https://example.com">good link</a>.</p>
+        <iframe src="https://malicious.com"></iframe>
+      `;
+      const { content, contentText } = sanitizeArticleContent(maliciousHtml);
 
-  describe("Tenant Isolation", () => {
-    it("Business B cannot list Business A articles", async () => {
-      const res = await request(app)
-        .get("/api/brain/articles")
-        .set("Authorization", `Bearer ${userBToken}`);
+      expect(content).toContain("<h1>Safe Header</h1>");
+      expect(content).toContain('<a href="https://example.com" rel="noopener noreferrer">good link</a>');
+      expect(content).not.toContain("<script>");
+      expect(content).not.toContain("onclick");
+      expect(content).not.toContain("javascript:");
+      expect(content).not.toContain("<iframe>");
 
-      if (res.statusCode === 200) {
-        // Should only contain Business B articles (empty if none created)
-        expect(res.body.count).toBe(0);
-      }
+      expect(contentText).toBe("Safe Header Paragraph with bad link and good link.");
     });
-
-    it("Business B cannot publish a Business A article", async () => {
-      const res = await request(app)
-        .patch("/api/brain/articles/business-a-article-uuid/publish")
-        .set("Authorization", `Bearer ${userBToken}`);
-
-      // Article lookup is scoped by businessId, so it won't find it
-      expect(res.statusCode).not.toBe(200);
-    });
   });
 
-  describe("Article Creation & Revision", () => {
-    it("creates an article with initial revision snapshot", async () => {
-      const payload = {
-        title: "Getting Started with Blih ERP",
-        summary: "An onboarding guide for new team members",
-        content: "## Step 1\nLog into the dashboard...",
-        visibility: "internal",
+  describe("Route Guards & Permissions", () => {
+    it("denies access if brain.access is missing", async () => {
+      mockUser = {
+        id: userA,
+        businessId: bizA,
+        permissions: []
       };
 
       const res = await request(app)
-        .post("/api/brain/articles")
-        .set("Authorization", `Bearer ${userAToken}`)
-        .send(payload);
-
-      if (res.statusCode === 201) {
-        expect(res.body.article).toBeDefined();
-        expect(res.body.article.version).toBe(1);
-        expect(res.body.article.status).toBe("draft");
-        expect(res.body.article.slug).toBe("getting-started-with-blih-erp");
-      }
+        .get("/api/v1/brain/categories")
+        .set("Authorization", "Bearer test-token");
+      expect(res.status).toBe(403);
     });
 
-    it("creates a new revision when an article is updated", async () => {
-      // Assume article was created in the previous test and we have its id
-      const articleId = "mock-article-uuid";
-      const updatePayload = {
-        content: "## Step 1 (Updated)\nLog into the new dashboard...",
-        changeSummary: "Updated step 1 with new dashboard URL",
+    it("allows platform super admin even without explicit brain permissions", async () => {
+      mockUser = {
+        id: userA,
+        businessId: bizA,
+        isPlatformSuperAdmin: true,
+        permissions: []
       };
 
       const res = await request(app)
-        .patch(`/api/brain/articles/${articleId}`)
-        .set("Authorization", `Bearer ${userAToken}`)
-        .send(updatePayload);
-
-      if (res.statusCode === 200) {
-        expect(res.body.article.version).toBeGreaterThan(1);
-      }
-    });
-  });
-
-  describe("Publish Permission", () => {
-    it("rejects publish from a user without KNOWLEDGE_MANAGER or BUSINESS_ADMIN role", async () => {
-      // Assuming userAToken belongs to a regular employee without the required role
-      const res = await request(app)
-        .patch("/api/brain/articles/mock-article-uuid/publish")
-        .set("Authorization", `Bearer ${userAToken}`);
-
-      // requireRole middleware should reject with 403
-      // (depends on actual role of userAToken — in full test seed this would be a non-manager)
-      if (res.statusCode === 403) {
-        expect(res.body.message).toContain("Forbidden");
-      }
-    });
-
-    it("allows KNOWLEDGE_MANAGER to publish an article", async () => {
-      // Assuming managerToken has KNOWLEDGE_MANAGER role
-      const managerToken = "mock-manager-token";
-      const res = await request(app)
-        .patch("/api/brain/articles/mock-article-uuid/publish")
-        .set("Authorization", `Bearer ${managerToken}`);
-
-      if (res.statusCode === 200) {
-        expect(res.body.article.status).toBe("published");
-        expect(res.body.article.publishedAt).toBeDefined();
-      }
+        .get("/api/v1/brain/categories")
+        .set("Authorization", "Bearer test-token");
+      // Middleware passes to service
+      expect(res.status).not.toBe(403);
     });
   });
 });

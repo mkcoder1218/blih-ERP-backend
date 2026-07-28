@@ -68,6 +68,7 @@ import {
 import { projectsRoutes } from "./modules/projects/projects.routes";
 import { financeRoutes } from "./modules/finance/finance.routes";
 import { brainRoutes } from "./modules/brain/brain.routes";
+import { procedureRoutes } from "./modules/procedure/procedure.routes";
 import { okrRoutes } from "./modules/okr/okr.routes";
 import { clientPortalRoutes } from "./modules/clientPortal/clientPortal.routes";
 import { reportingRoutes } from "./modules/reporting/reporting.routes";
@@ -84,6 +85,7 @@ import { overtimeRoutes } from "./modules/overtime/overtime.routes";
 import { specialRequestsRoutes } from "./modules/specialRequests/specialRequests.routes";
 import { leaveRoutes } from "./modules/leave/leave.routes";
 import { policyRoutes } from "./modules/policy/policy.routes";
+import { policyPublicRoutes } from "./modules/policy/policy.public.routes";
 import { devicesRoutes } from "./modules/devices/devices.routes";
 import { attendanceTelegramRoutes } from "./modules/attendanceTelegram/attendanceTelegram.routes";
 import { inventoryRoutes } from "./modules/inventory/inventory.routes";
@@ -373,6 +375,14 @@ apiRouter.use(
 );
 
 /**
+ * Company Procedures
+ */
+apiRouter.use(
+  "/procedures",
+  procedureRoutes,
+);
+
+/**
  * OKR
  */
 apiRouter.use(
@@ -602,6 +612,11 @@ apiRouter.use(
   leaveRoutes,
 );
 
+apiRouter.use(
+  "/public",
+  policyPublicRoutes
+);
+
 /**
  * Policies
  */
@@ -649,6 +664,12 @@ apiRouter.use(
  */
 app.use(
   `/api/${env.apiVersion}`,
+  apiRouter,
+);
+
+// Fallback to support unversioned /api/ path used by some frontend components
+app.use(
+  '/api',
   apiRouter,
 );
 
