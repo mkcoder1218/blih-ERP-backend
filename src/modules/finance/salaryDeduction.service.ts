@@ -328,6 +328,10 @@ export class SalaryDeductionService {
       const leaveUnit = leaveUnits.get(String(row.date)) || 0;
       const wfhUnit = wfhUnits.get(String(row.date)) || 0;
       const status = String(row.currentStatus || row.status || "").toUpperCase();
+      const workDayMode = String(row.workDayMode || "").toUpperCase();
+      const expectedMinutes = Number(row.expectedMinutes || 0);
+      const isPaidDayOff = status === "PAID_DAY_OFF" || workDayMode === "PAID_DAY_OFF" || expectedMinutes <= 0;
+      if (isPaidDayOff) continue;
       const isMissed = ["MISSED", "NOT_STARTED", "ABSENT"].includes(status);
       const isCompletedDate = String(row.date) < today;
       const isIncomplete = isCompletedDate && (status === "INCOMPLETE" || status === "INCOMPLETE_PUNCH" || !row.checkInAtUtc || !row.checkOutAtUtc);
