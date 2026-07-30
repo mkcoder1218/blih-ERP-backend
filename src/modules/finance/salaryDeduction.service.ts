@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 import { db } from "../../models";
 import { SalaryDeductionRepository, type SalaryDeductionSnapshotInput } from "./salaryDeduction.repository";
 import { AttendanceHrService } from "../attendanceHr/attendanceHr.service";
+import { attendanceScheduleForDate } from "../../services/attendanceCalculation.service";
 
 type PeriodRange = { start: string; end: string };
 
@@ -56,6 +57,17 @@ function eachDate(start: string, end: string) {
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return dates;
+}
+
+function requestDateOnly(value: any) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return dateOnly(date);
+}
+
+function normalizeRequestCategory(value: any) {
+  return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
 export class SalaryDeductionService {
@@ -200,7 +212,63 @@ export class SalaryDeductionService {
     return unitsByDate;
   }
 
-  private async attendanceDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
+  private async approvedWorkFromHomeUnits(link: any, period: PeriodRange) {
+    const requests = await db.AttendanceRequest.findAll({
+      where: {
+        businessId: link.businessId,
+        employeeUserId: link.employeeUserId,
+        requestType: "work_from_home",
+        status: "approved",
+        fromAt: { [Op.lte]: new Date(`${period.end}T23:59:59.999Z`) },
+        toAt: { [Op.gte]: new Date(`${period.start}T00:00:00.000Z`) },
+      },
+      attributes: ["id", "fromAt", "toAt", "durationMinutes", "category"],
+    });
+
+    const unitsByDate = new Map<string, number>();
+    for (const request of requests) {
+      const start = laterDate(requestDateOnly(request.fromAt), period.start);
+      const end = earlierDate(requestDateOnly(request.toAt), period.end);
+      if (!start || !end || start > end) continue;
+
+      const dates = eachDate(start, end);
+      const normalizedCategory = normalizeRequestCategory(request.category);
+      const durationMinutes = Number(request.durationMinutes || 0);
+      const computedUnits = dates.length
+        ? Math.min(Math.max(durationMinutes / (480 * dates.length), 0), 1)
+        : 0;
+      const perDayUnits = normalizedCategory === "partial_day"
+        ? Math.min(Math.max(computedUnits || 0.5, 0), 0.5)
+        : Math.min(Math.max(computedUnits || 1, 0), 1);
+
+      dates.forEach((date) => {
+        unitsByDate.set(date, Math.min((unitsByDate.get(date) || 0) + perDayUnits, 1));
+      });
+    }
+
+    return unitsByDate;
+  }
+
+  private async scheduledWorkingUnitsForPeriod(link: any, period: PeriodRange) {
+    const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId: link.businessId } });
+    const settingsJson = typeof settings?.toJSON === "function" ? settings.toJSON() : settings;
+    const attendanceSettings = {
+      timezone: settingsJson?.timezone || "UTC",
+      expectedDailyMinutes: Number(settingsJson?.expectedDailyMinutes || 480),
+      defaultStartTime: settingsJson?.defaultStartTime || "09:00",
+      defaultEndTime: settingsJson?.defaultEndTime || "17:00",
+      lateGracePeriodMinutes: Number(settingsJson?.lateGracePeriodMinutes || 0),
+      saturdayWorkMode: settingsJson?.saturdayWorkMode || "PAID_DAY_OFF",
+      sundayWorkMode: settingsJson?.sundayWorkMode || "PAID_DAY_OFF",
+    };
+
+    return eachDate(period.start, period.end).reduce((sum, date) => {
+      const schedule = attendanceScheduleForDate(new Date(`${date}T00:00:00.000Z`), attendanceSettings as any);
+      return sum + Number(schedule.scheduledDayUnits || 0);
+    }, 0);
+  }
+
+  private async attendanceDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>, wfhUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
     const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
     const records = await db.AttendanceRecord.findAll({
@@ -214,6 +282,7 @@ export class SalaryDeductionService {
     const today = todayYmd();
     for (const record of records) {
       const leaveUnit = leaveUnits.get(String(record.date)) || 0;
+      const wfhUnit = wfhUnits.get(String(record.date)) || 0;
       const status = String(record.status || "").toLowerCase();
       const missingCheck = !record.checkInAt || !record.checkOutAt;
       let reasonType = "";
@@ -221,17 +290,17 @@ export class SalaryDeductionService {
       let description = "";
       if (["absent", "missed", "missed_day"].includes(status)) {
         reasonType = "missed_day";
-        amount = dayRate * Math.max(1 - leaveUnit, 0);
-        description = `Missed working day on ${record.date}${leaveUnit ? ` after ${leaveUnit} approved leave day(s).` : "."}`;
+        amount = dayRate * Math.max(1 - leaveUnit - wfhUnit, 0);
+        description = `Missed working day on ${record.date}${leaveUnit || wfhUnit ? ` after ${leaveUnit} approved leave day(s) and ${wfhUnit} approved work-from-home day(s).` : "."}`;
       } else if (status === "half_day") {
         reasonType = "missed_day";
-        amount = dayRate * Math.max(0.5 - leaveUnit, 0);
+        amount = dayRate * Math.max(0.5 - leaveUnit - wfhUnit, 0);
         description = `Half-day attendance deduction on ${record.date}.`;
-      } else if (status === "late" && leaveUnit <= 0) {
+      } else if (status === "late" && leaveUnit <= 0 && wfhUnit < 1) {
         reasonType = "late_arrival";
         amount = dayRate / 4;
         description = `Late check-in recorded on ${record.date}.`;
-      } else if (missingCheck && leaveUnit <= 0 && String(record.date) < today) {
+      } else if (missingCheck && leaveUnit <= 0 && wfhUnit < 1 && String(record.date) < today) {
         reasonType = "incomplete_attendance";
         amount = dayRate / 4;
         description = `Incomplete attendance record on ${record.date}.`;
@@ -256,7 +325,7 @@ export class SalaryDeductionService {
     return inputs;
   }
 
-  private async attendanceReportDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
+  private async attendanceReportDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>, wfhUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
     const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
 
@@ -277,12 +346,13 @@ export class SalaryDeductionService {
     const today = todayYmd();
     for (const row of report.rows || []) {
       const leaveUnit = leaveUnits.get(String(row.date)) || 0;
+      const wfhUnit = wfhUnits.get(String(row.date)) || 0;
       const status = String(row.currentStatus || row.status || "").toUpperCase();
       const isMissed = ["MISSED", "NOT_STARTED", "ABSENT"].includes(status);
       const isCompletedDate = String(row.date) < today;
       const isIncomplete = isCompletedDate && (status === "INCOMPLETE" || status === "INCOMPLETE_PUNCH" || !row.checkInAtUtc || !row.checkOutAtUtc);
       if (isMissed) {
-        const amount = money(dayRate * Math.max(1 - leaveUnit, 0));
+        const amount = money(dayRate * Math.max(1 - leaveUnit - wfhUnit, 0));
         if (amount <= 0) continue;
         inputs.push({
           businessId: link.businessId,
@@ -295,10 +365,10 @@ export class SalaryDeductionService {
           relatedDate: row.date,
           amount,
           currency: link.currency || "ETB",
-          description: `Missed working day on ${row.date}${leaveUnit ? ` after ${leaveUnit} approved leave day(s).` : "."}`,
-          metadata: { currentStatus: row.currentStatus, approvedLeaveUnit: leaveUnit, systemGenerated: true },
+          description: `Missed working day on ${row.date}${leaveUnit || wfhUnit ? ` after ${leaveUnit} approved leave day(s) and ${wfhUnit} approved work-from-home day(s).` : "."}`,
+          metadata: { currentStatus: row.currentStatus, approvedLeaveUnit: leaveUnit, approvedWorkFromHomeUnit: wfhUnit, systemGenerated: true },
         });
-      } else if (isIncomplete && leaveUnit <= 0) {
+      } else if (isIncomplete && leaveUnit <= 0 && wfhUnit < 1) {
         inputs.push({
           businessId: link.businessId,
           employeeUserId: link.employeeUserId,
@@ -318,7 +388,7 @@ export class SalaryDeductionService {
       const penaltyMinutes = Number(row.penaltyMinutes || 0);
       const penaltyText = String(`${row.penaltyReason || ""} ${row.deductionLabel || ""}`).toLowerCase();
       const skipPenalty = isIncomplete || penaltyText.includes("lunch");
-      if (penaltyMinutes > 0 && leaveUnit <= 0 && !skipPenalty) {
+      if (penaltyMinutes > 0 && leaveUnit <= 0 && wfhUnit < 1 && !skipPenalty) {
         const expectedMinutes = Number(row.expectedMinutes || 480);
         const amount = money(dayRate * Math.min(penaltyMinutes / Math.max(expectedMinutes, 1), 1));
         inputs.push({
@@ -346,7 +416,7 @@ export class SalaryDeductionService {
     return inputs.filter((item) => item.amount > 0);
   }
 
-  private async lateExplanationDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
+  private async lateExplanationDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>, wfhUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
     const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
     const start = new Date(`${period.start}T00:00:00.000Z`);
@@ -366,6 +436,7 @@ export class SalaryDeductionService {
     return explanations.map((explanation: any) => {
       const eventDate = explanation.event?.timestampUtc ? dateOnly(new Date(explanation.event.timestampUtc)) : null;
       if (eventDate && (leaveUnits.get(eventDate) || 0) > 0) return null;
+      if (eventDate && (wfhUnits.get(eventDate) || 0) >= 1) return null;
       const coveredMinutes = Number(explanation.reason?.coversMinutes || 0);
       const lateByMinutes = Number(explanation.lateByMinutes || 0);
       const chargeableMinutes = Math.max(lateByMinutes - coveredMinutes, 0);
@@ -395,7 +466,7 @@ export class SalaryDeductionService {
     }).filter((item): item is SalaryDeductionSnapshotInput => Boolean(item));
   }
 
-  private async missedWorkingDayInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
+  private async missedWorkingDayInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>, wfhUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
     const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
 
@@ -404,10 +475,12 @@ export class SalaryDeductionService {
       attributes: ["id", "salaryInfo"],
     });
     const salaryInfo = employee?.salaryInfo || {};
-    const workingDays = Number(salaryInfo.workingDaysInPeriod ?? link.metadata?.workingDaysInPeriod ?? 0);
+    const configuredWorkingDays = Number(salaryInfo.workingDaysInPeriod ?? link.metadata?.workingDaysInPeriod ?? 0);
+    const workingDays = configuredWorkingDays > 0 ? configuredWorkingDays : await this.scheduledWorkingUnitsForPeriod(link, period);
     const daysPaid = Number(salaryInfo.daysPaid ?? link.metadata?.daysPaid ?? 0);
     const approvedLeaveDays = Array.from(leaveUnits.values()).reduce((sum, value) => sum + value, 0);
-    const missedDays = Math.max(workingDays - daysPaid - approvedLeaveDays, 0);
+    const approvedWorkFromHomeDays = Array.from(wfhUnits.values()).reduce((sum, value) => sum + value, 0);
+    const missedDays = Math.max(workingDays - daysPaid - approvedLeaveDays - approvedWorkFromHomeDays, 0);
     if (!Number.isFinite(missedDays) || missedDays <= 0) return [];
 
     return [{
@@ -421,12 +494,12 @@ export class SalaryDeductionService {
       relatedDate: period.end,
       amount: money(dayRate * missedDays),
       currency: link.currency || "ETB",
-      description: `${missedDays} missed working day(s): ${daysPaid} paid day(s), ${approvedLeaveDays} approved leave day(s), out of ${workingDays}.`,
-      metadata: { workingDaysInPeriod: workingDays, daysPaid, approvedLeaveDays, missedDays, systemGenerated: true },
+      description: `${missedDays} missed working day(s): ${daysPaid} paid day(s), ${approvedLeaveDays} approved leave day(s), ${approvedWorkFromHomeDays} approved work-from-home day(s), out of ${workingDays}.`,
+      metadata: { workingDaysInPeriod: workingDays, daysPaid, approvedLeaveDays, approvedWorkFromHomeDays, missedDays, systemGenerated: true },
     }];
   }
 
-  private async dailyReasonDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
+  private async dailyReasonDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>, wfhUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
     const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
     const reasons = await db.AttendanceDailyReason.findAll({
@@ -439,6 +512,7 @@ export class SalaryDeductionService {
     return reasons
       .map((reason: any) => {
         const leaveUnit = leaveUnits.get(String(reason.dateYmd)) || 0;
+        const wfhUnit = wfhUnits.get(String(reason.dateYmd)) || 0;
         const type = String(reason.reasonType || "").toLowerCase();
         const isEarly = type.includes("early");
         const isLate = type.includes("late");
@@ -446,7 +520,7 @@ export class SalaryDeductionService {
         const isIncomplete = type.includes("incomplete");
         const reasonType = isMissed ? "missed_day" : isEarly ? "early_checkout" : isLate ? "late_arrival" : isIncomplete ? "incomplete_attendance" : "";
         if (!reasonType) return null;
-        const amount = isMissed ? dayRate * Math.max(1 - leaveUnit, 0) : (leaveUnit > 0 ? 0 : dayRate / 4);
+        const amount = isMissed ? dayRate * Math.max(1 - leaveUnit - wfhUnit, 0) : (leaveUnit > 0 || wfhUnit >= 1 ? 0 : dayRate / 4);
         if (amount <= 0) return null;
         return {
           businessId: link.businessId,
@@ -501,13 +575,14 @@ export class SalaryDeductionService {
   async syncForPayrollLink(link: any, periodInput?: any) {
     const period = this.periodFromLink(link, this.periodFromInput(periodInput));
     const leaveUnits = await this.approvedLeaveUnits(link, period);
+    const wfhUnits = await this.approvedWorkFromHomeUnits(link, period);
     await this.repo.retireSystemGeneratedForPeriod(link.businessId, link.id, period);
     const inputs = [
-      ...(await this.attendanceReportDeductionInputs(link, period, leaveUnits)),
-      ...(await this.attendanceDeductionInputs(link, period, leaveUnits)),
-      ...(await this.missedWorkingDayInputs(link, period, leaveUnits)),
-      ...(await this.dailyReasonDeductionInputs(link, period, leaveUnits)),
-      ...(await this.lateExplanationDeductionInputs(link, period, leaveUnits)),
+      ...(await this.attendanceReportDeductionInputs(link, period, leaveUnits, wfhUnits)),
+      ...(await this.attendanceDeductionInputs(link, period, leaveUnits, wfhUnits)),
+      ...(await this.missedWorkingDayInputs(link, period, leaveUnits, wfhUnits)),
+      ...(await this.dailyReasonDeductionInputs(link, period, leaveUnits, wfhUnits)),
+      ...(await this.lateExplanationDeductionInputs(link, period, leaveUnits, wfhUnits)),
       ...(await this.leaveDeductionInputs(link, period)),
     ];
     for (const input of inputs) await this.repo.upsertSnapshot(input);
