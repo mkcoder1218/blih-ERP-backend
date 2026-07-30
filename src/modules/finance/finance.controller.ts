@@ -377,6 +377,18 @@ export class FinanceController {
     } catch (e: any) { errorResponse(res, e.message); }
   };
 
+  markSelectedEmployeeSalariesPaid = async (req: Request, res: Response) => {
+    try {
+      const result = await this.payrollTplSvc.markEmployeeSalaryIntervalPaid(
+        req.user!.businessId,
+        req.user!.id,
+        req.body || {}
+      );
+      await AuditLogService.log("MARK_EMPLOYEE_SALARY_INTERVAL_PAID", "finance_payroll", "salary_interval_bulk", null, result, req);
+      successResponse(res, result, `${result.paidCount} employee salary interval${result.paidCount === 1 ? "" : "s"} marked as paid`);
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
   updateEmployeeBaseSalary = async (req: Request, res: Response) => {
     try {
       const result = await this.payrollTplSvc.updateEmployeeBaseSalaryWithEthiopianTax(

@@ -280,7 +280,7 @@ export class SalaryDeductionService {
         reasonType = "late_arrival";
         amount = dayRate / 4;
         description = `Late check-in recorded on ${record.date}.`;
-      } else if (missingCheck && leaveUnit <= 0 && wfhUnit < 1 && String(record.date) < today) {
+      } else if (missingCheck && leaveUnit <= 0 && wfhUnit <= 0 && String(record.date) < today) {
         reasonType = "incomplete_attendance";
         amount = dayRate / 4;
         description = `Incomplete attendance record on ${record.date}.`;
@@ -352,7 +352,7 @@ export class SalaryDeductionService {
           description: `Missed working day on ${row.date}${leaveUnit || wfhUnit ? ` after ${leaveUnit} approved leave day(s) and ${wfhUnit} approved work-from-home day(s).` : "."}`,
           metadata: { currentStatus: row.currentStatus, approvedLeaveUnit: leaveUnit, approvedWorkFromHomeUnit: wfhUnit, systemGenerated: true },
         });
-      } else if (isIncomplete && leaveUnit <= 0 && wfhUnit < 1) {
+      } else if (isIncomplete && leaveUnit <= 0 && wfhUnit <= 0) {
         inputs.push({
           businessId: link.businessId,
           employeeUserId: link.employeeUserId,

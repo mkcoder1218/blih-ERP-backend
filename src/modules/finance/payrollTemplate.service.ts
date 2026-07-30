@@ -1049,6 +1049,133 @@ export class PayrollTemplateService {
     };
   }
 
+  async markEmployeeSalaryIntervalPaid(businessId: string, actorUserId: string, data: any = {}) {
+    const selectedUserIds = Array.from(new Set(
+      (Array.isArray(data.selectedUserIds) ? data.selectedUserIds : [data.selectedUserIds])
+        .flatMap((value: any) => String(value || "").split(","))
+        .map((value: string) => value.trim())
+        .filter(Boolean)
+    ));
+    const dateFrom = String(data.dateFrom || "").trim();
+    const dateTo = String(data.dateTo || "").trim();
+    const payDate = String(data.payDate || dateTo || "").trim();
+
+    if (!selectedUserIds.length) throw new Error("Select at least one employee");
+    if (!dateFrom || !dateTo) throw new Error("Select both start and end dates for the salary interval");
+    if (dateFrom > dateTo) throw new Error("Salary interval start date cannot be after the end date");
+
+    const salaryData = await this.listEmployeeSalaries(businessId, {
+      selectedUserIds,
+      dateFrom,
+      dateTo,
+      page: 1,
+      limit: 5000,
+      exportAll: "true",
+    });
+
+    const rows = salaryData.rows.filter((row: any) => selectedUserIds.includes(String(row.userId || "")));
+    if (!rows.length) throw new Error("No employee salaries found for the selected interval");
+
+    const paidRecords: any[] = [];
+    const skipped: Array<{ userId: string; name: string; reason: string }> = [];
+
+    for (const row of rows) {
+      if (row.payrollStatus !== "linked" || !row.payrollLinkId) {
+        skipped.push({ userId: row.userId, name: row.name, reason: "Payroll is not configured for this employee" });
+        continue;
+      }
+
+      const periodStart = String(row.salaryEffectiveStart || dateFrom).slice(0, 10);
+      const periodEnd = String(row.salaryEffectiveEnd || dateTo).slice(0, 10);
+      if (!periodStart || !periodEnd || periodStart > periodEnd) {
+        skipped.push({ userId: row.userId, name: row.name, reason: "This salary row has no payable interval" });
+        continue;
+      }
+
+      const netPay = this.m(row.netPay);
+      const grossPay = this.m(row.grossPay);
+      if (netPay <= 0 && grossPay <= 0) {
+        skipped.push({ userId: row.userId, name: row.name, reason: "This salary interval is already fully covered or has no payable amount" });
+        continue;
+      }
+
+      const existingPaidRecord = await db.PayrollRecord.findOne({
+        where: {
+          businessId,
+          employeeUserId: row.userId,
+          status: "paid",
+          periodStart,
+          periodEnd,
+        },
+      });
+      if (existingPaidRecord) {
+        skipped.push({ userId: row.userId, name: row.name, reason: "This salary interval is already marked as paid" });
+        continue;
+      }
+
+      const employee = await db.EmployeeRecord.findOne({ where: { businessId, userId: row.userId } });
+      const salaryInfo = employee?.salaryInfo || {};
+      const record = await db.PayrollRecord.create({
+        businessId,
+        employeeUserId: row.userId,
+        departmentId: row.department?.id || employee?.departmentId || null,
+        periodStart,
+        periodEnd,
+        payDate: payDate || periodEnd,
+        baseSalary: this.m(row.baseSalary),
+        pension: this.m(row.pensionDeduction),
+        grossPay,
+        tax: this.m(row.taxDeduction),
+        netPay,
+        overtime: this.m(row.overtimePay),
+        bonus: this.m(row.bonusIncentive),
+        commission: 0,
+        currency: row.currency || "ETB",
+        status: "paid",
+        metadata: {
+          payrollLinkId: row.payrollLinkId,
+          paidByUserId: actorUserId,
+          selectedInterval: { start: dateFrom, end: dateTo },
+          salaryEffectiveInterval: { start: periodStart, end: periodEnd },
+          payableDays: row.payableDays ?? null,
+          periodPayDays: row.periodPayDays ?? null,
+          paidDaysAlreadyCoveredBeforeThisPayment: row.paidDaysAlreadyCovered ?? null,
+          totalDeductions: this.m(row.totalDeductions),
+          deductionTotal: this.m(row.deductionTotal),
+          deductionCount: this.m(row.deductionCount),
+          employerPensionContribution: this.m(row.employerPensionContribution),
+          totalCostToCompany: this.m(row.totalCostToCompany),
+          taxMeta: row.taxMeta || null,
+          deductionItems: Array.isArray(row.deductionItems) ? row.deductionItems : [],
+        },
+      });
+      paidRecords.push(record);
+
+      if (employee) {
+        await employee.update({
+          salaryInfo: {
+            ...salaryInfo,
+            lastPaymentDate: payDate || periodEnd,
+            lastPaidPeriodStart: periodStart,
+            lastPaidPeriodEnd: periodEnd,
+            lastPaidPayrollRecordId: record.id,
+            lastPaidNetPay: netPay,
+            lastPaidGrossPay: grossPay,
+          },
+        });
+      }
+    }
+
+    return {
+      paidCount: paidRecords.length,
+      skippedCount: skipped.length,
+      selectedCount: selectedUserIds.length,
+      payDate: payDate || dateTo,
+      paidRecordIds: paidRecords.map((record: any) => record.id),
+      skipped,
+    };
+  }
+
   async unlinkEmployee(businessId: string, employeeUserId: string) {
     const link = await db.EmployeePayrollLink.findOne({ where: { businessId, employeeUserId } });
     if (!link) throw new Error("No payroll link found for this employee");
