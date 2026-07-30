@@ -2,7 +2,6 @@ import { Op } from "sequelize";
 import { db } from "../../models";
 import { SalaryDeductionRepository, type SalaryDeductionSnapshotInput } from "./salaryDeduction.repository";
 import { AttendanceHrService } from "../attendanceHr/attendanceHr.service";
-import { attendanceScheduleForDate } from "../../services/attendanceCalculation.service";
 
 type PeriodRange = { start: string; end: string };
 
@@ -249,25 +248,6 @@ export class SalaryDeductionService {
     return unitsByDate;
   }
 
-  private async scheduledWorkingUnitsForPeriod(link: any, period: PeriodRange) {
-    const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId: link.businessId } });
-    const settingsJson = typeof settings?.toJSON === "function" ? settings.toJSON() : settings;
-    const attendanceSettings = {
-      timezone: settingsJson?.timezone || "UTC",
-      expectedDailyMinutes: Number(settingsJson?.expectedDailyMinutes || 480),
-      defaultStartTime: settingsJson?.defaultStartTime || "09:00",
-      defaultEndTime: settingsJson?.defaultEndTime || "17:00",
-      lateGracePeriodMinutes: Number(settingsJson?.lateGracePeriodMinutes || 0),
-      saturdayWorkMode: settingsJson?.saturdayWorkMode || "PAID_DAY_OFF",
-      sundayWorkMode: settingsJson?.sundayWorkMode || "PAID_DAY_OFF",
-    };
-
-    return eachDate(period.start, period.end).reduce((sum, date) => {
-      const schedule = attendanceScheduleForDate(new Date(`${date}T00:00:00.000Z`), attendanceSettings as any);
-      return sum + Number(schedule.scheduledDayUnits || 0);
-    }, 0);
-  }
-
   private async attendanceDeductionInputs(link: any, period: PeriodRange, leaveUnits: Map<string, number>, wfhUnits: Map<string, number>): Promise<SalaryDeductionSnapshotInput[]> {
     const dayRate = await this.dayRate(link);
     if (dayRate <= 0) return [];
@@ -475,8 +455,8 @@ export class SalaryDeductionService {
       attributes: ["id", "salaryInfo"],
     });
     const salaryInfo = employee?.salaryInfo || {};
-    const configuredWorkingDays = Number(salaryInfo.workingDaysInPeriod ?? link.metadata?.workingDaysInPeriod ?? 0);
-    const workingDays = configuredWorkingDays > 0 ? configuredWorkingDays : await this.scheduledWorkingUnitsForPeriod(link, period);
+    const workingDays = Number(salaryInfo.workingDaysInPeriod ?? link.metadata?.workingDaysInPeriod ?? 0);
+    if (!Number.isFinite(workingDays) || workingDays <= 0) return [];
     const daysPaid = Number(salaryInfo.daysPaid ?? link.metadata?.daysPaid ?? 0);
     const approvedLeaveDays = Array.from(leaveUnits.values()).reduce((sum, value) => sum + value, 0);
     const approvedWorkFromHomeDays = Array.from(wfhUnits.values()).reduce((sum, value) => sum + value, 0);

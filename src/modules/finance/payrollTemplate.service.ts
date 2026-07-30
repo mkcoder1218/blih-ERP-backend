@@ -606,13 +606,23 @@ export class PayrollTemplateService {
     const templateId = String(query.templateId || "");
     const dateFrom = String(query.dateFrom || "").trim();
     const dateTo = String(query.dateTo || "").trim();
+    const selectedUserIds: string[] = Array.from(new Set(
+      (Array.isArray(query.selectedUserIds) ? query.selectedUserIds : [query.selectedUserIds])
+        .flatMap((value: any) => String(value || "").split(","))
+        .map((value: string) => value.trim())
+        .filter(Boolean)
+    ));
     const payrollExcludedUserIds = await this.payrollExcludedUserIds(businessId);
+    const excludedUserIdSet = new Set(payrollExcludedUserIds);
 
     const where: any = {
       businessId,
       employmentStatus: { [Op.ne]: TERMINATED_EMPLOYMENT_STATUS },
     };
-    if (payrollExcludedUserIds.length) where.userId = { [Op.notIn]: payrollExcludedUserIds };
+    if (selectedUserIds.length) {
+      const allowedSelectedUserIds = selectedUserIds.filter((userId) => !excludedUserIdSet.has(userId));
+      where.userId = { [Op.in]: allowedSelectedUserIds.length ? allowedSelectedUserIds : ["00000000-0000-0000-0000-000000000000"] };
+    } else if (payrollExcludedUserIds.length) where.userId = { [Op.notIn]: payrollExcludedUserIds };
     if (departmentId) where.departmentId = departmentId;
     if (employmentStatus) where.employmentStatus = employmentStatus;
 
