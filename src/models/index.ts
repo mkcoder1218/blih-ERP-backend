@@ -73,6 +73,20 @@ import defineObjective from "./Objective";
 import defineKeyResult from "./KeyResult";
 import defineOKRProgressUpdate from "./OKRProgressUpdate";
 import defineOKREvaluation from "./OKREvaluation";
+import defineOkrObjective from "./OkrObjective";
+import defineOkrKeyResult from "./OkrKeyResult";
+import defineOkrCheckIn from "./OkrCheckIn";
+import defineOkrImpact from "./OkrImpact";
+import defineOkrMetricTemplate from "./OkrMetricTemplate";
+import defineKpi from "./Kpi";
+import defineKpiValueHistory from "./KpiValueHistory";
+import defineKpiMetricTemplate from "./KpiMetricTemplate";
+import defineEvaluationTemplate from "./EvaluationTemplate";
+import defineEvaluationSection from "./EvaluationSection";
+import defineEvaluationQuestion from "./EvaluationQuestion";
+import defineEvaluationAssignment from "./EvaluationAssignment";
+import defineEvaluationResponse from "./EvaluationResponse";
+import defineEvaluationAnswer from "./EvaluationAnswer";
 import defineClientPortalUser from "./ClientPortalUser";
 import defineClientPortalAccess from "./ClientPortalAccess";
 import defineClientRequest from "./ClientRequest";
@@ -253,6 +267,21 @@ export type DB = {
   KeyResult: any;
   OKRProgressUpdate: any;
   OKREvaluation: any;
+  OkrObjective: any;
+  OkrKeyResult: any;
+  OkrCheckIn: any;
+  OkrImpact: any;
+  OkrMetricTemplate: any;
+
+  Kpi: any;
+  KpiValueHistory: any;
+  KpiMetricTemplate: any;
+  EvaluationTemplate: any;
+  EvaluationSection: any;
+  EvaluationQuestion: any;
+  EvaluationAssignment: any;
+  EvaluationResponse: any;
+  EvaluationAnswer: any;
 
   ClientPortalUser: any;
   ClientPortalAccess: any;
@@ -549,6 +578,22 @@ export const db: DB = {
   OKRProgressUpdate: defineOKRProgressUpdate(sequelize, DataTypes),
 
   OKREvaluation: defineOKREvaluation(sequelize, DataTypes),
+
+  OkrObjective: defineOkrObjective(sequelize, DataTypes),
+  OkrKeyResult: defineOkrKeyResult(sequelize, DataTypes),
+  OkrCheckIn: defineOkrCheckIn(sequelize, DataTypes),
+  OkrImpact: defineOkrImpact(sequelize, DataTypes),
+  OkrMetricTemplate: defineOkrMetricTemplate(sequelize, DataTypes),
+
+  Kpi: defineKpi(sequelize, DataTypes),
+  KpiValueHistory: defineKpiValueHistory(sequelize, DataTypes),
+  KpiMetricTemplate: defineKpiMetricTemplate(sequelize, DataTypes),
+  EvaluationTemplate: defineEvaluationTemplate(sequelize, DataTypes),
+  EvaluationSection: defineEvaluationSection(sequelize, DataTypes),
+  EvaluationQuestion: defineEvaluationQuestion(sequelize, DataTypes),
+  EvaluationAssignment: defineEvaluationAssignment(sequelize, DataTypes),
+  EvaluationResponse: defineEvaluationResponse(sequelize, DataTypes),
+  EvaluationAnswer: defineEvaluationAnswer(sequelize, DataTypes),
 
   ClientPortalUser: defineClientPortalUser(sequelize, DataTypes),
 

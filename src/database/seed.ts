@@ -105,7 +105,8 @@ export async function seedDefaults() {
     [
       "brain.access", "brain.category.view", "brain.article.view", "brain.training.view",
       "policy.access", "policy.category.view", "policy.document.view",
-      "policy.acceptance.view_own", "policy.acceptance.accept", "policy.acceptance.sign"
+      "policy.acceptance.view_own", "policy.acceptance.accept", "policy.acceptance.sign",
+      "performance.self"
     ].includes(p.key)
   );
   await employeeRole.setPermissions(employeeReaderPerms);

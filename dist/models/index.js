@@ -72,6 +72,8 @@ const KnowledgeCategory_1 = __importDefault(require("./KnowledgeCategory"));
 const KnowledgeArticle_1 = __importDefault(require("./KnowledgeArticle"));
 const KnowledgeRevision_1 = __importDefault(require("./KnowledgeRevision"));
 const TrainingMaterial_1 = __importDefault(require("./TrainingMaterial"));
+const Procedure_1 = __importDefault(require("./Procedure"));
+const ProcedureRevision_1 = __importDefault(require("./ProcedureRevision"));
 const Objective_1 = __importDefault(require("./Objective"));
 const KeyResult_1 = __importDefault(require("./KeyResult"));
 const OKRProgressUpdate_1 = __importDefault(require("./OKRProgressUpdate"));
@@ -233,6 +235,8 @@ exports.db = {
     KnowledgeArticle: (0, KnowledgeArticle_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     KnowledgeRevision: (0, KnowledgeRevision_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     TrainingMaterial: (0, TrainingMaterial_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Procedure: (0, Procedure_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProcedureRevision: (0, ProcedureRevision_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Objective: (0, Objective_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     KeyResult: (0, KeyResult_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     OKRProgressUpdate: (0, OKRProgressUpdate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),

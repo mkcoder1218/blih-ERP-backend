@@ -77,6 +77,7 @@ const crm_routes_1 = require("./modules/crm/crm.routes");
 const projects_routes_1 = require("./modules/projects/projects.routes");
 const finance_routes_1 = require("./modules/finance/finance.routes");
 const brain_routes_1 = require("./modules/brain/brain.routes");
+const procedure_routes_1 = require("./modules/procedure/procedure.routes");
 const okr_routes_1 = require("./modules/okr/okr.routes");
 const clientPortal_routes_1 = require("./modules/clientPortal/clientPortal.routes");
 const reporting_routes_1 = require("./modules/reporting/reporting.routes");
@@ -253,6 +254,10 @@ apiRouter.use("/finance", finance_routes_1.financeRoutes);
  */
 apiRouter.use("/brain", brain_routes_1.brainRoutes);
 /**
+ * Company Procedures
+ */
+apiRouter.use("/procedures", procedure_routes_1.procedureRoutes);
+/**
  * OKR
  */
 apiRouter.use("/okr", okr_routes_1.okrRoutes);
@@ -369,6 +374,8 @@ apiRouter.use("/approval-requests", request_routes_1.approvalRequestRoutes);
  * Mount versioned API.
  */
 app.use(`/api/${env_1.env.apiVersion}`, apiRouter);
+// Fallback to support unversioned /api/ path used by some frontend components
+app.use('/api', apiRouter);
 /**
  * Health endpoint is intentionally outside API versioning.
  */

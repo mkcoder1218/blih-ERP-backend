@@ -1,14 +1,12 @@
-
 import type { Request, Response } from 'express';
-import { OKRService } from './okr.service';
+import { okrService } from './okr.service';
 import { AuditLogService } from '../../services/auditLog.service';
 
 export class OKRController {
-  private service = new OKRService();
 
   createObjective = async (req: Request, res: Response) => {
     try {
-      const obj = await this.service.createObjective(req.user!.businessId, req.user!.id, req.body);
+      const obj = await okrService.createObjective(req.user!.businessId, req.user!.id, req.body);
       await AuditLogService.log('CREATE_OBJECTIVE', 'okr_objective', String(obj.id), null, obj, req);
       res.status(201).json({ objective: obj });
     } catch (e: any) { res.status(400).json({ message: e.message }); }
@@ -16,53 +14,46 @@ export class OKRController {
 
   updateObjective = async (req: Request, res: Response) => {
     try {
-      const obj = await this.service.updateObjective(req.user!.businessId, req.params.id, req.body);
+      const obj = await okrService.updateObjective(req.user!.businessId, req.params.id, req.body);
       await AuditLogService.log('UPDATE_OBJECTIVE', 'okr_objective', String(obj.id), null, req.body, req);
       res.json({ objective: obj });
     } catch (e: any) { res.status(400).json({ message: e.message }); }
   };
 
   getObjective = async (req: Request, res: Response) => {
-    const obj = await this.service.getObjective(req.user!.businessId, req.params.id);
+    const obj = await okrService.getObjective(req.user!.businessId, req.params.id);
     if (!obj) return res.status(404).json({ message: 'Not found' });
     res.json({ objective: obj });
   };
 
   listObjectives = async (req: Request, res: Response) => {
-    const page = parseInt(req.query.page as string) || 1;
-    const size = parseInt(req.query.size as string) || 20;
-    res.json(await this.service.listObjectives(req.user!.businessId, req.query, page, size));
-  };
-
-  createKeyResult = async (req: Request, res: Response) => {
     try {
-      const kr = await this.service.createKeyResult(req.user!.businessId, req.body.objectiveId, req.body);
-      await AuditLogService.log('CREATE_KEY_RESULT', 'okr_key_result', String(kr.id), null, kr, req);
-      res.status(201).json({ keyResult: kr });
+      const result = await okrService.listObjectives(req.user!.businessId, req.query);
+      res.json(result);
     } catch (e: any) { res.status(400).json({ message: e.message }); }
   };
 
-  updateKeyResult = async (req: Request, res: Response) => {
+  deleteObjective = async (req: Request, res: Response) => {
     try {
-      const kr = await this.service.updateKeyResult(req.user!.businessId, req.params.id, req.body);
-      await AuditLogService.log('UPDATE_KEY_RESULT', 'okr_key_result', String(kr.id), null, req.body, req);
-      res.json({ keyResult: kr });
+      await okrService.deleteObjective(req.user!.businessId, req.params.id);
+      await AuditLogService.log('DELETE_OBJECTIVE', 'okr_objective', req.params.id, null, null, req);
+      res.json({ success: true });
     } catch (e: any) { res.status(400).json({ message: e.message }); }
   };
 
   logProgressUpdate = async (req: Request, res: Response) => {
     try {
-      const update = await this.service.logProgressUpdate(req.user!.businessId, req.user!.id, req.body);
-      await AuditLogService.log('LOG_OKR_PROGRESS', 'okr_progress_update', String(update.id), null, update, req);
-      res.status(201).json({ progressUpdate: update });
+      // currentValue check-in
+      const checkIn = await okrService.logCheckIn(req.user!.businessId, req.user!.id, req.body);
+      await AuditLogService.log('LOG_OKR_PROGRESS', 'okr_check_in', String(checkIn.id), null, checkIn, req);
+      res.status(201).json({ checkIn });
     } catch (e: any) { res.status(400).json({ message: e.message }); }
   };
 
-  evaluateObjective = async (req: Request, res: Response) => {
+  refreshMetrics = async (req: Request, res: Response) => {
     try {
-      const evaluation = await this.service.evaluateObjective(req.user!.businessId, req.user!.id, req.body);
-      await AuditLogService.log('EVALUATE_OBJECTIVE', 'okr_evaluation', String(evaluation.id), null, evaluation, req);
-      res.status(201).json({ evaluation });
+      await okrService.refreshAutomaticMetrics(req.user!.businessId, req.body.objectiveId);
+      res.json({ success: true });
     } catch (e: any) { res.status(400).json({ message: e.message }); }
   };
 }

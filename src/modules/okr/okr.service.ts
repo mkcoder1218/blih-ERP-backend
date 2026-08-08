@@ -1,175 +1,363 @@
-
 import { db } from '../../models';
+import { metricCalculatorRegistry, PREDEFINED_METRICS } from './metricCalculatorRegistry';
 import { InternalNotifier } from '../notification/notification.service';
+import { Op } from 'sequelize';
 
 export class OKRService {
 
-  // -- Objective --
-  async createObjective(businessId: string, ownerUserId: string | null, data: any) {
-    const metadata = this.withProjectLinkMetadata(data);
-    return db.Objective.create({ ...data, metadata, businessId, ownerUserId: ownerUserId || data.ownerUserId });
+  async seedMetricTemplatesIfEmpty() {
+    const count = await db.OkrMetricTemplate.count();
+    if (count === 0) {
+      await db.OkrMetricTemplate.bulkCreate(PREDEFINED_METRICS);
+    }
+  }
+
+  // Calculate progress percentage of a Key Result
+  calculateKrProgress(kr: any): number {
+    const baseline = kr.baselineValue || 0;
+    const target = kr.targetValue;
+    const current = kr.currentValue || 0;
+
+    if (baseline === target) return 100;
+
+    const isLowerBetter = kr.direction === 'LOWER_IS_BETTER';
+
+    if (isLowerBetter) {
+      if (current <= target) return 100;
+      if (current >= baseline) return 0;
+      return Math.round(((baseline - current) / (baseline - target)) * 100);
+    } else {
+      if (current >= target) return 100;
+      if (current <= baseline) return 0;
+      return Math.round(((current - baseline) / (target - baseline)) * 100);
+    }
+  }
+
+  // Recalculate health status of a Key Result
+  calculateKrHealth(progress: number): string {
+    if (progress >= 70) return 'ON_TRACK';
+    if (progress >= 40) return 'AT_RISK';
+    return 'OFF_TRACK';
+  }
+
+  // Calculate baseline parameters dynamically for AUTOMATIC Key Results
+  async computeAutomaticBaselineAndCurrent(businessId: string, objective: any, krData: any) {
+    const start = new Date(objective.periodStart);
+    const end = new Date(objective.periodEnd);
+    const durationMs = end.getTime() - start.getTime();
+
+    // Baseline period is a historical window matching the OKR duration ending at periodStart
+    const baselineEnd = start;
+    const baselineStart = new Date(baselineEnd.getTime() - durationMs);
+
+    const baselinePeriodStart = baselineStart.toISOString().split('T')[0];
+    const baselinePeriodEnd = baselineEnd.toISOString().split('T')[0];
+
+    const ctx = {
+      businessId,
+      ownerType: objective.ownerType,
+      ownerId: objective.ownerId,
+      startDate: baselinePeriodStart,
+      endDate: baselinePeriodEnd
+    };
+
+    const currentCtx = {
+      businessId,
+      ownerType: objective.ownerType,
+      ownerId: objective.ownerId,
+      startDate: objective.periodStart,
+      endDate: objective.periodEnd
+    };
+
+    // Calculate baseline
+    const calculatedBaseline = await metricCalculatorRegistry.calculate(
+      krData.moduleSelector,
+      krData.metricSelector,
+      ctx
+    );
+
+    // Calculate current value
+    const calculatedCurrent = await metricCalculatorRegistry.calculate(
+      krData.moduleSelector,
+      krData.metricSelector,
+      currentCtx
+    );
+
+    // Load definition settings
+    const template = PREDEFINED_METRICS.find(m => m.module === krData.moduleSelector && m.metricKey === krData.metricSelector);
+
+    return {
+      baselineValue: calculatedBaseline,
+      currentValue: calculatedCurrent,
+      baselinePeriodStart,
+      baselinePeriodEnd,
+      unit: template?.unit || krData.unit || '',
+      measurementType: template?.measurementType || krData.measurementType || 'NUMBER',
+      direction: template?.direction || krData.direction || 'HIGHER_IS_BETTER',
+      lastCalculatedAt: new Date()
+    };
+  }
+
+  // Calculate objective completion progress and sync health/derived statuses
+  async calculateObjectiveProgress(businessId: string, objectiveId: string) {
+    const obj = await db.OkrObjective.findOne({
+      where: { id: objectiveId, businessId },
+      include: [{ model: db.OkrKeyResult, as: 'keyResults' }]
+    });
+    if (!obj) return;
+
+    if (!obj.keyResults || obj.keyResults.length === 0) {
+      await obj.update({ overallScore: 0, healthStatus: 'ON_TRACK' });
+      return;
+    }
+
+    let totalWeight = 0;
+    let weightedProgressSum = 0;
+
+    for (const kr of obj.keyResults) {
+      const progress = this.calculateKrProgress(kr);
+      const krHealth = this.calculateKrHealth(progress);
+      await kr.update({ status: krHealth });
+
+      const w = kr.weight || 1.0;
+      totalWeight += w;
+      weightedProgressSum += (progress * w);
+    }
+
+    const overallScore = totalWeight > 0 ? Math.round(weightedProgressSum / totalWeight) : 0;
+
+    let derivedHealth = 'ON_TRACK';
+    if (obj.lifecycleStatus === 'CLOSED' || overallScore === 100) {
+      derivedHealth = 'COMPLETED';
+    } else {
+      derivedHealth = this.calculateKrHealth(overallScore);
+    }
+
+    await obj.update({ overallScore, healthStatus: derivedHealth });
+  }
+
+  // -- Objective CRUD --
+  async createObjective(businessId: string, createdById: string, data: any) {
+    const { keyResults, keyImpacts, ...objData } = data;
+
+    const objective = await db.OkrObjective.create({
+      ...objData,
+      businessId,
+      createdById,
+      lifecycleStatus: objData.lifecycleStatus || 'DRAFT'
+    });
+
+    if (keyImpacts && Array.isArray(keyImpacts)) {
+      for (const text of keyImpacts) {
+        if (text && text.trim()) {
+          await db.OkrImpact.create({ objectiveId: objective.id, text });
+        }
+      }
+    }
+
+    if (keyResults && Array.isArray(keyResults)) {
+      for (const kr of keyResults) {
+        let finalKrData = { ...kr, businessId, objectiveId: objective.id };
+
+        if (kr.trackingType === 'AUTOMATIC') {
+          const autoData = await this.computeAutomaticBaselineAndCurrent(businessId, objective, kr);
+          finalKrData = { ...finalKrData, ...autoData };
+        }
+
+        const krRecord = await db.OkrKeyResult.create(finalKrData);
+        const progress = this.calculateKrProgress(krRecord);
+        await krRecord.update({ status: this.calculateKrHealth(progress) });
+      }
+    }
+
+    await this.calculateObjectiveProgress(businessId, objective.id);
+    return this.getObjective(businessId, objective.id);
   }
 
   async updateObjective(businessId: string, id: string, data: any) {
-    const obj = await db.Objective.findOne({ where: { id, businessId } });
-    if (!obj) throw new Error("Objective not found");
-    return obj.update({ ...data, metadata: this.withProjectLinkMetadata(data, obj.metadata) });
+    const objective = await db.OkrObjective.findOne({ where: { id, businessId } });
+    if (!objective) throw new Error("Objective not found");
+
+    const { keyResults, keyImpacts, ...objData } = data;
+    await objective.update(objData);
+
+    if (keyImpacts && Array.isArray(keyImpacts)) {
+      await db.OkrImpact.destroy({ where: { objectiveId: id } });
+      for (const text of keyImpacts) {
+        if (text && text.trim()) {
+          await db.OkrImpact.create({ objectiveId: id, text });
+        }
+      }
+    }
+
+    if (keyResults && Array.isArray(keyResults)) {
+      const activeIds: string[] = [];
+      for (const kr of keyResults) {
+        if (kr.id) {
+          activeIds.push(kr.id);
+          const existing = await db.OkrKeyResult.findOne({ where: { id: kr.id, objectiveId: id } });
+          if (existing) {
+            let finalKrData = { ...kr };
+            if (kr.trackingType === 'AUTOMATIC') {
+              const autoData = await this.computeAutomaticBaselineAndCurrent(businessId, objective, kr);
+              finalKrData = { ...finalKrData, ...autoData };
+            }
+            await existing.update(finalKrData);
+          }
+        } else {
+          let finalKrData = { ...kr, businessId, objectiveId: id };
+          if (kr.trackingType === 'AUTOMATIC') {
+            const autoData = await this.computeAutomaticBaselineAndCurrent(businessId, objective, kr);
+            finalKrData = { ...finalKrData, ...autoData };
+          }
+          const fresh = await db.OkrKeyResult.create(finalKrData);
+          activeIds.push(fresh.id);
+        }
+      }
+      // Delete removed KRs
+      await db.OkrKeyResult.destroy({ where: { objectiveId: id, id: { [Op.notIn]: activeIds } } });
+    }
+
+    await this.calculateObjectiveProgress(businessId, id);
+    return this.getObjective(businessId, id);
+  }
+
+  async deleteObjective(businessId: string, id: string) {
+    const objective = await db.OkrObjective.findOne({ where: { id, businessId } });
+    if (!objective) throw new Error("Objective not found");
+    await objective.destroy();
+    return true;
   }
 
   async getObjective(businessId: string, id: string) {
-    return db.Objective.findOne({
+    return db.OkrObjective.findOne({
       where: { id, businessId },
       include: [
-        { model: db.KeyResult, as: 'keyResults' },
-        { model: db.User, as: 'owner', attributes: ['id', 'email', 'firstName', 'lastName'] },
-        { model: db.Department, attributes: ['id', 'name'] }
+        { model: db.OkrKeyResult, as: 'keyResults', include: [{ model: db.OkrCheckIn, as: 'checkIns' }] },
+        { model: db.OkrImpact, as: 'keyImpacts' },
+        { model: db.User, as: 'creator', attributes: ['id', 'fullName', 'email'] },
+        { model: db.User, as: 'ownerEmployee', attributes: ['id', 'fullName', 'email'], required: false },
+        { model: db.Department, as: 'ownerDepartment', attributes: ['id', 'name'], required: false }
       ]
     });
   }
 
-  async listObjectives(businessId: string, query: any, page: number, size: number) {
+  async listObjectives(businessId: string, query: any) {
+    await this.seedMetricTemplatesIfEmpty();
+
     const where: any = { businessId };
-    if (query.level) where.level = query.level;
-    if (query.ownerUserId) where.ownerUserId = query.ownerUserId;
-    if (query.departmentId) where.departmentId = query.departmentId;
-    if (query.periodType) where.periodType = query.periodType;
-    if (query.status) where.status = query.status;
+    if (query.lifecycleStatus) where.lifecycleStatus = query.lifecycleStatus;
+    if (query.healthStatus) where.healthStatus = query.healthStatus;
+    if (query.ownerType) where.ownerType = query.ownerType;
+    if (query.ownerId) where.ownerId = query.ownerId;
 
-    return db.Objective.findAndCountAll({
+    if (query.periodStart && query.periodEnd) {
+      where.periodStart = { [Op.gte]: query.periodStart };
+      where.periodEnd = { [Op.lte]: query.periodEnd };
+    }
+
+    const objectives = await db.OkrObjective.findAll({
       where,
-      offset: (page - 1) * size,
-      limit: size,
-      include: [{ model: db.User, as: 'owner', attributes: ['id', 'email'] }, { model: db.KeyResult, as: 'keyResults' }]
+      include: [
+        { model: db.OkrKeyResult, as: 'keyResults', include: [{ model: db.OkrCheckIn, as: 'checkIns' }] },
+        { model: db.OkrImpact, as: 'keyImpacts' },
+        { model: db.User, as: 'ownerEmployee', attributes: ['id', 'fullName', 'email'], required: false },
+        { model: db.Department, as: 'ownerDepartment', attributes: ['id', 'name'], required: false }
+      ],
+      order: [['createdAt', 'DESC']]
     });
-  }
 
-  // -- Key Result --
-  async createKeyResult(businessId: string, objectiveId: string, data: any) {
-    const metadata = this.withProjectLinkMetadata(data);
-    const kr = await db.KeyResult.create({ ...data, metadata, dataSource: data.taskMetric ? 'projects' : data.dataSource, businessId, objectiveId });
-    return kr;
-  }
+    // Compute aggregate summary metrics
+    const totalCount = objectives.length;
+    let totalScoreSum = 0;
+    let onTrackCount = 0;
+    let atRiskCount = 0;
+    let offTrackCount = 0;
 
-  async updateKeyResult(businessId: string, id: string, data: any) {
-    const kr = await db.KeyResult.findOne({ where: { id, businessId } });
-    if (!kr) throw new Error("KeyResult not found");
-    return kr.update({ ...data, metadata: this.withProjectLinkMetadata(data, kr.metadata), dataSource: data.taskMetric ? 'projects' : data.dataSource ?? kr.dataSource });
-  }
+    for (const obj of objectives) {
+      totalScoreSum += obj.overallScore || 0;
+      if (obj.healthStatus === 'ON_TRACK') onTrackCount++;
+      else if (obj.healthStatus === 'AT_RISK') atRiskCount++;
+      else if (obj.healthStatus === 'OFF_TRACK') offTrackCount++;
+    }
 
-  private withProjectLinkMetadata(data: any, current: any = {}) {
-    const projectLinks = {
-      ...(current?.projectLinks || {}),
-      ...(data.projectId ? { projectId: data.projectId } : {}),
-      ...(data.milestoneId ? { milestoneId: data.milestoneId } : {}),
-      ...(data.taskMetric ? { taskMetric: data.taskMetric } : {})
+    const avgCompletion = totalCount > 0 ? Math.round(totalScoreSum / totalCount) : 0;
+    const metricTemplates = await db.OkrMetricTemplate.findAll();
+
+    return {
+      objectives,
+      summary: {
+        totalCount,
+        avgCompletion,
+        onTrackCount,
+        atRiskCount,
+        offTrackCount
+      },
+      metricTemplates
     };
-    return Object.keys(projectLinks).length ? { ...(current || {}), projectLinks } : (data.metadata ?? current ?? {});
   }
 
-  // -- Progress Update --
-  async logProgressUpdate(businessId: string, updatedByUserId: string, data: any) {
-    let kr: any = null;
-    if (data.keyResultId) {
-      kr = await db.KeyResult.findOne({ where: { id: data.keyResultId, businessId } });
-      if (!kr) throw new Error("KeyResult not found");
-    }
+  // Refresh automatic metrics values
+  async refreshAutomaticMetrics(businessId: string, objectiveId?: string) {
+    const where: any = { businessId };
+    if (objectiveId) where.id = objectiveId;
 
-    const obj = await db.Objective.findOne({ where: { id: data.objectiveId, businessId } });
-    if (!obj) throw new Error("Objective not found");
+    const objectives = await db.OkrObjective.findAll({ where });
 
-    const progressValue = data.progressValue;
-    let progressPercent = 0;
-    if (kr && kr.targetValue !== kr.baselineValue) {
-      progressPercent = ((progressValue - kr.baselineValue) / (kr.targetValue - kr.baselineValue)) * 100;
-      if (progressPercent > 100) progressPercent = 100;
-      if (progressPercent < 0) progressPercent = 0;
-    }
+    for (const obj of objectives) {
+      const krs = await db.OkrKeyResult.findAll({
+        where: { objectiveId: obj.id, trackingType: 'AUTOMATIC' }
+      });
 
-    const update = await db.OKRProgressUpdate.create({
-      ...data,
-      businessId,
-      updatedByUserId,
-      progressPercent
-    });
+      for (const kr of krs) {
+        const currentCtx = {
+          businessId,
+          ownerType: obj.ownerType,
+          ownerId: obj.ownerId,
+          startDate: obj.periodStart,
+          endDate: obj.periodEnd
+        };
 
-    if (kr) {
-      await kr.update({ currentValue: progressValue });
+        const calculatedCurrent = await metricCalculatorRegistry.calculate(
+          kr.moduleSelector,
+          kr.metricSelector,
+          currentCtx
+        );
+
+        await kr.update({
+          currentValue: calculatedCurrent,
+          lastCalculatedAt: new Date()
+        });
+      }
+
       await this.calculateObjectiveProgress(businessId, obj.id);
     }
-
-    // Notify Owner
-    if (obj.ownerUserId && obj.ownerUserId !== updatedByUserId) {
-      await InternalNotifier.send({
-        businessId, recipientUserId: obj.ownerUserId, moduleKey: 'okr',
-        type: 'okr_progress_update', title: 'OKR Progress Update',
-        message: `A new progress update was logged for "${obj.title}".`,
-        entityType: 'okr_objective', entityId: obj.id
-      });
-    }
-
-    return update;
   }
 
-  async calculateObjectiveProgress(businessId: string, objectiveId: string) {
-    const obj = await db.Objective.findOne({ where: { id: objectiveId, businessId }, include: [{ model: db.KeyResult, as: 'keyResults' }] });
-    if (!obj) return;
+  // Log manual progress check-in
+  async logCheckIn(businessId: string, createdById: string, data: any) {
+    const kr = await db.OkrKeyResult.findOne({
+      where: { id: data.keyResultId, businessId }
+    });
+    if (!kr) throw new Error("Key Result not found");
 
-    if (!obj.keyResults || obj.keyResults.length === 0) {
-      return 0; // No KRs
+    if (kr.trackingType === 'AUTOMATIC') {
+      throw new Error("Cannot log manual check-ins on automatic key results.");
     }
 
-    let totalWeight = 0;
-    let weightedProgress = 0;
-
-    for (const kr of obj.keyResults) {
-      let pct = 0;
-      if (kr.targetValue !== kr.baselineValue) {
-         pct = ((kr.currentValue - kr.baselineValue) / (kr.targetValue - kr.baselineValue)) * 100;
-      }
-      if (pct > 100) pct = 100;
-      if (pct < 0) pct = 0;
-
-      const w = kr.weight || 1;
-      totalWeight += w;
-      weightedProgress += (pct * w);
-    }
-
-    const overallProgress = totalWeight > 0 ? (weightedProgress / totalWeight) : 0;
-    
-    // We can store the overallProgress in a metadata field or a new column on Objective, but we'll put it in metadata for now.
-    const metadata = obj.metadata || {};
-    metadata.calculatedProgress = overallProgress;
-    await obj.update({ metadata });
-
-    return overallProgress;
-  }
-
-  // -- Evaluation --
-  async evaluateObjective(businessId: string, evaluatedByUserId: string, data: any) {
-    const obj = await db.Objective.findOne({ where: { id: data.objectiveId, businessId } });
-    if (!obj) throw new Error("Objective not found");
-
-    const evaluation = await db.OKREvaluation.create({
-      ...data,
+    const checkIn = await db.OkrCheckIn.create({
       businessId,
-      evaluatedByUserId
+      keyResultId: kr.id,
+      progressValue: data.currentValue, // manual check-in submits the direct currentValue
+      date: data.date || new Date().toISOString().split('T')[0],
+      note: data.note || '',
+      createdById
     });
 
-    if (data.status) {
-      await obj.update({ status: data.status });
-    }
+    await kr.update({ currentValue: data.currentValue });
+    await this.calculateObjectiveProgress(businessId, kr.objectiveId);
 
-    // Notify Owner
-    if (obj.ownerUserId && obj.ownerUserId !== evaluatedByUserId) {
-      await InternalNotifier.send({
-        businessId, recipientUserId: obj.ownerUserId, moduleKey: 'okr',
-        type: 'okr_evaluation', title: 'OKR Evaluation Completed',
-        message: `Your objective "${obj.title}" has been evaluated.`,
-        entityType: 'okr_objective', entityId: obj.id
-      });
-    }
-
-    return evaluation;
+    return checkIn;
   }
-
 }
+export const okrService = new OKRService();

@@ -70,6 +70,8 @@ import { financeRoutes } from "./modules/finance/finance.routes";
 import { brainRoutes } from "./modules/brain/brain.routes";
 import { procedureRoutes } from "./modules/procedure/procedure.routes";
 import { okrRoutes } from "./modules/okr/okr.routes";
+import kpiRoutes from "./modules/okr/kpi.routes";
+import evaluationRoutes from "./modules/okr/evaluation.routes";
 import { clientPortalRoutes } from "./modules/clientPortal/clientPortal.routes";
 import { reportingRoutes } from "./modules/reporting/reporting.routes";
 import { settingsRoutes } from "./modules/settings/settings.routes";
@@ -388,6 +390,16 @@ apiRouter.use(
 apiRouter.use(
   "/okr",
   okrRoutes,
+);
+
+apiRouter.use(
+  "/kpis",
+  kpiRoutes,
+);
+
+apiRouter.use(
+  "/evaluations",
+  evaluationRoutes,
 );
 
 /**
