@@ -3,10 +3,12 @@ import { authRequired } from "../../middlewares/auth";
 import { requireAnyPermission } from "../../middlewares/permission";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { CalendarController } from "./calendar.controller";
+import { CalendarGooglePolicyController } from "./calendarGooglePolicy.controller";
 import { CalendarMeetingController } from "./calendarMeeting.controller";
 
 const router = Router();
 const ctrl = new CalendarController();
+const googlePolicyCtrl = new CalendarGooglePolicyController();
 const meetingCtrl = new CalendarMeetingController();
 
 router.get("/google/callback", asyncHandler(ctrl.googleCallback));
@@ -38,8 +40,8 @@ router.get("/google", asyncHandler(ctrl.googleConnection));
 router.get("/google/auth-url", asyncHandler(ctrl.googleAuthUrl));
 router.delete("/google", asyncHandler(ctrl.googleDisconnect));
 router.post("/google/sync-from-google", asyncHandler(ctrl.syncFromGoogle));
-router.post("/google-sync-all", asyncHandler(ctrl.syncAllGoogle));
-router.post("/:id/google-sync", asyncHandler(ctrl.syncGoogle));
+router.post("/google-sync-all", asyncHandler(googlePolicyCtrl.syncAll));
+router.post("/:id/google-sync", asyncHandler(googlePolicyCtrl.syncEvent));
 router.patch("/:id", asyncHandler(ctrl.update));
 router.delete("/:id", asyncHandler(ctrl.remove));
 
