@@ -62,6 +62,37 @@ export class EmploymentChangeSubmissionPolicy {
       );
     }
 
+    const employeeUserId = String(data?.employeeUserId || actorUserId);
+    const employee = await db.EmployeeRecord.findOne({
+      where: { businessId, userId: employeeUserId },
+      attributes: ["userId", "managerUserId"],
+    });
+    if (!employee) {
+      fail("Employee record not found.", 404);
+    }
+
+    if (!employee.managerUserId) {
+      fail(
+        "This employee has no reporting manager configured. Assign a reporting manager before submitting an employment change request.",
+        409,
+      );
+    }
+
+    const manager = await db.User.findOne({
+      where: {
+        id: employee.managerUserId,
+        businessId,
+        status: "active",
+      },
+      attributes: ["id", "fullName", "email"],
+    });
+    if (!manager) {
+      fail(
+        "The employee's reporting manager is not active. Assign an active reporting manager before submitting an employment change request.",
+        409,
+      );
+    }
+
     const hasSalaryChange =
       data?.requestedSalary !== undefined ||
       data?.increasePercent !== undefined;
