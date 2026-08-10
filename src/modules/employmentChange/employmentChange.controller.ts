@@ -73,6 +73,19 @@ export class EmploymentChangeController {
 
   counter = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const current = await this.service.get(
+        req.user!.businessId,
+        req.user!.id,
+        req.params.id,
+      );
+
+      if (!current.canCounter) {
+        throw Object.assign(
+          new Error("This request is not awaiting your salary review."),
+          { statusCode: 403 },
+        );
+      }
+
       const request = await this.service.counter(
         req.user!.businessId,
         req.user!.id,
