@@ -1,7 +1,7 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../../database/sequelize";
 
-export const CalendarMeeting =
+export const CalendarMeeting: any =
   sequelize.models.UserCalendarMeeting ||
   sequelize.define(
     "UserCalendarMeeting",
@@ -25,7 +25,7 @@ export const CalendarMeeting =
     },
   );
 
-export const CalendarMeetingAttendee =
+export const CalendarMeetingAttendee: any =
   sequelize.models.UserCalendarMeetingAttendee ||
   sequelize.define(
     "UserCalendarMeetingAttendee",
