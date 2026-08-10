@@ -1,9 +1,9 @@
 import { DataTypes } from "sequelize";
-import { db } from "../../models";
+import { sequelize } from "../../database/sequelize";
 
 export const CalendarMeeting =
-  db.sequelize.models.UserCalendarMeeting ||
-  db.sequelize.define(
+  sequelize.models.UserCalendarMeeting ||
+  sequelize.define(
     "UserCalendarMeeting",
     {
       id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -26,8 +26,8 @@ export const CalendarMeeting =
   );
 
 export const CalendarMeetingAttendee =
-  db.sequelize.models.UserCalendarMeetingAttendee ||
-  db.sequelize.define(
+  sequelize.models.UserCalendarMeetingAttendee ||
+  sequelize.define(
     "UserCalendarMeetingAttendee",
     {
       id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
