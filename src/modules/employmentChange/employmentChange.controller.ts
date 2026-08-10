@@ -1,9 +1,24 @@
 import type { NextFunction, Request, Response } from "express";
 import { AuditLogService } from "../../services/auditLog.service";
+import { EmploymentChangeContextService } from "./employmentChange.context.service";
 import { EmploymentChangeService } from "./employmentChange.service";
 
 export class EmploymentChangeController {
   private service = new EmploymentChangeService();
+  private contextService = new EmploymentChangeContextService();
+
+  context = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const context = await this.contextService.get(
+        req.user!.businessId,
+        req.user!.id,
+        req.query.employeeUserId ? String(req.query.employeeUserId) : undefined,
+      );
+      res.json({ context });
+    } catch (error: any) {
+      next({ statusCode: error.statusCode || 400, message: error.message });
+    }
+  };
 
   list = async (req: Request, res: Response, next: NextFunction) => {
     try {
