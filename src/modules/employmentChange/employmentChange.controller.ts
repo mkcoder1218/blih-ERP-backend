@@ -104,11 +104,25 @@ export class EmploymentChangeController {
         );
       }
 
+      const recommendedSalary = Number(req.body?.recommendedSalary);
+      const currentSalary = Number(current.currentSalary || 0);
+      if (!Number.isFinite(recommendedSalary) || recommendedSalary <= 0) {
+        throw Object.assign(new Error("Recommended salary must be a positive number."), {
+          statusCode: 400,
+        });
+      }
+      if (recommendedSalary <= currentSalary) {
+        throw Object.assign(
+          new Error("Recommended salary must remain greater than the employee's current salary."),
+          { statusCode: 400 },
+        );
+      }
+
       const request = await this.service.counter(
         req.user!.businessId,
         req.user!.id,
         req.params.id,
-        Number(req.body?.recommendedSalary),
+        recommendedSalary,
         String(req.body?.comment || ""),
       );
       await AuditLogService.log(
