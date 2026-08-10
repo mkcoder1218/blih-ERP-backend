@@ -8,6 +8,7 @@ const controller = new EmploymentChangeController();
 
 router.use(authRequired);
 
+router.get("/context", asyncHandler(controller.context));
 router.get("/", asyncHandler(controller.list));
 router.post("/", asyncHandler(controller.create));
 router.get("/:id/history", asyncHandler(controller.history));
