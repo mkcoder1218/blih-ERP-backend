@@ -9,6 +9,7 @@ import { createProfileDraftSchema, updateProfileDraftSchema } from "../../valida
 import { ProfileTemplateController } from "./profileTemplate.controller";
 import { ProfileDraftController } from "./profileDraft.controller";
 import { HREventController } from "./hrEvent.controller";
+import { employmentChangeRoutes } from "../employmentChange/employmentChange.routes";
 
 const router = Router();
 const templateController = new ProfileTemplateController();
@@ -16,6 +17,8 @@ const draftController    = new ProfileDraftController();
 const eventController    = new HREventController();
 
 router.use(authRequired);
+
+router.use("/employment-changes", employmentChangeRoutes);
 
 router.get("/profile-templates", requirePermission("user.read"), asyncHandler(templateController.list));
 router.post("/profile-templates", requirePermission("user.create"), validate(createProfileTemplateSchema), asyncHandler(templateController.create));
