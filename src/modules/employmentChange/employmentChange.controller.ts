@@ -2,10 +2,12 @@ import type { NextFunction, Request, Response } from "express";
 import { AuditLogService } from "../../services/auditLog.service";
 import { EmploymentChangeContextService } from "./employmentChange.context.service";
 import { EmploymentChangeService } from "./employmentChange.service";
+import { EmploymentChangeSubmissionPolicy } from "./employmentChange.submission-policy";
 
 export class EmploymentChangeController {
   private service = new EmploymentChangeService();
   private contextService = new EmploymentChangeContextService();
+  private submissionPolicy = new EmploymentChangeSubmissionPolicy();
 
   context = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -49,6 +51,7 @@ export class EmploymentChangeController {
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      await this.submissionPolicy.validate(req.user!.businessId, req.user!.id, req.body);
       const request = await this.service.create(req.user!.businessId, req.user!.id, req.body);
       await AuditLogService.log(
         "CREATE_EMPLOYMENT_CHANGE_REQUEST",
