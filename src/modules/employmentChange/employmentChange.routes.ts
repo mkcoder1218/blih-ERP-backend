@@ -19,5 +19,6 @@ router.post("/:id/approve", asyncHandler(controller.approve));
 router.post("/:id/counter", asyncHandler(controller.counter));
 router.post("/:id/reject", asyncHandler(controller.reject));
 router.post("/:id/cancel", asyncHandler(controller.cancel));
+router.delete("/:id", asyncHandler(controller.deleteOwn));
 
 export const employmentChangeRoutes = router;
