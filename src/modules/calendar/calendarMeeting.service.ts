@@ -106,7 +106,7 @@ export class CalendarMeetingService {
     if (!title) throw Object.assign(new Error("Meeting title is required."), { statusCode: 400 });
 
     const users = await this.loadActiveUsers(businessId, [organizerUserId, ...attendeeUserIds]);
-    const organizer = users.get(organizerUserId);
+    const organizer: any = users.get(organizerUserId);
     if (!organizer) throw Object.assign(new Error("Organizer was not found."), { statusCode: 404 });
 
     const missing = attendeeUserIds.filter((id) => !users.has(id));
@@ -128,6 +128,7 @@ export class CalendarMeetingService {
     }
 
     const transaction = await db.sequelize.transaction();
+    let transactionCommitted = false;
     let meeting: any;
     try {
       meeting = await CalendarMeeting.create(
@@ -210,6 +211,7 @@ export class CalendarMeetingService {
       }
 
       await transaction.commit();
+      transactionCommitted = true;
 
       const organizerEvent = await db.UserCalendarEvent.findOne({
         where: { id: meeting.organizerEventId, businessId },
@@ -219,7 +221,6 @@ export class CalendarMeetingService {
       }
 
       for (const attendeeUserId of attendeeUserIds) {
-        const attendee = users.get(attendeeUserId);
         await InternalNotifier.send({
           businessId,
           senderUserId: organizerUserId,
@@ -236,7 +237,7 @@ export class CalendarMeetingService {
 
       return this.serializeMeeting(businessId, await meeting.reload(), organizerUserId);
     } catch (error) {
-      if (!transaction.finished) await transaction.rollback();
+      if (!transactionCommitted) await transaction.rollback();
       throw error;
     }
   }
