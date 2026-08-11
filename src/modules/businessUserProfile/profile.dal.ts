@@ -7,8 +7,19 @@ export class ProfileDAL {
     { model: db.Position, as: "position", attributes: ["id", "title"] }
   ];
 
+  private listInclude = [
+    {
+      model: db.User,
+      attributes: ["id", "fullName", "email", "phone", "status", "createdAt"],
+      where: { isTestAccount: false },
+      required: true,
+    },
+    { model: db.Department, as: "department", attributes: ["id", "name"] },
+    { model: db.Position, as: "position", attributes: ["id", "title"] }
+  ];
+
   findAll(query: any, offset: number, limit: number) { 
-    return db.BusinessUserProfile.findAndCountAll({ where: query, include: this.include, offset, limit, order: [['createdAt', 'DESC']] }); 
+    return db.BusinessUserProfile.findAndCountAll({ where: query, include: this.listInclude, offset, limit, order: [['createdAt', 'DESC']] }); 
   }
   findById(id: string, businessId: string) { return db.BusinessUserProfile.findOne({ where: { id, businessId }, include: this.include }); }
   findByUserId(userId: string, businessId: string) { return db.BusinessUserProfile.findOne({ where: { userId, businessId }, include: this.include }); }
