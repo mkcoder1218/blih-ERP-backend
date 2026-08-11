@@ -37,12 +37,17 @@ export class TesterController {
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.service.create(req.user!.id, req.body);
-      if (result.tester?.userId) {
-        await normalizeStandardTesterSimulation(String(result.tester.userId));
+      const testerUserId = result.tester?.userId
+        ? String(result.tester.userId)
+        : null;
+
+      if (testerUserId) {
+        await normalizeStandardTesterSimulation(testerUserId);
       }
-      const refreshed = result.tester?.userId
+
+      const refreshed = testerUserId
         ? (await this.service.list(req.user!.id)).find(
-            (row: any) => String(row.userId) === String(result.tester.userId),
+            (row: any) => String(row.userId) === testerUserId,
           ) || result.tester
         : result.tester;
 
