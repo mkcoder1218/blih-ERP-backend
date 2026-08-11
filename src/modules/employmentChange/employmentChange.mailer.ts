@@ -26,7 +26,7 @@ function appBaseUrl() {
 }
 
 export function employmentChangeReviewUrl(requestId: string) {
-  return `${appBaseUrl()}/employee/talent/career-development?employmentChangeRequestId=${encodeURIComponent(requestId)}`;
+  return `${appBaseUrl()}/employee/talent/career-requests?employmentChangeRequestId=${encodeURIComponent(requestId)}`;
 }
 
 function requestSummaryHtml(request: any) {
