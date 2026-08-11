@@ -37,7 +37,7 @@ async function normalizeStandardTesterEmployment(tester: any, options: any = {})
           simulatedAsRealEmployee: true,
         },
       },
-      ...(transaction ? { transaction } : {}),
+      transaction ? { transaction } : {},
     );
   }
 }
