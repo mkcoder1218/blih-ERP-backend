@@ -9,6 +9,10 @@ export const requireActiveModule = (moduleKey: string) => {
         return next({ statusCode: 401, message: "Unauthorized" });
       }
 
+      if (req.user?.isPlatformSuperAdmin || req.user?.isMasterTester) {
+        return next();
+      }
+
       const businessModule = await db.BusinessModule.findOne({
         where: { businessId, moduleKey, status: "active" }
       });
