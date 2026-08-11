@@ -204,10 +204,10 @@ export class EmploymentChangeManagementService {
         : [],
     ]);
 
-    const userMap = new Map(users.map((user: any) => [String(user.id), user.toJSON()]));
-    const employeeMap = new Map(employees.map((employee: any) => [String(employee.userId), employee]));
-    const positionMap = new Map(positions.map((position: any) => [String(position.id), position.toJSON()]));
-    const departmentMap = new Map(departments.map((department: any) => [String(department.id), department.toJSON()]));
+    const userMap = new Map<string, any>(users.map((user: any) => [String(user.id), user.toJSON()]));
+    const employeeMap = new Map<string, any>(employees.map((employee: any) => [String(employee.userId), employee]));
+    const positionMap = new Map<string, any>(positions.map((position: any) => [String(position.id), position.toJSON()]));
+    const departmentMap = new Map<string, any>(departments.map((department: any) => [String(department.id), department.toJSON()]));
     const canCancelRole = Array.from(roles).some((role) =>
       ["HR_MANAGER", "BUSINESS_ADMIN", "PLATFORM_SUPER_ADMIN"].includes(role),
     );
