@@ -59,7 +59,15 @@ export async function authRequired(req: Request, res: Response, next: NextFuncti
     (user.Roles || []).forEach((r: any) => {
       (r.Permissions || []).forEach((p: any) => permissions.add(p.key));
     });
-    ["attendance.self", "profiles.self", "performance.self", "project.self", "project.task"].forEach((key) => permissions.add(key));
+    [
+      "attendance.self",
+      "profiles.self",
+      "performance.self",
+      "project.self",
+      "project.task",
+      "career.self",
+      "career.request",
+    ].forEach((key) => permissions.add(key));
 
     // Master Tester authority is stored separately from normal RBAC. We expose
     // an effective super-admin bit in request context only so legacy guards that
