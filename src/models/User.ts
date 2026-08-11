@@ -16,6 +16,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): UserModel =>
       phone: { type: dataTypes.STRING(50), allowNull: true },
       status: { type: dataTypes.STRING(50), allowNull: false, defaultValue: "active" },
       isPlatformSuperAdmin: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      isTestAccount: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       lastLoginAt: { type: dataTypes.DATE, allowNull: true },
       // Self-registration approval workflow
       registrationToken: { type: dataTypes.STRING(128), allowNull: true },
