@@ -153,7 +153,7 @@ export class CalendarMeetingService {
         attendees: attendeeSnapshots.map((user) => ({ ...user, status: "PENDING" })),
       };
 
-      const organizerEvent = await db.UserCalendarEvent.create(
+      const createdOrganizerEvent = await db.UserCalendarEvent.create(
         {
           businessId,
           employeeUserId: organizerUserId,
@@ -170,7 +170,7 @@ export class CalendarMeetingService {
         },
         { transaction },
       );
-      await meeting.update({ organizerEventId: organizerEvent.id }, { transaction });
+      await meeting.update({ organizerEventId: createdOrganizerEvent.id }, { transaction });
 
       for (const attendeeUserId of attendeeUserIds) {
         const attendeeEvent = await db.UserCalendarEvent.create(
