@@ -36,11 +36,36 @@ async function main() {
     businessId: business.id,
   });
 
+  // Give the Master Tester a normal BUSINESS_ADMIN role only for sensible
+  // frontend navigation/default landing. Its actual unrestricted tester
+  // authority remains separate in tester_accounts and auth middleware.
+  const businessAdminRole =
+    (await db.Role.findOne({
+      where: { businessId: business.id, key: "BUSINESS_ADMIN" },
+    })) ||
+    (await db.Role.findOne({
+      where: { businessId: null, key: "BUSINESS_ADMIN" },
+    }));
+
+  if (businessAdminRole && tester?.userId) {
+    await db.UserRole.findOrCreate({
+      where: {
+        userId: tester.userId,
+        roleId: businessAdminRole.id,
+      },
+      defaults: {
+        userId: tester.userId,
+        roleId: businessAdminRole.id,
+      },
+    });
+  }
+
   console.log("\n✅ Master Tester is ready");
   console.log(`Name:     ${fullName}`);
   console.log(`Email:    ${email}`);
   console.log(`Business: ${business.name} (${business.id})`);
   console.log(`Level:    ${tester?.testerLevel || "MASTER"}`);
+  console.log(`UI role:  ${businessAdminRole ? "BUSINESS_ADMIN" : "No BUSINESS_ADMIN role found"}`);
 
   if (!suppliedPassword) {
     console.log("\nTemporary password (shown because no MASTER_TESTER_PASSWORD was supplied):");
