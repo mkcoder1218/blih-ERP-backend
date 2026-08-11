@@ -71,36 +71,10 @@ export class EmploymentChangeSubmissionPolicy {
       fail("Employee record not found.", 404);
     }
 
-    // Reporting manager is optional for employment-change submission.
-    // The approval-chain builder will include an active manager when one exists,
-    // otherwise it safely skips the Manager stage and continues to HR / Finance / Admin.
-
-    const hasSalaryChange =
-      data?.requestedSalary !== undefined ||
-      data?.increasePercent !== undefined;
-
-    if (!roles.has("HR_MANAGER")) {
-      const hrApprovers = await this.activeUsersForRole(businessId, "HR_MANAGER");
-      if (!hrApprovers.length) {
-        fail(
-          "No active HR Manager approver is configured. Assign the HR_MANAGER role before submitting employment changes.",
-          409,
-        );
-      }
-    }
-
-    if (hasSalaryChange && !roles.has("FINANCE_MANAGER")) {
-      const financeApprovers = await this.activeUsersForRole(
-        businessId,
-        "FINANCE_MANAGER",
-      );
-      if (!financeApprovers.length) {
-        fail(
-          "No active Finance Manager approver is configured. Assign the FINANCE_MANAGER role before submitting salary changes.",
-          409,
-        );
-      }
-    }
+    // Manager, HR, and Finance are optional workflow stages.
+    // The approval-chain builder includes them only when an eligible approver exists
+    // and otherwise records the skipped stage before continuing to the next one.
+    // Business Admin remains mandatory as the final approval safety boundary.
 
     const adminApprovers = await this.activeUsersForRole(businessId, "BUSINESS_ADMIN");
     if (!adminApprovers.length) {
