@@ -46,6 +46,6 @@ export async function normalizeStandardTesterSimulation(
         simulatedAsRealEmployee: true,
       },
     },
-    ...(transaction ? { transaction } : {}),
+    transaction ? { transaction } : {},
   );
 }
