@@ -33,10 +33,14 @@ export class AuditLogService {
     let ipAddress: string | null = null;
     let userAgent: string | null = null;
     let deviceInfo: string | null = null;
+    let isTestActivity = false;
+    let testerLevel: string | null = null;
 
     if (req) {
       businessId = req.user?.businessId || null;
       userId = req.user?.id || null;
+      isTestActivity = Boolean(req.user?.isTestAccount);
+      testerLevel = req.user?.testerLevel || null;
       ipAddress =
         (req.headers?.["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
         req.ip ||
@@ -46,6 +50,12 @@ export class AuditLogService {
       deviceInfo = parseDeviceInfo(userAgent);
     }
 
+    const effectiveCategory: AuditCategory =
+      isTestActivity && category === "success" ? "warning" : category;
+    const effectiveDeviceInfo = isTestActivity
+      ? `[TEST${testerLevel ? `:${testerLevel}` : ""}] ${deviceInfo || "Unknown Device"}`
+      : deviceInfo;
+
     try {
       await db.AuditLog.create({
         businessId,
@@ -53,12 +63,12 @@ export class AuditLogService {
         action,
         entityType,
         entityId,
-        category,
+        category: effectiveCategory,
         beforeData,
         afterData,
         ipAddress,
         userAgent,
-        deviceInfo,
+        deviceInfo: effectiveDeviceInfo,
         location: ipAddress // can be geo-enriched later; default to IP
       });
 
@@ -70,8 +80,12 @@ export class AuditLogService {
           action,
           entityType,
           entityId,
-          title: `Action on ${entityType}: ${action}`,
-          description: `System recorded ${action} automatically.`
+          title: isTestActivity
+            ? `[TEST ACCOUNT] ${action} on ${entityType}`
+            : `Action on ${entityType}: ${action}`,
+          description: isTestActivity
+            ? `Tester activity recorded automatically (${testerLevel || "STANDARD"}).`
+            : `System recorded ${action} automatically.`
         });
       }
     } catch (err) {
