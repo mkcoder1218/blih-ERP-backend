@@ -24,10 +24,10 @@ export class ReportingService {
 
   private applyTesterExclusions(
     Model: any,
-    baseWhere: Record<string, any>,
+    baseWhere: any,
     exclusions: { testUserIds: string[]; testEmployeeIds: string[] },
   ) {
-    const where: Record<string, any> = { ...baseWhere };
+    const where: any = { ...baseWhere };
     const attributes = Model?.rawAttributes || {};
 
     const exclude = (field: string, ids: string[]) => {
@@ -138,8 +138,6 @@ export class ReportingService {
   // -- Metric Automation (Business Logic) --
   async generateBasicMetrics(businessId: string) {
     const metricsToCreate: any[] = [];
-    const now = new Date();
-    void now;
 
     // CRM
     if (db.Lead) {
