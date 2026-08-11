@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { AuditLogService } from "../../services/auditLog.service";
+import { normalizeStandardTesterSimulation } from "./tester.simulation";
 import { TesterService } from "./tester.service";
 
 export class TesterController {
@@ -7,6 +8,7 @@ export class TesterController {
 
   session = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      await normalizeStandardTesterSimulation(req.user!.id);
       const session = await this.service.session(req.user!.id);
       res.json({ session });
     } catch (error: any) {
@@ -35,20 +37,29 @@ export class TesterController {
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.service.create(req.user!.id, req.body);
+      if (result.tester?.userId) {
+        await normalizeStandardTesterSimulation(String(result.tester.userId));
+      }
+      const refreshed = result.tester?.userId
+        ? (await this.service.list(req.user!.id)).find(
+            (row: any) => String(row.userId) === String(result.tester.userId),
+          ) || result.tester
+        : result.tester;
+
       await AuditLogService.log(
         "CREATE_TESTER_ACCOUNT",
         "tester_account",
-        String(result.tester?.id || result.tester?.userId || "unknown"),
+        String(refreshed?.id || refreshed?.userId || "unknown"),
         null,
         {
-          testerUserId: result.tester?.userId,
-          testerLevel: result.tester?.testerLevel,
-          businessId: result.tester?.user?.businessId,
-          roleKeys: result.tester?.user?.roles?.map((role: any) => role.key) || [],
+          testerUserId: refreshed?.userId,
+          testerLevel: refreshed?.testerLevel,
+          businessId: refreshed?.user?.businessId,
+          roleKeys: refreshed?.user?.roles?.map((role: any) => role.key) || [],
         },
         req,
       );
-      res.status(201).json(result);
+      res.status(201).json({ ...result, tester: refreshed });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
@@ -58,7 +69,12 @@ export class TesterController {
     try {
       const before = await this.service.list(req.user!.id);
       const current = before.find((row: any) => String(row.userId) === String(req.params.userId)) || null;
-      const tester = await this.service.update(req.user!.id, req.params.userId, req.body);
+      await this.service.update(req.user!.id, req.params.userId, req.body);
+      await normalizeStandardTesterSimulation(req.params.userId);
+      const tester = (await this.service.list(req.user!.id)).find(
+        (row: any) => String(row.userId) === String(req.params.userId),
+      ) || null;
+
       await AuditLogService.log(
         "UPDATE_TESTER_ACCOUNT",
         "tester_account",
