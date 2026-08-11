@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { AuditLogService } from "../../services/auditLog.service";
 import { EmploymentChangeContextService } from "./employmentChange.context.service";
 import { EmploymentChangeManagementService } from "./employmentChange.management.service";
+import { EmploymentChangeRequest } from "./employmentChange.models";
 import { EmploymentChangeService } from "./employmentChange.service";
 import { EmploymentChangeSubmissionPolicy } from "./employmentChange.submission-policy";
 
@@ -217,6 +218,52 @@ export class EmploymentChangeController {
         req,
       );
       res.json({ request });
+    } catch (error: any) {
+      next({ statusCode: error.statusCode || 400, message: error.message });
+    }
+  };
+
+  deleteOwn = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const request = await EmploymentChangeRequest.findOne({
+        where: {
+          id: req.params.id,
+          businessId: req.user!.businessId,
+        },
+      });
+
+      if (!request) {
+        throw Object.assign(new Error("Employment change request not found."), {
+          statusCode: 404,
+        });
+      }
+
+      if (String(request.requestedByUserId) !== String(req.user!.id)) {
+        throw Object.assign(new Error("You can only delete requests you created."), {
+          statusCode: 403,
+        });
+      }
+
+      if (!["PENDING", "CANCELLED"].includes(String(request.status))) {
+        throw Object.assign(
+          new Error("Only pending or cancelled requests can be deleted."),
+          { statusCode: 409 },
+        );
+      }
+
+      const before = request.toJSON();
+      await request.destroy();
+
+      await AuditLogService.log(
+        "DELETE_OWN_EMPLOYMENT_CHANGE_REQUEST",
+        "employment_change_request",
+        String(request.id),
+        before,
+        { deleted: true },
+        req,
+      );
+
+      res.json({ deleted: true, id: String(request.id) });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
