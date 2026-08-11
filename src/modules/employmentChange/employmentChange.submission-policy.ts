@@ -71,27 +71,9 @@ export class EmploymentChangeSubmissionPolicy {
       fail("Employee record not found.", 404);
     }
 
-    if (!employee.managerUserId) {
-      fail(
-        "This employee has no reporting manager configured. Assign a reporting manager before submitting an employment change request.",
-        409,
-      );
-    }
-
-    const manager = await db.User.findOne({
-      where: {
-        id: employee.managerUserId,
-        businessId,
-        status: "active",
-      },
-      attributes: ["id", "fullName", "email"],
-    });
-    if (!manager) {
-      fail(
-        "The employee's reporting manager is not active. Assign an active reporting manager before submitting an employment change request.",
-        409,
-      );
-    }
+    // Reporting manager is optional for employment-change submission.
+    // The approval-chain builder will include an active manager when one exists,
+    // otherwise it safely skips the Manager stage and continues to HR / Finance / Admin.
 
     const hasSalaryChange =
       data?.requestedSalary !== undefined ||
