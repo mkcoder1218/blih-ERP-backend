@@ -1,11 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 import { AuditLogService } from "../../services/auditLog.service";
 import { EmploymentChangeContextService } from "./employmentChange.context.service";
+import { EmploymentChangeManagementService } from "./employmentChange.management.service";
 import { EmploymentChangeService } from "./employmentChange.service";
 import { EmploymentChangeSubmissionPolicy } from "./employmentChange.submission-policy";
 
 export class EmploymentChangeController {
   private service = new EmploymentChangeService();
+  private managementService = new EmploymentChangeManagementService();
   private contextService = new EmploymentChangeContextService();
   private submissionPolicy = new EmploymentChangeSubmissionPolicy();
 
@@ -22,10 +24,26 @@ export class EmploymentChangeController {
     }
   };
 
+  analytics = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const analytics = await this.managementService.analytics(
+        req.user!.businessId,
+        req.user!.id,
+      );
+      res.json({ analytics });
+    } catch (error: any) {
+      next({ statusCode: error.statusCode || 400, message: error.message });
+    }
+  };
+
   list = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const rows = await this.service.list(req.user!.businessId, req.user!.id, req.query);
-      res.json({ rows });
+      const result = await this.managementService.list(
+        req.user!.businessId,
+        req.user!.id,
+        req.query,
+      );
+      res.json(result);
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
@@ -62,6 +80,27 @@ export class EmploymentChangeController {
         req,
       );
       res.status(201).json({ request });
+    } catch (error: any) {
+      next({ statusCode: error.statusCode || 400, message: error.message });
+    }
+  };
+
+  immediateTitle = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.managementService.immediateTitleChange(
+        req.user!.businessId,
+        req.user!.id,
+        req.body,
+      );
+      await AuditLogService.log(
+        "APPLY_IMMEDIATE_TITLE_CHANGE",
+        "employment_change_request",
+        String(result.request.id),
+        null,
+        result,
+        req,
+      );
+      res.status(201).json(result);
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
