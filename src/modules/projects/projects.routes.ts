@@ -7,6 +7,7 @@ import { requireActiveModule } from '../../middlewares/requireActiveModule';
 import { validate } from '../../middlewares/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { ProjectsController } from './projects.controller';
+import { TaskCommentsController } from './task-comments.controller';
 import {
   addProjectMemberSchema,
   assignProjectTaskSchema,
@@ -37,6 +38,7 @@ import {
 
 const router = Router();
 const controller = new ProjectsController();
+const taskCommentsController = new TaskCommentsController();
 
 // App boundary
 router.use(requireActiveModule('projects'));
@@ -131,10 +133,10 @@ router.patch('/:projectId([0-9a-fA-F-]{36})/members/:memberId([0-9a-fA-F-]{36})'
 router.delete('/:projectId([0-9a-fA-F-]{36})/members/:memberId([0-9a-fA-F-]{36})', requireAnyPermission('project.manage'), validate(projectMemberParamsSchema, "params"), asyncHandler(controller.removeMember));
 router.get('/:projectId([0-9a-fA-F-]{36})/tasks', validate(projectTasksParamsSchema, "params"), validate(listProjectTasksQuerySchema, "query"), asyncHandler(controller.listNestedTasks));
 router.post('/:projectId([0-9a-fA-F-]{36})/tasks', requireAnyPermission('project.task', 'project.manage'), validate(projectTasksParamsSchema, "params"), validate(createNestedProjectTaskSchema), asyncHandler(controller.createNestedTask));
-router.get('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments', validate(projectTaskParamsSchema, "params"), asyncHandler(controller.listTaskComments));
-router.post('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments', validate(projectTaskParamsSchema, "params"), validate(createTaskCommentSchema), asyncHandler(controller.createTaskComment));
-router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments/:commentId([0-9a-fA-F-]{36})', validate(taskCommentParamsSchema, "params"), validate(updateTaskCommentSchema), asyncHandler(controller.updateTaskComment));
-router.delete('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments/:commentId([0-9a-fA-F-]{36})', validate(taskCommentParamsSchema, "params"), asyncHandler(controller.deleteTaskComment));
+router.get('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments', validate(projectTaskParamsSchema, "params"), asyncHandler(taskCommentsController.list));
+router.post('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments', validate(projectTaskParamsSchema, "params"), validate(createTaskCommentSchema), asyncHandler(taskCommentsController.create));
+router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments/:commentId([0-9a-fA-F-]{36})', validate(taskCommentParamsSchema, "params"), validate(updateTaskCommentSchema), asyncHandler(taskCommentsController.update));
+router.delete('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})/comments/:commentId([0-9a-fA-F-]{36})', validate(taskCommentParamsSchema, "params"), asyncHandler(taskCommentsController.remove));
 router.get('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', validate(projectTaskParamsSchema, "params"), asyncHandler(controller.viewNestedTask));
 router.patch('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', requireAnyPermission('project.task', 'project.manage'), validate(projectTaskParamsSchema, "params"), validate(updateNestedProjectTaskSchema), asyncHandler(controller.updateNestedTask));
 router.delete('/:projectId([0-9a-fA-F-]{36})/tasks/:taskId([0-9a-fA-F-]{36})', requireAnyPermission('project.task', 'project.manage'), validate(projectTaskParamsSchema, "params"), asyncHandler(controller.deleteNestedTask));
