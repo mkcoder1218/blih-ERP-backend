@@ -1,9 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 import { ok } from "../../utils/apiResponse";
 import { AttendanceTelegramService } from "./attendanceTelegram.service";
+import { AttendanceTelegramFlowService } from "./attendanceTelegramFlow.service";
+import { AttendanceTelegramUpdateRouterService } from "./attendanceTelegramUpdateRouter.service";
 
 export class AttendanceTelegramController {
   private service = new AttendanceTelegramService();
+  private flow = new AttendanceTelegramFlowService();
+  private updateRouter = new AttendanceTelegramUpdateRouterService();
 
   settings = async (req: Request, res: Response) => {
     return ok(res, { telegramSettings: await this.service.getSettings(req.params.businessId) }, "Telegram settings");
@@ -29,7 +33,12 @@ export class AttendanceTelegramController {
 
   generateLinkCode = async (req: Request, res: Response, next: NextFunction) => {
     if (!req.user?.id || !req.user?.businessId) return next({ statusCode: 401, message: "Unauthorized" });
-    return ok(res, { telegramLinkCode: await this.service.generateLinkCode(req.user.id, req.user.businessId) }, "Telegram link code generated");
+    return ok(res, { telegramLinkCode: await this.flow.generateLinkCode(req.user.id, req.user.businessId) }, "Telegram link code generated");
+  };
+
+  myStatus = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user?.id || !req.user?.businessId) return next({ statusCode: 401, message: "Unauthorized" });
+    return ok(res, { telegramStatus: await this.flow.getMyStatus(req.user.id, req.user.businessId) }, "Telegram status");
   };
 
   unlinkMe = async (req: Request, res: Response, next: NextFunction) => {
@@ -42,6 +51,6 @@ export class AttendanceTelegramController {
   };
 
   webhook = async (req: Request, res: Response) => {
-    return ok(res, await this.service.handleWebhook(req.params.businessId, req.body), "Telegram update handled");
+    return ok(res, await this.updateRouter.handleUpdate(req.params.businessId, req.body), "Telegram update handled");
   };
 }
