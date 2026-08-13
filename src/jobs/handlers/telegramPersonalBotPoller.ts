@@ -1,11 +1,11 @@
 import { JobDefinition } from "../runner";
-import { AttendanceTelegramService } from "../../modules/attendanceTelegram/attendanceTelegram.service";
+import { AttendanceTelegramUpdateRouterService } from "../../modules/attendanceTelegram/attendanceTelegramUpdateRouter.service";
 
 export const telegramPersonalBotPoller: JobDefinition = {
   name: "TelegramPersonalBotPoller",
   type: "telegram",
   cronExpression: "*/10 * * * * *",
   handler: async () => {
-    await new AttendanceTelegramService().pollPersonalBotUpdates();
+    await new AttendanceTelegramUpdateRouterService().pollPersonalBotUpdates();
   }
 };
