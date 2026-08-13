@@ -1,7 +1,9 @@
 import crypto from "crypto";
 import { Op } from "sequelize";
 import { db } from "../../models";
+import { businessDateEndUtc, businessDateStartUtc } from "../../utils/timezone";
 import { AttendanceMeService } from "../attendanceMe/attendanceMe.service";
+import { AttendanceRequestsService } from "../attendanceRequests/attendanceRequests.service";
 
 type AttendanceEventType = "CHECK_IN" | "LUNCH_OUT" | "LUNCH_IN" | "CHECK_OUT";
 
@@ -40,6 +42,41 @@ function minutesLabel(minutes: number) {
   return hours ? `${hours}h ${mins}m` : `${mins}m`;
 }
 
+function localDateYmd(date: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function addDays(dateYmd: string, days: number) {
+  const [year, month, day] = dateYmd.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function validDateYmd(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function parseWfhDateRange(value: string) {
+  const parts = String(value || "")
+    .trim()
+    .split(/\s+(?:to|until|through)\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 1 && validDateYmd(parts[0])) return { fromDate: parts[0], toDate: parts[0] };
+  if (parts.length === 2 && validDateYmd(parts[0]) && validDateYmd(parts[1]) && parts[1] >= parts[0]) {
+    return { fromDate: parts[0], toDate: parts[1] };
+  }
+  return null;
+}
+
 function locationKeyboard(label: string) {
   return {
     keyboard: [[{ text: "Share phone location", request_location: true }], ["Cancel"]],
@@ -66,6 +103,7 @@ async function telegramRequest(botToken: string, method: string, body: any) {
 
 export class AttendanceTelegramFlowService {
   private attendance = new AttendanceMeService();
+  private attendanceRequests = new AttendanceRequestsService();
 
   private async getMainSetting(businessId: string, enabledOnly = true) {
     const whereEnabled = enabledOnly ? { enabled: true } : {};
@@ -171,7 +209,7 @@ export class AttendanceTelegramFlowService {
     rows.push([{ text: "My Summary", callback_data: "summary:today" }]);
     rows.push([
       { text: "Late reason", callback_data: "reason:late" },
-      { text: "Unavailable", callback_data: "reason:unavailable" },
+      { text: "Work From Home", callback_data: "wfh:start" },
     ]);
     rows.push([{ text: "Unlink", callback_data: "account:unlink" }]);
     return { inline_keyboard: rows };
@@ -294,6 +332,131 @@ export class AttendanceTelegramFlowService {
     return true;
   }
 
+  private async startWorkFromHome(setting: any, businessId: string, chatId: string, telegramUserId: string) {
+    const link = await this.linkForTelegram(businessId, telegramUserId);
+    if (!link) {
+      await this.sendMenu(setting, businessId, chatId, telegramUserId, "Link your ERP account before requesting Work From Home.");
+      return;
+    }
+    await link.update({ pendingAction: { kind: "wfh_select_date", requestedAt: new Date().toISOString() } });
+    await this.send(setting, chatId, "Work From Home request\n\nWhen do you want to work from home?", {
+      inline_keyboard: [
+        [{ text: "Today", callback_data: "wfh:today" }, { text: "Tomorrow", callback_data: "wfh:tomorrow" }],
+        [{ text: "Choose date", callback_data: "wfh:custom" }],
+        [{ text: "Cancel", callback_data: "wfh:cancel" }],
+      ],
+    }, "wfh_started");
+  }
+
+  private async selectWorkFromHomeDate(setting: any, businessId: string, chatId: string, telegramUserId: string, offsetDays: number) {
+    const link = await this.linkForTelegram(businessId, telegramUserId);
+    if (!link) return;
+    const settings = await db.BusinessAttendanceSettings.findOne({ where: { businessId }, attributes: ["timezone"] });
+    const timeZone = settings?.timezone || "UTC";
+    const dateYmd = addDays(localDateYmd(new Date(), timeZone), offsetDays);
+    await link.update({ pendingAction: { kind: "wfh_reason", fromDate: dateYmd, toDate: dateYmd, requestedAt: new Date().toISOString() } });
+    await this.send(setting, chatId, `WFH date: ${dateYmd}\n\nSend a short reason (at least 5 characters).`, undefined, "wfh_reason_requested");
+  }
+
+  private async handleWorkFromHomeCallback(setting: any, businessId: string, chatId: string, telegramUserId: string, data: string) {
+    if (data === "wfh:start" || data === "reason:unavailable") {
+      await this.startWorkFromHome(setting, businessId, chatId, telegramUserId);
+      return true;
+    }
+    if (data === "wfh:today") {
+      await this.selectWorkFromHomeDate(setting, businessId, chatId, telegramUserId, 0);
+      return true;
+    }
+    if (data === "wfh:tomorrow") {
+      await this.selectWorkFromHomeDate(setting, businessId, chatId, telegramUserId, 1);
+      return true;
+    }
+    const link = await this.linkForTelegram(businessId, telegramUserId);
+    if (!link) return false;
+    if (data === "wfh:custom") {
+      await link.update({ pendingAction: { kind: "wfh_custom_date", requestedAt: new Date().toISOString() } });
+      await this.send(setting, chatId, "Send YYYY-MM-DD or a range like YYYY-MM-DD to YYYY-MM-DD.", undefined, "wfh_custom_date_requested");
+      return true;
+    }
+    if (data === "wfh:cancel") {
+      await link.update({ pendingAction: null });
+      await this.send(setting, chatId, "Work From Home request cancelled.", removeReplyKeyboard(), "wfh_cancelled");
+      await this.sendMenu(setting, businessId, chatId, telegramUserId);
+      return true;
+    }
+    return false;
+  }
+
+  private async handleWorkFromHomeText(setting: any, businessId: string, chatId: string, telegramUserId: string, text: string) {
+    const normalized = text.trim().toLowerCase();
+    if (["work from home", "work from home request", "wfh", "add unavailability", "unavailable", "unavailability"].includes(normalized)) {
+      await this.startWorkFromHome(setting, businessId, chatId, telegramUserId);
+      return true;
+    }
+
+    const link = await this.linkForTelegram(businessId, telegramUserId);
+    if (!link) return false;
+    const pending = link.pendingAction;
+
+    if (normalized === "cancel" && String(pending?.kind || "").startsWith("wfh_")) {
+      await link.update({ pendingAction: null });
+      await this.send(setting, chatId, "Work From Home request cancelled.", removeReplyKeyboard(), "wfh_cancelled");
+      await this.sendMenu(setting, businessId, chatId, telegramUserId);
+      return true;
+    }
+
+    if (pending?.kind === "wfh_custom_date") {
+      const range = parseWfhDateRange(text);
+      if (!range) {
+        await this.send(setting, chatId, "Use YYYY-MM-DD or YYYY-MM-DD to YYYY-MM-DD.");
+        return true;
+      }
+      await link.update({ pendingAction: { kind: "wfh_reason", ...range, requestedAt: new Date().toISOString() } });
+      const label = range.fromDate === range.toDate ? range.fromDate : `${range.fromDate} to ${range.toDate}`;
+      await this.send(setting, chatId, `WFH date: ${label}\n\nSend a short reason (at least 5 characters).`, undefined, "wfh_reason_requested");
+      return true;
+    }
+
+    if (pending?.kind !== "wfh_reason") return false;
+    const reason = text.trim();
+    if (reason.length < 5) {
+      await this.send(setting, chatId, "Please give a clearer reason of at least 5 characters.");
+      return true;
+    }
+
+    const fromDate = String(pending.fromDate || "");
+    const toDate = String(pending.toDate || "");
+    if (!validDateYmd(fromDate) || !validDateYmd(toDate)) {
+      await link.update({ pendingAction: null });
+      await this.send(setting, chatId, "The selected WFH date is invalid. Start the request again.");
+      await this.sendMenu(setting, businessId, chatId, telegramUserId);
+      return true;
+    }
+
+    const attendanceSettings = await db.BusinessAttendanceSettings.findOne({ where: { businessId }, attributes: ["timezone"] });
+    const timeZone = attendanceSettings?.timezone || "UTC";
+    const fromAt = businessDateStartUtc(fromDate, timeZone);
+    const toAt = new Date(businessDateEndUtc(toDate, timeZone).getTime() - 1);
+
+    try {
+      await this.attendanceRequests.create(businessId, link.userId, {
+        requestType: "work_from_home",
+        category: "Full Day",
+        title: "Work From Home Request",
+        reason,
+        fromAt: fromAt.toISOString(),
+        toAt: toAt.toISOString(),
+      });
+      await link.update({ pendingAction: null });
+      const label = fromDate === toDate ? fromDate : `${fromDate} to ${toDate}`;
+      await this.send(setting, chatId, `✅ Work From Home request submitted\nDate: ${label}\nStatus: Pending approval`, removeReplyKeyboard(), "wfh_submitted");
+      await this.sendMenu(setting, businessId, chatId, telegramUserId);
+    } catch (error: any) {
+      await this.send(setting, chatId, `Could not submit Work From Home request: ${error?.message || "Request failed"}`, undefined, "wfh_failed");
+    }
+    return true;
+  }
+
   private async linkTelegramUser(setting: any, businessId: string, chatId: string, telegramUserId: string, username: string | null, rawCode?: string | null) {
     const code = normalizeCode(rawCode);
     if (!code) {
@@ -379,6 +542,11 @@ export class AttendanceTelegramFlowService {
         await this.requestLocation(setting, businessId, chatId, telegramUserId, type);
         return { handled: true };
       }
+      if (data.startsWith("wfh:") || data === "reason:unavailable") {
+        await telegramRequest(setting.botToken, "answerCallbackQuery", { callback_query_id: callback.id });
+        await this.handleWorkFromHomeCallback(setting, businessId, chatId, telegramUserId, data);
+        return { handled: true };
+      }
       if (data === "menu" || data === "summary:today") {
         await telegramRequest(setting.botToken, "answerCallbackQuery", { callback_query_id: callback.id });
         await this.sendMenu(setting, businessId, chatId, telegramUserId);
@@ -428,6 +596,10 @@ export class AttendanceTelegramFlowService {
     const directType = (Object.keys(ACTION_LABEL) as AttendanceEventType[]).find((type) => ACTION_LABEL[type].toLowerCase() === text.toLowerCase());
     if (directType) {
       await this.requestLocation(setting, businessId, chatId, telegramUserId, directType);
+      return { handled: true };
+    }
+
+    if (await this.handleWorkFromHomeText(setting, businessId, chatId, telegramUserId, text)) {
       return { handled: true };
     }
 
