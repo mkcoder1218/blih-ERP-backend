@@ -5,6 +5,7 @@ import { requireActiveModule } from '../../middlewares/module';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { validate } from '../../middlewares/validate';
 import { BrainController } from './brain.controller';
+import { brainClientRoutes } from './brain.clients.routes';
 import {
   createCategorySchema,
   updateCategorySchema,
@@ -23,8 +24,17 @@ import {
 const router = Router();
 const controller = new BrainController();
 
-// Mandatory module guard and base permission check preserving Super Admin bypass
-router.use(authRequired, requireActiveModule('brain'), requirePermission('brain.access'));
+// Authentication is mandatory for every Brain route.
+router.use(authRequired);
+
+// ── Client Directory ──
+// This cross-module directory deliberately sits before brain.access/module
+// guards. Business Admins and Project Managers use the same Client records
+// from Brain and Projects, even when CRM is not subscribed.
+router.use('/clients', brainClientRoutes);
+
+// Mandatory Brain module guard and base permission check preserving Super Admin bypass.
+router.use(requireActiveModule('brain'), requirePermission('brain.access'));
 
 // ── Categories ──
 router.post(
