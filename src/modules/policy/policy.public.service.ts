@@ -43,6 +43,7 @@ export class PolicyPublicService {
 
       return {
         rawToken,
+        publicPath: `/policies/share/${rawToken}`,
         policyId: policy.id,
         version: version.version,
         expiresAt: expiresAt || null
@@ -123,6 +124,16 @@ export class PolicyPublicService {
       throw err;
     }
 
+    const [business, branding] = await Promise.all([
+      db.Business.findByPk(share.businessId, {
+        attributes: ["name"]
+      }),
+      db.BusinessBranding.findOne({
+        where: { businessId: share.businessId },
+        attributes: ["companyName", "tagline", "primaryColor", "accentColor"]
+      })
+    ]);
+
     // Return minimal, sanitized public payload (omitting businessId, ownerUserId, metadata, etc.)
     return {
       title: version.title,
@@ -132,7 +143,13 @@ export class PolicyPublicService {
       versionLabel: version.versionLabel,
       effectiveFrom: version.effectiveFrom,
       effectiveUntil: version.effectiveUntil,
-      publishedAt: policy.publishedAt
+      publishedAt: policy.publishedAt,
+      company: {
+        name: branding?.companyName || business?.name || "Company",
+        tagline: branding?.tagline || null,
+        primaryColor: branding?.primaryColor || null,
+        accentColor: branding?.accentColor || null
+      }
     };
   }
 }
