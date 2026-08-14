@@ -5,6 +5,7 @@ import { requireActiveModule } from "../../middlewares/module";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { PolicyController } from "./policy.controller";
+import { internalPolicyRoutes } from "./policy.internal.routes";
 import {
   categoryIdParamSchema,
   policyIdParamSchema,
@@ -28,8 +29,20 @@ import {
 const router = Router();
 const controller = new PolicyController();
 
-// Global guards for all policy routes
+// Authentication is mandatory for every private policy route.
 router.use(authRequired);
+
+// ── Internal Employee Policy Library ────────────────────────────────────
+// Read-only access for every active authenticated employee in the company.
+// It deliberately sits before policy.access so normal employees can read
+// published company-visible policies without receiving management rights.
+router.use(
+  "/library",
+  requireActiveModule("policy"),
+  internalPolicyRoutes,
+);
+
+// Management/workflow routes remain protected by E-Policy permissions.
 router.use(requireActiveModule("policy"));
 router.use(requirePermission("policy.access"));
 
