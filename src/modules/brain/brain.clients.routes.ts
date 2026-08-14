@@ -1,6 +1,5 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import Joi from "joi";
-import { requireRole } from "../../middlewares/role";
 import { validate } from "../../middlewares/validate";
 import { AuditLogService } from "../../services/auditLog.service";
 import { asyncHandler } from "../../utils/asyncHandler";
@@ -26,9 +25,32 @@ const createClientSchema = Joi.object({
   status: Joi.string().valid("active", "inactive").default("active"),
 });
 
-// Client directory is intentionally role-scoped rather than permission-scoped.
-// Only Business Admin and Project Manager users may enumerate or create clients.
-router.use(requireRole("BUSINESS_ADMIN", "PROJECT_MANAGER"));
+function requireClientDirectoryRole(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+) {
+  if (!req.user) {
+    return next({ statusCode: 401, message: "Unauthorized" });
+  }
+
+  const roles = new Set(req.user.roles || []);
+  const allowed = roles.has("BUSINESS_ADMIN") || roles.has("PROJECT_MANAGER");
+
+  if (!allowed) {
+    return next({
+      statusCode: 403,
+      message: "Client directory access is limited to Business Admin and Project Manager",
+    });
+  }
+
+  next();
+}
+
+// Deliberately strict: unlike the shared requireRole middleware, this route does
+// not grant platform-super-admin bypass. The product requirement is exactly
+// Business Admin + Project Manager for client directory visibility.
+router.use(requireClientDirectoryRole);
 
 router.get(
   "/",
