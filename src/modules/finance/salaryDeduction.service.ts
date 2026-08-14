@@ -580,7 +580,7 @@ export class SalaryDeductionService {
     const deductions = await this.repo.listActiveForPayrollLinkIds(businessId, [payrollLinkId], period);
     const salaryImpactingDeductions = deductions.filter((item: any) => item.sourceModule !== "payroll");
     const deductionTotal = money(salaryImpactingDeductions.reduce((sum: number, item: any) => sum + money(item.amount), 0));
-    const regularGrossPay = money(
+    const reconstructedRegularGrossPay = money(
       money(link.baseSalary) +
       money(link.housingAllowance) +
       money(link.transportAllowance) +
@@ -590,6 +590,9 @@ export class SalaryDeductionService {
       money(link.metadata?.tax?.allowanceBreakdown?.medical?.amount) +
       money(link.metadata?.tax?.allowanceBreakdown?.telecom?.amount)
     );
+    const regularGrossPay = money(link.grossPay) > 0
+      ? money(link.grossPay)
+      : reconstructedRegularGrossPay;
     const approvedOvertimePay = await this.approvedOvertimePay(link, period);
     const grossPayForNet = regularGrossPay > 0 ? regularGrossPay : money(link.grossPay);
     const payrollDeductionTotal = money(

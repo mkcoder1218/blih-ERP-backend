@@ -706,7 +706,8 @@ export class PayrollTemplateService {
       const effectiveMetadata = effectiveLink?.metadata || {};
       const deductionSummary = deductionSnapshot ? this.deductionService.formatSummary(deductionSnapshot.deductions) : { total: 0, count: 0, rows: [], groups: {} };
       const computedNetPay = this.m(deductionSnapshot?.netPay ?? effectiveLink?.netPay);
-      const payableGrossPay = this.m(effectiveMetadata.payableGrossPay ?? effectiveLink?.grossPay);
+      const monthlyGrossPay = this.m(effectiveLink?.grossPay ?? effectiveMetadata.monthlyGrossPay);
+      const payableGrossPay = this.m(effectiveMetadata.payableGrossPay ?? monthlyGrossPay);
       const salaryPayRatio = this.m(effectiveMetadata.salaryPayRatio ?? 1) || 1;
       return {
         id: employee.id,
@@ -741,7 +742,8 @@ export class PayrollTemplateService {
         telecomAllowance: this.m(effectiveMetadata?.tax?.allowanceBreakdown?.telecom?.amount ?? salaryInfo.telecomAllowance),
         mealAllowance: this.m(effectiveLink?.mealAllowance),
         otherAllowance: this.m(effectiveLink?.otherAllowance),
-        grossPay: payableGrossPay,
+        grossPay: monthlyGrossPay,
+        payableGrossPay,
         taxDeduction: this.m(effectiveLink?.taxDeduction) * salaryPayRatio,
         pensionDeduction: this.m(effectiveLink?.pensionDeduction) * salaryPayRatio,
         healthDeduction: this.m(effectiveLink?.healthDeduction) * salaryPayRatio,
@@ -1093,7 +1095,7 @@ export class PayrollTemplateService {
       }
 
       const netPay = this.m(row.netPay);
-      const grossPay = this.m(row.grossPay);
+      const grossPay = this.m(row.payableGrossPay ?? row.grossPay);
       if (netPay <= 0 && grossPay <= 0) {
         skipped.push({ userId: row.userId, name: row.name, reason: "This salary interval is already fully covered or has no payable amount" });
         continue;
