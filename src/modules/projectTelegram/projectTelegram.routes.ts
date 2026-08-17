@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authRequired } from "../../middlewares/auth";
-import { requireActiveModule } from "../../middlewares/module";
+import { requireActiveModule } from "../../middlewares/requireActiveModule";
 import { requireAnyPermission } from "../../middlewares/permission";
 import { requireRole } from "../../middlewares/role";
 import { asyncHandler } from "../../utils/asyncHandler";
