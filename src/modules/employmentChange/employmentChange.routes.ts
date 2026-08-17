@@ -15,6 +15,7 @@ router.get("/", asyncHandler(controller.list));
 router.post("/", asyncHandler(controller.create));
 router.get("/:id/history", asyncHandler(controller.history));
 router.get("/:id", asyncHandler(controller.get));
+router.patch("/:id", asyncHandler(controller.updateOwn));
 router.post("/:id/approve", asyncHandler(controller.approve));
 router.post("/:id/counter", asyncHandler(controller.counter));
 router.post("/:id/reject", asyncHandler(controller.reject));
