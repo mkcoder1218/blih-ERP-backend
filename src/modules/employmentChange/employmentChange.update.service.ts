@@ -44,7 +44,10 @@ export class EmploymentChangeUpdateService {
 
     const approvalIndex = Number(request.metadata?.approvalIndex || 0);
     if (approvalIndex > 0) {
-      fail("This request has already moved through an approval stage and can no longer be edited.", 409);
+      fail(
+        "This request has already moved through an approval stage and can no longer be edited.",
+        409,
+      );
     }
 
     const reviewedAction = await EmploymentChangeAction.findOne({
@@ -59,7 +62,10 @@ export class EmploymentChangeUpdateService {
     });
 
     if (reviewedAction) {
-      fail("This request has already been reviewed and can no longer be edited.", 409);
+      fail(
+        "This request has already been reviewed and can no longer be edited.",
+        409,
+      );
     }
 
     return request;
@@ -128,6 +134,10 @@ export class EmploymentChangeUpdateService {
     if (hasTitleChange) {
       if (data.targetPositionId !== undefined) {
         targetPositionId = String(data.targetPositionId || "").trim() || null;
+      } else if (data.targetTitle !== undefined) {
+        // Supplying free text without a position means the submitter switched
+        // from the position picker to free-text title mode.
+        targetPositionId = null;
       }
 
       targetPosition = await this.targetPosition(
@@ -137,9 +147,13 @@ export class EmploymentChangeUpdateService {
 
       if (targetPosition) {
         targetTitle = String(targetPosition.title || "").trim() || null;
-        targetDepartmentId = String(
-          data.targetDepartmentId || targetPosition.departmentId || targetDepartmentId || "",
-        ).trim() || null;
+        targetDepartmentId =
+          String(
+            data.targetDepartmentId ||
+              targetPosition.departmentId ||
+              targetDepartmentId ||
+              "",
+          ).trim() || null;
       } else if (data.targetTitle !== undefined) {
         targetTitle = String(data.targetTitle || "").trim() || null;
       }
@@ -149,7 +163,8 @@ export class EmploymentChangeUpdateService {
       }
 
       if (data.targetDepartmentId !== undefined && !targetPosition) {
-        targetDepartmentId = String(data.targetDepartmentId || "").trim() || null;
+        targetDepartmentId =
+          String(data.targetDepartmentId || "").trim() || null;
       }
 
       if (targetDepartmentId) {
