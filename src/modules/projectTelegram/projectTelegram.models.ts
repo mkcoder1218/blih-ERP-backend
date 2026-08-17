@@ -33,9 +33,9 @@ class TelegramTaskSyncLogInstance extends Model {
   declare sentAt: Date;
 }
 
-export const TelegramDepartmentConfig: ModelStatic<TelegramDepartmentConfigInstance> =
-  (sequelize.models.TelegramDepartmentConfig as ModelStatic<TelegramDepartmentConfigInstance> | undefined) ||
-  sequelize.define<TelegramDepartmentConfigInstance>(
+export const TelegramDepartmentConfig = (
+  sequelize.models.TelegramDepartmentConfig ||
+  sequelize.define(
     "TelegramDepartmentConfig",
     {
       id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -48,11 +48,12 @@ export const TelegramDepartmentConfig: ModelStatic<TelegramDepartmentConfigInsta
       timestamps: true,
       indexes: [{ unique: true, fields: ["businessId", "departmentId"] }],
     },
-  );
+  )
+) as unknown as ModelStatic<TelegramDepartmentConfigInstance>;
 
-export const TelegramDepartmentChannel: ModelStatic<TelegramDepartmentChannelInstance> =
-  (sequelize.models.TelegramDepartmentChannel as ModelStatic<TelegramDepartmentChannelInstance> | undefined) ||
-  sequelize.define<TelegramDepartmentChannelInstance>(
+export const TelegramDepartmentChannel = (
+  sequelize.models.TelegramDepartmentChannel ||
+  sequelize.define(
     "TelegramDepartmentChannel",
     {
       id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -67,11 +68,12 @@ export const TelegramDepartmentChannel: ModelStatic<TelegramDepartmentChannelIns
       timestamps: true,
       indexes: [{ unique: true, fields: ["businessId", "departmentId", "chatId"] }],
     },
-  );
+  )
+) as unknown as ModelStatic<TelegramDepartmentChannelInstance>;
 
-export const TelegramTaskSyncLog: ModelStatic<TelegramTaskSyncLogInstance> =
-  (sequelize.models.TelegramTaskSyncLog as ModelStatic<TelegramTaskSyncLogInstance> | undefined) ||
-  sequelize.define<TelegramTaskSyncLogInstance>(
+export const TelegramTaskSyncLog = (
+  sequelize.models.TelegramTaskSyncLog ||
+  sequelize.define(
     "TelegramTaskSyncLog",
     {
       id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -91,4 +93,5 @@ export const TelegramTaskSyncLog: ModelStatic<TelegramTaskSyncLogInstance> =
       timestamps: true,
       indexes: [{ unique: true, fields: ["businessId", "dedupeKey"] }],
     },
-  );
+  )
+) as unknown as ModelStatic<TelegramTaskSyncLogInstance>;
