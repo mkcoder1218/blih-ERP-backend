@@ -1,4 +1,4 @@
-import { DataTypes } from "sequelize";
+import { DataTypes, Op } from "sequelize";
 import { sequelize } from "../../../database/sequelize";
 
 export const BRAIN_CONTACT_OPTION_TYPES = [
@@ -23,6 +23,27 @@ export const BEHAVIOR_COLORS = [
   "#0891B2",
   "#475569",
 ] as const;
+
+const SEEDED_OPTION_LABELS = new Set(
+  [
+    "Friendly",
+    "Professional",
+    "Difficult",
+    "Responsive",
+    "Slow Responder",
+    "Negotiable",
+    "High Priority",
+    "Instagram",
+    "TikTok",
+    "YouTube",
+    "Facebook",
+    "Telegram",
+    "Potential",
+    "Active",
+    "Inactive",
+    "Past Client",
+  ].map((label) => label.toLowerCase()),
+);
 
 export const BrainContactOption =
   sequelize.models.BrainContactOption ||
@@ -63,5 +84,17 @@ export const BrainContactOption =
         { fields: ["businessId", "type"] },
         { fields: ["businessId", "type", "label"] },
       ],
+      hooks: {
+        beforeFind: (options: any) => {
+          const labelCondition = options?.where?.label;
+          const comparedLabel = labelCondition?.[Op.iLike];
+          if (
+            typeof comparedLabel === "string" &&
+            SEEDED_OPTION_LABELS.has(comparedLabel.toLowerCase())
+          ) {
+            options.paranoid = false;
+          }
+        },
+      },
     },
   );
