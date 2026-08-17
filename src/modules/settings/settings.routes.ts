@@ -4,6 +4,7 @@ import { requireRole } from '../../middlewares/role';
 import { requireAnyPermission } from '../../middlewares/permission';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { SettingsController } from './settings.controller';
+import { projectTelegramRoutes } from '../projectTelegram/projectTelegram.routes';
 
 const router = Router();
 const controller = new SettingsController();
@@ -17,6 +18,7 @@ function adminAccess() {
   };
 }
 
+router.use('/telegram-tasks', projectTelegramRoutes);
 router.get('/public', asyncHandler(controller.getPublicConfiguration));
 
 router.patch('/branding',      authRequired, adminAccess(), asyncHandler(controller.updateBranding));

@@ -1,9 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
 import { ok } from "../../utils/apiResponse";
 import { AttendanceMeService } from "./attendanceMe.service";
+import { ProjectTelegramService } from "../projectTelegram/projectTelegram.service";
 
 export class AttendanceMeController {
   private service = new AttendanceMeService();
+  private projectTelegram = new ProjectTelegramService();
 
   today = async (req: Request, res: Response) => {
     const userId = req.user!.id;
@@ -17,6 +19,15 @@ export class AttendanceMeController {
       const userId = req.user!.id;
       const businessId = req.user!.businessId;
       const data = await this.service.createEvent(userId, businessId, req.body);
+
+      if (String(req.body?.type || "").toUpperCase() === "CHECK_OUT") {
+        try {
+          await this.projectTelegram.sendCheckoutSummary(businessId, userId);
+        } catch (telegramError: any) {
+          console.error(`Telegram project checkout summary failed: ${telegramError?.message || telegramError}`);
+        }
+      }
+
       return ok(res, data, "Attendance event recorded", 201);
     } catch (e: any) {
       return next({ statusCode: e.statusCode || 500, message: e.message || "Failed to record attendance event" });
