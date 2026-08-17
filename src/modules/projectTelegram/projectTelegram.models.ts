@@ -1,11 +1,41 @@
-import { DataTypes } from "sequelize";
+import { DataTypes, Model, type ModelStatic } from "sequelize";
 import { db } from "../../models";
 
 const sequelize = db.sequelize;
 
-export const TelegramDepartmentConfig =
-  sequelize.models.TelegramDepartmentConfig ||
-  sequelize.define(
+class TelegramDepartmentConfigInstance extends Model {
+  declare id: string;
+  declare businessId: string;
+  declare departmentId: string;
+  declare enabled: boolean;
+}
+
+class TelegramDepartmentChannelInstance extends Model {
+  declare id: string;
+  declare businessId: string;
+  declare departmentId: string;
+  declare chatId: string;
+  declare label: string | null;
+  declare enabled: boolean;
+}
+
+class TelegramTaskSyncLogInstance extends Model {
+  declare id: string;
+  declare businessId: string;
+  declare departmentId: string;
+  declare employeeId: string;
+  declare taskId: string | null;
+  declare chatId: string;
+  declare syncDate: string;
+  declare syncType: string;
+  declare dedupeKey: string;
+  declare payload: Record<string, unknown>;
+  declare sentAt: Date;
+}
+
+export const TelegramDepartmentConfig: ModelStatic<TelegramDepartmentConfigInstance> =
+  (sequelize.models.TelegramDepartmentConfig as ModelStatic<TelegramDepartmentConfigInstance> | undefined) ||
+  sequelize.define<TelegramDepartmentConfigInstance>(
     "TelegramDepartmentConfig",
     {
       id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -20,9 +50,9 @@ export const TelegramDepartmentConfig =
     },
   );
 
-export const TelegramDepartmentChannel =
-  sequelize.models.TelegramDepartmentChannel ||
-  sequelize.define(
+export const TelegramDepartmentChannel: ModelStatic<TelegramDepartmentChannelInstance> =
+  (sequelize.models.TelegramDepartmentChannel as ModelStatic<TelegramDepartmentChannelInstance> | undefined) ||
+  sequelize.define<TelegramDepartmentChannelInstance>(
     "TelegramDepartmentChannel",
     {
       id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -39,9 +69,9 @@ export const TelegramDepartmentChannel =
     },
   );
 
-export const TelegramTaskSyncLog =
-  sequelize.models.TelegramTaskSyncLog ||
-  sequelize.define(
+export const TelegramTaskSyncLog: ModelStatic<TelegramTaskSyncLogInstance> =
+  (sequelize.models.TelegramTaskSyncLog as ModelStatic<TelegramTaskSyncLogInstance> | undefined) ||
+  sequelize.define<TelegramTaskSyncLogInstance>(
     "TelegramTaskSyncLog",
     {
       id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
