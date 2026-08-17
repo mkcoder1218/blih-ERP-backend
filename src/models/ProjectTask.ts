@@ -1,9 +1,33 @@
-
 import type { DataTypes, ModelStatic, Sequelize } from "sequelize";
 
 export type ProjectTaskModel = ModelStatic<any> & { associate?: (models: any) => void; };
 
 export default (sequelize: Sequelize, dataTypes: typeof DataTypes): ProjectTaskModel => {
+  const validateDepartmentScope = async (task: any, options: any) => {
+    if (!task.assigneeEmployeeId) return;
+    const Project = sequelize.models.Project;
+    const EmployeeRecord = sequelize.models.EmployeeRecord;
+    if (!Project || !EmployeeRecord) return;
+
+    const project = await Project.findOne({
+      where: { id: task.projectId, businessId: task.businessId },
+      attributes: ["id", "departmentId"],
+      transaction: options?.transaction,
+    });
+    if (!project) throw new Error("Project not found");
+    if (!project.departmentId) return;
+
+    const employee = await EmployeeRecord.findOne({
+      where: { id: task.assigneeEmployeeId, businessId: task.businessId },
+      attributes: ["id", "departmentId"],
+      transaction: options?.transaction,
+    });
+    if (!employee) throw new Error("Employee not found");
+    if (String(employee.departmentId || "") !== String(project.departmentId)) {
+      throw new Error("Task assignee must belong to the project department");
+    }
+  };
+
   const ProjectTask = sequelize.define("ProjectTask", {
     id: { type: dataTypes.UUID, defaultValue: dataTypes.UUIDV4, primaryKey: true },
     businessId: { type: dataTypes.UUID, allowNull: false },
@@ -22,7 +46,17 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): ProjectTaskM
     estimatedHours: { type: dataTypes.FLOAT, defaultValue: 0 },
     actualHours: { type: dataTypes.FLOAT, defaultValue: 0 },
     metadata: { type: dataTypes.JSONB, defaultValue: {} }
-  }, { tableName: "project_tasks", timestamps: true, paranoid: true }) as ProjectTaskModel;
+  }, {
+    tableName: "project_tasks",
+    timestamps: true,
+    paranoid: true,
+    hooks: {
+      beforeValidate: validateDepartmentScope,
+      beforeBulkCreate: async (tasks: any[], options: any) => {
+        for (const task of tasks) await validateDepartmentScope(task, options);
+      },
+    },
+  }) as ProjectTaskModel;
 
   ProjectTask.associate = (models: any) => {
     models.ProjectTask.belongsTo(models.Business, { foreignKey: "businessId" });
