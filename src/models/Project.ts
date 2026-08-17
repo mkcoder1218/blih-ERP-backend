@@ -46,7 +46,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): ProjectModel
         for (const field of ["ownerEmployeeId", "managerEmployeeId"] as const) {
           const employeeId = project[field];
           if (!employeeId) continue;
-          const employee = await EmployeeRecord.findOne({
+          const employee: any = await EmployeeRecord.findOne({
             where: { id: employeeId, businessId: project.businessId },
             attributes: ["id", "departmentId"],
             transaction: options?.transaction,
