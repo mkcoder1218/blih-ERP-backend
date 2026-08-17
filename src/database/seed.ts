@@ -32,6 +32,16 @@ export const BASE_PERMISSIONS = [
   { module: "attendance", action: "read", key: "attendance.read", description: "View attendance monitoring data" }
 ];
 
+export const BRAIN_CONTACT_PERMISSIONS = [
+  { module: "brain", action: "contacts.view", key: "brain.contacts.view", description: "View Brain contacts" },
+  { module: "brain", action: "contacts.create", key: "brain.contacts.create", description: "Create Brain contacts" },
+  { module: "brain", action: "contacts.update", key: "brain.contacts.update", description: "Update Brain contacts" },
+  { module: "brain", action: "contacts.delete", key: "brain.contacts.delete", description: "Remove Brain contacts" },
+  { module: "brain", action: "contacts.fields.manage", key: "brain.contacts.fields.manage", description: "Manage Brain contact fields" },
+  { module: "brain", action: "contacts.behaviors.manage", key: "brain.contacts.behaviors.manage", description: "Manage Brain contact behaviors" },
+  { module: "brain", action: "contacts.client_options.manage", key: "brain.contacts.client_options.manage", description: "Manage Brain client and influencer dropdown options" },
+];
+
 export const DEFAULT_PLANS = [
   { key: "free", name: "Free", priceMonthly: 0, userLimit: 5, modules: ["hr", "projects"] },
   { key: "starter", name: "Starter", priceMonthly: 49, userLimit: 20, modules: ["hr", "crm", "projects"] },
@@ -42,7 +52,7 @@ export const DEFAULT_PLANS = [
 export async function seedDefaults() {
   const permissions: any[] = [];
   const allPermsToSeedMap = new Map<string, any>();
-  for (const perm of [...BASE_PERMISSIONS, ...SYSTEM_PERMISSIONS]) {
+  for (const perm of [...BASE_PERMISSIONS, ...SYSTEM_PERMISSIONS, ...BRAIN_CONTACT_PERMISSIONS]) {
     allPermsToSeedMap.set(perm.key, perm);
   }
   for (const perm of allPermsToSeedMap.values()) {
@@ -104,6 +114,8 @@ export async function seedDefaults() {
   const employeeReaderPerms = permissions.filter((p: any) =>
     [
       "brain.access", "brain.category.view", "brain.article.view", "brain.training.view",
+      "brain.contacts.view", "brain.contacts.create", "brain.contacts.update", "brain.contacts.delete",
+      "brain.contacts.fields.manage", "brain.contacts.behaviors.manage", "brain.contacts.client_options.manage",
       "policy.access", "policy.category.view", "policy.document.view",
       "policy.acceptance.view_own", "policy.acceptance.accept", "policy.acceptance.sign",
       "performance.self"
