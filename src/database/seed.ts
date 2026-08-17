@@ -104,6 +104,8 @@ export async function seedDefaults() {
   const employeeReaderPerms = permissions.filter((p: any) =>
     [
       "brain.access", "brain.category.view", "brain.article.view", "brain.training.view",
+      "brain.contacts.view", "brain.contacts.create", "brain.contacts.update", "brain.contacts.delete",
+      "brain.contacts.fields.manage", "brain.contacts.behaviors.manage", "brain.contacts.client_options.manage",
       "policy.access", "policy.category.view", "policy.document.view",
       "policy.acceptance.view_own", "policy.acceptance.accept", "policy.acceptance.sign",
       "performance.self"
