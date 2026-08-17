@@ -160,9 +160,8 @@ router.post(
       error.statusCode = 400;
       throw error;
     }
-    const relativeUrl = `/uploads/brain-contacts/${req.file.filename}`;
-    const imageUrl = `${req.protocol}://${req.get("host")}${relativeUrl}`;
-    successResponse(res, { imageUrl }, "Profile image uploaded successfully", 201);
+    const imagePath = `/uploads/brain-contacts/${req.file.filename}`;
+    successResponse(res, { imagePath }, "Profile image uploaded successfully", 201);
   }),
 );
 
