@@ -1,10 +1,13 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import Joi from "joi";
 import { validate } from "../../middlewares/validate";
+import { requireActiveModule } from "../../middlewares/module";
+import { requirePermission } from "../../middlewares/permission";
 import { AuditLogService } from "../../services/auditLog.service";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { successResponse } from "../../utils/response";
 import { BrainClientsService } from "./brain.clients.service";
+import { brainContactRoutes } from "./contacts/contact.routes";
 
 const router = Router();
 const service = new BrainClientsService();
@@ -47,9 +50,22 @@ function requireClientDirectoryRole(
   next();
 }
 
-// Deliberately strict: unlike the shared requireRole middleware, this route does
-// not grant platform-super-admin bypass. The product requirement is exactly
-// Business Admin + Project Manager for client directory visibility.
+/**
+ * Rich Brain contact directory.
+ *
+ * It deliberately lives beside the legacy client endpoint so existing Project
+ * Manager consumers keep their old contract. Anyone with the Brain module and
+ * brain.access can use Clients | Influencers, create options, edit, and remove.
+ */
+router.use(
+  "/directory",
+  requireActiveModule("brain"),
+  requirePermission("brain.access"),
+  brainContactRoutes,
+);
+
+// Legacy shared Client endpoint used by Project Manager and existing CRM flows.
+// Keep its historical access rule and response contract intact.
 router.use(requireClientDirectoryRole);
 
 router.get(
