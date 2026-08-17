@@ -3,6 +3,7 @@ import { AuditLogService } from "../../services/auditLog.service";
 import { EmploymentChangeContextService } from "./employmentChange.context.service";
 import { EmploymentChangeManagementService } from "./employmentChange.management.service";
 import { EmploymentChangeRequest } from "./employmentChange.models";
+import { EmploymentChangeSalaryService } from "./employmentChange.salary.service";
 import { EmploymentChangeService } from "./employmentChange.service";
 import { EmploymentChangeSubmissionPolicy } from "./employmentChange.submission-policy";
 import { EmploymentChangeUpdateService } from "./employmentChange.update.service";
@@ -13,6 +14,7 @@ export class EmploymentChangeController {
   private contextService = new EmploymentChangeContextService();
   private submissionPolicy = new EmploymentChangeSubmissionPolicy();
   private updateService = new EmploymentChangeUpdateService();
+  private salaryService = new EmploymentChangeSalaryService();
 
   context = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -46,7 +48,11 @@ export class EmploymentChangeController {
         req.user!.id,
         req.query,
       );
-      res.json(result);
+      const rows = await this.salaryService.enrichMany(
+        req.user!.businessId,
+        result.rows,
+      );
+      res.json({ ...result, rows });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
@@ -54,8 +60,17 @@ export class EmploymentChangeController {
 
   get = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const request = await this.service.get(req.user!.businessId, req.user!.id, req.params.id);
-      res.json({ request });
+      const request = await this.service.get(
+        req.user!.businessId,
+        req.user!.id,
+        req.params.id,
+      );
+      res.json({
+        request: await this.salaryService.enrich(
+          req.user!.businessId,
+          request,
+        ),
+      });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
@@ -63,7 +78,11 @@ export class EmploymentChangeController {
 
   history = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const rows = await this.service.history(req.user!.businessId, req.user!.id, req.params.id);
+      const rows = await this.service.history(
+        req.user!.businessId,
+        req.user!.id,
+        req.params.id,
+      );
       res.json({ rows });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
@@ -72,8 +91,16 @@ export class EmploymentChangeController {
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await this.submissionPolicy.validate(req.user!.businessId, req.user!.id, req.body);
-      const request = await this.service.create(req.user!.businessId, req.user!.id, req.body);
+      await this.submissionPolicy.validate(
+        req.user!.businessId,
+        req.user!.id,
+        req.body,
+      );
+      const request = await this.service.create(
+        req.user!.businessId,
+        req.user!.id,
+        req.body,
+      );
       await AuditLogService.log(
         "CREATE_EMPLOYMENT_CHANGE_REQUEST",
         "employment_change_request",
@@ -82,7 +109,12 @@ export class EmploymentChangeController {
         request,
         req,
       );
-      res.status(201).json({ request });
+      res.status(201).json({
+        request: await this.salaryService.enrich(
+          req.user!.businessId,
+          request,
+        ),
+      });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
@@ -112,7 +144,12 @@ export class EmploymentChangeController {
         req,
       );
 
-      res.json({ request });
+      res.json({
+        request: await this.salaryService.enrich(
+          req.user!.businessId,
+          request,
+        ),
+      });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
@@ -155,7 +192,12 @@ export class EmploymentChangeController {
         request,
         req,
       );
-      res.json({ request });
+      res.json({
+        request: await this.salaryService.enrich(
+          req.user!.businessId,
+          request,
+        ),
+      });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
@@ -179,13 +221,16 @@ export class EmploymentChangeController {
       const recommendedSalary = Number(req.body?.recommendedSalary);
       const currentSalary = Number(current.currentSalary || 0);
       if (!Number.isFinite(recommendedSalary) || recommendedSalary <= 0) {
-        throw Object.assign(new Error("Recommended salary must be a positive number."), {
-          statusCode: 400,
-        });
+        throw Object.assign(
+          new Error("Recommended salary must be a positive number."),
+          { statusCode: 400 },
+        );
       }
       if (recommendedSalary <= currentSalary) {
         throw Object.assign(
-          new Error("Recommended salary must remain greater than the employee's current salary."),
+          new Error(
+            "Recommended salary must remain greater than the employee's current salary.",
+          ),
           { statusCode: 400 },
         );
       }
@@ -205,7 +250,12 @@ export class EmploymentChangeController {
         request,
         req,
       );
-      res.json({ request });
+      res.json({
+        request: await this.salaryService.enrich(
+          req.user!.businessId,
+          request,
+        ),
+      });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
@@ -227,7 +277,12 @@ export class EmploymentChangeController {
         request,
         req,
       );
-      res.json({ request });
+      res.json({
+        request: await this.salaryService.enrich(
+          req.user!.businessId,
+          request,
+        ),
+      });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
@@ -249,7 +304,12 @@ export class EmploymentChangeController {
         request,
         req,
       );
-      res.json({ request });
+      res.json({
+        request: await this.salaryService.enrich(
+          req.user!.businessId,
+          request,
+        ),
+      });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
@@ -265,15 +325,17 @@ export class EmploymentChangeController {
       });
 
       if (!request) {
-        throw Object.assign(new Error("Employment change request not found."), {
-          statusCode: 404,
-        });
+        throw Object.assign(
+          new Error("Employment change request not found."),
+          { statusCode: 404 },
+        );
       }
 
       if (String(request.requestedByUserId) !== String(req.user!.id)) {
-        throw Object.assign(new Error("You can only delete requests you created."), {
-          statusCode: 403,
-        });
+        throw Object.assign(
+          new Error("You can only delete requests you created."),
+          { statusCode: 403 },
+        );
       }
 
       if (!["PENDING", "CANCELLED"].includes(String(request.status))) {
