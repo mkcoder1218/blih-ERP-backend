@@ -105,6 +105,16 @@ export const SYSTEM_PERMISSIONS = [
 
   // ── Brain Knowledge Base & Documentation ────────────────────────────────────
   { module: "brain", action: "access",           key: "brain.access",           description: "Access Brain module" },
+
+  // Brain Contacts: Clients & Influencers
+  { module: "brain", action: "contacts_view", key: "brain.contacts.view", description: "View Brain clients and influencers" },
+  { module: "brain", action: "contacts_create", key: "brain.contacts.create", description: "Create Brain clients and influencers" },
+  { module: "brain", action: "contacts_update", key: "brain.contacts.update", description: "Update Brain clients and influencers" },
+  { module: "brain", action: "contacts_delete", key: "brain.contacts.delete", description: "Remove Brain clients and influencers" },
+  { module: "brain", action: "contacts_fields_manage", key: "brain.contacts.fields.manage", description: "Manage Brain contact fields" },
+  { module: "brain", action: "contacts_behaviors_manage", key: "brain.contacts.behaviors.manage", description: "Manage Brain contact behaviors" },
+  { module: "brain", action: "contacts_client_options_manage", key: "brain.contacts.client_options.manage", description: "Manage Brain client and influencer dropdown options" },
+
   { module: "brain", action: "category_view",    key: "brain.category.view",    description: "View knowledge categories" },
   { module: "brain", action: "category_create",  key: "brain.category.create",  description: "Create knowledge categories" },
   { module: "brain", action: "category_update",  key: "brain.category.update",  description: "Update knowledge categories" },
