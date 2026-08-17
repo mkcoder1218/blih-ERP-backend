@@ -5,12 +5,14 @@ import { EmploymentChangeManagementService } from "./employmentChange.management
 import { EmploymentChangeRequest } from "./employmentChange.models";
 import { EmploymentChangeService } from "./employmentChange.service";
 import { EmploymentChangeSubmissionPolicy } from "./employmentChange.submission-policy";
+import { EmploymentChangeUpdateService } from "./employmentChange.update.service";
 
 export class EmploymentChangeController {
   private service = new EmploymentChangeService();
   private managementService = new EmploymentChangeManagementService();
   private contextService = new EmploymentChangeContextService();
   private submissionPolicy = new EmploymentChangeSubmissionPolicy();
+  private updateService = new EmploymentChangeUpdateService();
 
   context = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -81,6 +83,36 @@ export class EmploymentChangeController {
         req,
       );
       res.status(201).json({ request });
+    } catch (error: any) {
+      next({ statusCode: error.statusCode || 400, message: error.message });
+    }
+  };
+
+  updateOwn = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.updateService.updateOwn(
+        req.user!.businessId,
+        req.user!.id,
+        req.params.id,
+        req.body,
+      );
+
+      const request = await this.service.get(
+        req.user!.businessId,
+        req.user!.id,
+        req.params.id,
+      );
+
+      await AuditLogService.log(
+        "UPDATE_OWN_EMPLOYMENT_CHANGE_REQUEST",
+        "employment_change_request",
+        String(req.params.id),
+        result.before,
+        request,
+        req,
+      );
+
+      res.json({ request });
     } catch (error: any) {
       next({ statusCode: error.statusCode || 400, message: error.message });
     }
