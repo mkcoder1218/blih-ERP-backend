@@ -1,9 +1,39 @@
-import { DataTypes } from "sequelize";
+import { DataTypes, Model, type ModelStatic } from "sequelize";
 import { db } from "../../models";
 
 const sequelize = db.sequelize;
 
-export const TelegramDepartmentConfig =
+class TelegramDepartmentConfigInstance extends Model {
+  declare id: string;
+  declare businessId: string;
+  declare departmentId: string;
+  declare enabled: boolean;
+}
+
+class TelegramDepartmentChannelInstance extends Model {
+  declare id: string;
+  declare businessId: string;
+  declare departmentId: string;
+  declare chatId: string;
+  declare label: string | null;
+  declare enabled: boolean;
+}
+
+class TelegramTaskSyncLogInstance extends Model {
+  declare id: string;
+  declare businessId: string;
+  declare departmentId: string;
+  declare employeeId: string;
+  declare taskId: string | null;
+  declare chatId: string;
+  declare syncDate: string;
+  declare syncType: string;
+  declare dedupeKey: string;
+  declare payload: Record<string, unknown>;
+  declare sentAt: Date;
+}
+
+export const TelegramDepartmentConfig = (
   sequelize.models.TelegramDepartmentConfig ||
   sequelize.define(
     "TelegramDepartmentConfig",
@@ -18,9 +48,10 @@ export const TelegramDepartmentConfig =
       timestamps: true,
       indexes: [{ unique: true, fields: ["businessId", "departmentId"] }],
     },
-  );
+  )
+) as unknown as ModelStatic<TelegramDepartmentConfigInstance>;
 
-export const TelegramDepartmentChannel =
+export const TelegramDepartmentChannel = (
   sequelize.models.TelegramDepartmentChannel ||
   sequelize.define(
     "TelegramDepartmentChannel",
@@ -37,9 +68,10 @@ export const TelegramDepartmentChannel =
       timestamps: true,
       indexes: [{ unique: true, fields: ["businessId", "departmentId", "chatId"] }],
     },
-  );
+  )
+) as unknown as ModelStatic<TelegramDepartmentChannelInstance>;
 
-export const TelegramTaskSyncLog =
+export const TelegramTaskSyncLog = (
   sequelize.models.TelegramTaskSyncLog ||
   sequelize.define(
     "TelegramTaskSyncLog",
@@ -61,4 +93,5 @@ export const TelegramTaskSyncLog =
       timestamps: true,
       indexes: [{ unique: true, fields: ["businessId", "dedupeKey"] }],
     },
-  );
+  )
+) as unknown as ModelStatic<TelegramTaskSyncLogInstance>;

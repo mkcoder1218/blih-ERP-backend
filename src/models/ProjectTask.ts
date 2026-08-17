@@ -9,7 +9,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): ProjectTaskM
     const EmployeeRecord = sequelize.models.EmployeeRecord;
     if (!Project || !EmployeeRecord) return;
 
-    const project = await Project.findOne({
+    const project: any = await Project.findOne({
       where: { id: task.projectId, businessId: task.businessId },
       attributes: ["id", "departmentId"],
       transaction: options?.transaction,
@@ -17,7 +17,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): ProjectTaskM
     if (!project) throw new Error("Project not found");
     if (!project.departmentId) return;
 
-    const employee = await EmployeeRecord.findOne({
+    const employee: any = await EmployeeRecord.findOne({
       where: { id: task.assigneeEmployeeId, businessId: task.businessId },
       attributes: ["id", "departmentId"],
       transaction: options?.transaction,
