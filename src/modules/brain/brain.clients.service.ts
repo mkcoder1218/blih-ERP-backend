@@ -31,7 +31,14 @@ export class BrainClientsService {
     );
     const offset = (page - 1) * size;
 
-    const where: any = { businessId: scopedBusinessId };
+    const where: any = {
+      businessId: scopedBusinessId,
+      [Op.and]: [
+        db.sequelize.literal(
+          `COALESCE("metadata"#>>'{contactDirectory,kind}', 'client') = 'client'`,
+        ),
+      ],
+    };
 
     if (query.status) {
       where.status = query.status;
