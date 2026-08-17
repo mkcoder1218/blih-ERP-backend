@@ -14,6 +14,33 @@ import { BrainContactsService } from "./contact.service";
 const router = Router();
 const service = new BrainContactsService();
 
+// The directory and options queries load together on page open. Both can seed
+// default options, so serialize those bootstrap operations per business to
+// avoid two concurrent requests creating the same default row.
+const contactBootstrapLocks = new Map<string, Promise<void>>();
+
+async function withContactBootstrapLock<T>(
+  businessId: string,
+  task: () => Promise<T>,
+): Promise<T> {
+  const previous = contactBootstrapLocks.get(businessId) || Promise.resolve();
+  const run = previous.catch(() => undefined).then(task);
+  const barrier = run.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  contactBootstrapLocks.set(businessId, barrier);
+
+  try {
+    return await run;
+  } finally {
+    if (contactBootstrapLocks.get(businessId) === barrier) {
+      contactBootstrapLocks.delete(businessId);
+    }
+  }
+}
+
 const nullableUuid = Joi.string().uuid().allow(null, "").optional();
 const phoneSchema = Joi.object({
   id: Joi.string().uuid().optional(),
@@ -102,7 +129,10 @@ router.get(
   "/",
   validate(listContactsQuerySchema, "query"),
   asyncHandler(async (req, res) => {
-    const result = await service.listContacts(req.user!.businessId, req.query, req.user!.id);
+    const businessId = req.user!.businessId!;
+    const result = await withContactBootstrapLock(businessId, () =>
+      service.listContacts(businessId, req.query, req.user!.id),
+    );
     successResponse(res, result, "Contacts fetched successfully");
   }),
 );
@@ -111,10 +141,13 @@ router.get(
   "/options",
   validate(listOptionsQuerySchema, "query"),
   asyncHandler(async (req, res) => {
-    const rows = await service.listOptions(
-      req.user!.businessId,
-      req.query.type as any,
-      req.user!.id,
+    const businessId = req.user!.businessId!;
+    const rows = await withContactBootstrapLock(businessId, () =>
+      service.listOptions(
+        businessId,
+        req.query.type as any,
+        req.user!.id,
+      ),
     );
     successResponse(res, { rows }, "Contact options fetched successfully");
   }),
@@ -124,7 +157,10 @@ router.post(
   "/options",
   validate(createOptionSchema, "body"),
   asyncHandler(async (req, res) => {
-    const option = await service.createOption(req.user!.businessId, req.user!.id, req.body);
+    const businessId = req.user!.businessId!;
+    const option = await withContactBootstrapLock(businessId, () =>
+      service.createOption(businessId, req.user!.id, req.body),
+    );
     await AuditLogService.log("CREATE_BRAIN_CONTACT_OPTION", "brain_contact_option", String(option.id), null, option, req);
     successResponse(res, { option }, "Contact option created successfully", 201);
   }),
@@ -169,7 +205,10 @@ router.post(
   "/",
   validate(createContactSchema, "body"),
   asyncHandler(async (req, res) => {
-    const contact = await service.createContact(req.user!.businessId, req.user!.id, req.body);
+    const businessId = req.user!.businessId!;
+    const contact = await withContactBootstrapLock(businessId, () =>
+      service.createContact(businessId, req.user!.id, req.body),
+    );
     await AuditLogService.log("CREATE_BRAIN_CONTACT", "crm_client", String(contact.id), null, contact, req);
     successResponse(res, { contact }, "Contact created successfully", 201);
   }),
