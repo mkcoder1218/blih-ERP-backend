@@ -7,6 +7,7 @@ import { AuditLogService } from "../../services/auditLog.service";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { successResponse } from "../../utils/response";
 import { BrainClientsService } from "./brain.clients.service";
+import { brainContactCategoryRoutes } from "./contacts/contactCategory.routes";
 import { brainContactRoutes } from "./contacts/contact.routes";
 
 const router = Router();
@@ -53,14 +54,14 @@ function requireClientDirectoryRole(
 /**
  * Rich Brain contact directory.
  *
- * It deliberately lives beside the legacy client endpoint so existing Project
- * Manager consumers keep their old contract. Anyone with the Brain module and
- * brain.access can use Clients | Influencers, create options, edit, and remove.
+ * Dynamic category routes are mounted before the legacy contact router because
+ * the legacy router has a /:id route that must not consume /categories URLs.
  */
 router.use(
   "/directory",
   requireActiveModule("brain"),
   requirePermission("brain.access"),
+  brainContactCategoryRoutes,
   brainContactRoutes,
 );
 
