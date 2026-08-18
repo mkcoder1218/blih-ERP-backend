@@ -43,6 +43,9 @@ router.use(authRequired);
  *         $ref: '#/components/responses/500'
  */
 router.get("/", requirePermission("user.read"), asyncHandler(controller.list));
+router.get("/me/preferences", asyncHandler(controller.getPreferences));
+router.patch("/me/preferences", asyncHandler(controller.updatePreferences));
+
 /**
  * @openapi
  * /api/v1/users/{id}:
@@ -72,6 +75,7 @@ router.get("/", requirePermission("user.read"), asyncHandler(controller.list));
  *         $ref: '#/components/responses/500'
  */
 router.get("/:id", requirePermission("user.read"), asyncHandler(controller.get));
+
 /**
  * @openapi
  * /api/v1/users:
@@ -95,6 +99,7 @@ router.get("/:id", requirePermission("user.read"), asyncHandler(controller.get))
  *         $ref: '#/components/responses/500'
  */
 router.post("/", requirePermission("user.create"), validate(createUserSchema), asyncHandler(controller.create));
+
 /**
  * @openapi
  * /api/v1/users/{id}:
@@ -124,6 +129,7 @@ router.post("/", requirePermission("user.create"), validate(createUserSchema), a
  *         $ref: '#/components/responses/500'
  */
 router.patch("/:id", requirePermission("user.update"), validate(updateUserSchema), asyncHandler(controller.update));
+
 /**
  * @openapi
  * /api/v1/users/{id}:

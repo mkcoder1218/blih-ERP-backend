@@ -15,13 +15,13 @@ export class UserService {
   list(businessId: string, search: string = "", page: number = 1, size: number = 20, permission: string = "") {
     const offset = (page - 1) * size;
     const where: any = { businessId };
-    const options: any = { 
-      attributes: { exclude: ["password"] }, 
+    const options: any = {
+      attributes: { exclude: ["password"] },
       offset,
       limit: size,
-      order: [["createdAt", "DESC"]] 
+      order: [["createdAt", "DESC"]]
     };
-    
+
     if (search) {
       where[Op.or] = [
         { fullName: { [Op.iLike]: `%${search}%` } },
@@ -103,6 +103,31 @@ export class UserService {
       const roles = await db.Role.findAll({ where: { key: data.roleKeys, businessId } });
       await user.setRoles(roles);
     }
+
+    const safe = user.toJSON();
+    delete safe.password;
+    return safe;
+  }
+
+  async getPreferences(id: string, businessId: string) {
+    const user = await db.User.findOne({
+      where: { id, businessId },
+      attributes: ["id", "preferredLanguage"],
+    });
+    if (!user) return null;
+    return { preferredLanguage: user.preferredLanguage || "en" };
+  }
+
+  async updatePreferences(id: string, businessId: string, data: { preferredLanguage?: string }) {
+    const supportedLanguages = ["en", "am", "ti", "om"];
+    const preferredLanguage = String(data.preferredLanguage || "").toLowerCase();
+    if (!supportedLanguages.includes(preferredLanguage)) {
+      throw new Error("Unsupported language");
+    }
+
+    const user = await db.User.findOne({ where: { id, businessId } });
+    if (!user) return null;
+    await user.update({ preferredLanguage });
 
     const safe = user.toJSON();
     delete safe.password;

@@ -14,11 +14,11 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): UserModel =>
       email: { type: dataTypes.STRING(320), allowNull: false },
       password: { type: dataTypes.STRING, allowNull: false },
       phone: { type: dataTypes.STRING(50), allowNull: true },
+      preferredLanguage: { type: dataTypes.STRING(10), allowNull: false, defaultValue: "en" },
       status: { type: dataTypes.STRING(50), allowNull: false, defaultValue: "active" },
       isPlatformSuperAdmin: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       isTestAccount: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       lastLoginAt: { type: dataTypes.DATE, allowNull: true },
-      // Self-registration approval workflow
       registrationToken: { type: dataTypes.STRING(128), allowNull: true },
       rejectionReason: { type: dataTypes.TEXT, allowNull: true },
       rejectedAt: { type: dataTypes.DATE, allowNull: true },

@@ -10,6 +10,8 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): BusinessLoca
     timezone: { type: dataTypes.STRING(100), defaultValue: "UTC" },
     currency: { type: dataTypes.STRING(10), defaultValue: "USD" },
     language: { type: dataTypes.STRING(20), defaultValue: "en" },
+    supportedLanguages: { type: dataTypes.JSONB, allowNull: false, defaultValue: ["en", "am", "ti", "om"] },
+    fallbackLanguage: { type: dataTypes.STRING(10), allowNull: false, defaultValue: "en" },
     dateFormat: { type: dataTypes.STRING(20), defaultValue: "YYYY-MM-DD" },
     timeFormat: { type: dataTypes.STRING(20), defaultValue: "24h" },
     fiscalYearStartMonth: { type: dataTypes.INTEGER, defaultValue: 1 },

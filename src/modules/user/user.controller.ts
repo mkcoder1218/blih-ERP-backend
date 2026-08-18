@@ -14,7 +14,7 @@ export class UserController {
     const page = parseInt(req.query.page as string) || 1;
     const size = parseInt(req.query.size as string) || 20;
     const permission = (req.query.permission as string) || "";
-    
+
     const result = await this.service.list(req.user!.businessId, search, page, size, permission);
     res.json(result);
   };
@@ -39,6 +39,18 @@ export class UserController {
     res.json({ user });
   };
 
+  getPreferences = async (req: Request, res: Response, next: NextFunction) => {
+    const preferences = await this.service.getPreferences(req.user!.id, req.user!.businessId);
+    if (!preferences) return next({ statusCode: 404, message: "User not found" });
+    res.json({ preferences });
+  };
+
+  updatePreferences = async (req: Request, res: Response, next: NextFunction) => {
+    const user = await this.service.updatePreferences(req.user!.id, req.user!.businessId, req.body);
+    if (!user) return next({ statusCode: 404, message: "User not found" });
+    res.json({ message: "Updated successfully", user });
+  };
+
   remove = async (req: Request, res: Response, next: NextFunction) => {
     const beforeData = await this.service.getById(req.params.id, req.user!.businessId);
     const ok = await this.service.softDelete(req.params.id, req.user);
@@ -47,4 +59,3 @@ export class UserController {
     res.json({ ok: true });
   };
 }
-
