@@ -11,7 +11,7 @@ export class PermissionController {
     const rows = await db.Permission.findAll({
       order: [["module", "ASC"], ["action", "ASC"]]
     });
-    const allKeys = new Set(rows.map((permission: any) => String(permission.key)));
+    const allKeys = new Set<string>(rows.map((permission: any) => String(permission.key)));
     const permissions = rows
       .map((permission: any) => {
         const plain = permission.toJSON ? permission.toJSON() : permission;
