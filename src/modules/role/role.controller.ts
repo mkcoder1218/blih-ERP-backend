@@ -28,7 +28,11 @@ export class RoleController {
   get = async (req: Request, res: Response, next: NextFunction) => {
     const role = await this.service.getById(req.params.id);
     if (!role) return next({ statusCode: 404, message: "Role not found" });
-    if (!req.user!.isPlatformSuperAdmin && role.businessId !== req.user!.businessId) {
+    if (
+      !req.user!.isPlatformSuperAdmin &&
+      role.businessId !== null &&
+      role.businessId !== req.user!.businessId
+    ) {
       return next({ statusCode: 403, message: "Forbidden (tenant)" });
     }
     return ok(res, { role }, "Role details");
@@ -72,13 +76,24 @@ export class RoleController {
   users = async (req: Request, res: Response, next: NextFunction) => {
     const role = await this.service.getById(req.params.id);
     if (!role) return next({ statusCode: 404, message: "Role not found" });
-    if (!req.user!.isPlatformSuperAdmin && role.businessId !== req.user!.businessId) {
+    if (
+      !req.user!.isPlatformSuperAdmin &&
+      role.businessId !== null &&
+      role.businessId !== req.user!.businessId
+    ) {
       return next({ statusCode: 403, message: "Forbidden (tenant)" });
     }
+
     const page = Math.max(1, Number(req.query.page) || 1);
     const size = Math.min(100, Math.max(1, Number(req.query.size) || 10));
     const search = String(req.query.search || "").trim() || undefined;
-    const businessId = role.businessId || req.user!.businessId;
+    const requestedBusinessId = String(req.query.businessId || "").trim() || undefined;
+    const businessId = role.businessId || (
+      req.user!.isPlatformSuperAdmin
+        ? requestedBusinessId
+        : req.user!.businessId
+    );
+
     const data = await this.service.listUsers(req.params.id, businessId, page, size, search);
     if (!data) return next({ statusCode: 404, message: "Role not found" });
     return ok(res, data, "Role users list");
