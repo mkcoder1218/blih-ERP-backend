@@ -43,6 +43,16 @@ export class RoleService {
   }
 
   async create(businessId: string, data: any) {
+    let permissionKeys: string[] = Array.isArray(data.permissionKeys) ? data.permissionKeys : [];
+
+    if (data.copyFromRoleId) {
+      const source = await db.Role.findByPk(data.copyFromRoleId, { include: [{ model: db.Permission }] });
+      if (!source) throw Object.assign(new Error("Source role not found"), { statusCode: 404 });
+      this.assertRoleInBusiness(source, businessId);
+      permissionKeys = (source.Permissions || []).map((permission: any) => String(permission.key));
+    }
+
+    const permissions = permissionKeys.length ? await this.permissionsForKeys(permissionKeys) : [];
     const role = await this.dal.create({
       businessId,
       name: data.name,
@@ -52,19 +62,7 @@ export class RoleService {
       isSystemRole: false
     });
 
-    let permissionKeys: string[] = Array.isArray(data.permissionKeys) ? data.permissionKeys : [];
-    if (data.copyFromRoleId) {
-      const source = await db.Role.findByPk(data.copyFromRoleId, { include: [{ model: db.Permission }] });
-      if (!source) throw Object.assign(new Error("Source role not found"), { statusCode: 404 });
-      this.assertRoleInBusiness(source, businessId);
-      permissionKeys = (source.Permissions || []).map((permission: any) => String(permission.key));
-    }
-
-    if (permissionKeys.length) {
-      const permissions = await this.permissionsForKeys(permissionKeys);
-      await role.setPermissions(permissions);
-    }
-
+    if (permissions.length) await role.setPermissions(permissions);
     return this.getById(role.id);
   }
 
@@ -156,11 +154,15 @@ export class RoleService {
     });
   }
 
-  async listUsers(id: string, businessId: string, page: number, size: number, search?: string) {
-    const role = await db.Role.findOne({ where: { id, businessId } });
+  async listUsers(id: string, businessId: string | undefined, page: number, size: number, search?: string) {
+    const role = await db.Role.findByPk(id);
     if (!role) return null;
+    if (role.businessId && businessId && role.businessId !== businessId) return null;
 
-    const where: any = { businessId };
+    const where: any = {};
+    if (businessId) where.businessId = businessId;
+    else if (role.businessId) where.businessId = role.businessId;
+
     if (search) {
       where[Op.or] = [
         { fullName: { [Op.iLike]: `%${search}%` } },
