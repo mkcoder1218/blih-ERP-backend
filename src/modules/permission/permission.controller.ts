@@ -1,29 +1,44 @@
 import type { Request, Response } from "express";
 import { db } from "../../models";
 import { ok } from "../../utils/apiResponse";
+import { buildPermissionMetadata, expandPermissionDependencies } from "./permission.metadata";
 import { SYSTEM_PERMISSIONS } from "./seed/permissions.seed";
 
 const BRAIN_CONTACT_PERMISSION_PREFIX = "brain.contacts.";
 
 export class PermissionController {
-  list = async (req: Request, res: Response) => {
-    const permissions = await db.Permission.findAll({
+  list = async (_req: Request, res: Response) => {
+    const rows = await db.Permission.findAll({
       order: [["module", "ASC"], ["action", "ASC"]]
     });
+    const allKeys = new Set(rows.map((permission: any) => String(permission.key)));
+    const permissions = rows
+      .map((permission: any) => {
+        const plain = permission.toJSON ? permission.toJSON() : permission;
+        return {
+          ...plain,
+          ...buildPermissionMetadata(plain, allKeys),
+        };
+      })
+      .sort((a: any, b: any) => a.sortOrder - b.sortOrder || a.key.localeCompare(b.key));
+
     return ok(res, { permissions, count: permissions.length }, "Permissions list");
   };
 
-  seed = async (req: Request, res: Response) => {
+  seed = async (_req: Request, res: Response) => {
     for (const p of SYSTEM_PERMISSIONS) {
-      await db.Permission.findOrCreate({
-        where: { key: p.key },
-        defaults: p
-      });
+      const existing = await db.Permission.findOne({ where: { key: p.key } });
+      if (existing) {
+        await existing.update({
+          module: p.module,
+          action: p.action,
+          description: p.description ?? existing.description,
+        });
+      } else {
+        await db.Permission.create(p);
+      }
     }
 
-    // Contacts belong to Brain. Any role that already has brain.access should
-    // automatically receive the contact permissions when defaults are seeded.
-    // This also covers custom roles instead of hard-coding system role names.
     const brainAccessPermission = await db.Permission.findOne({
       where: { key: "brain.access" },
       attributes: ["id"]
@@ -80,20 +95,28 @@ export class PermissionController {
   };
 
   assignToRole = async (req: Request, res: Response) => {
-    const { roleId, permissionKeys } = req.body;
+    const { roleId, permissionKeys } = req.body as { roleId: string; permissionKeys: string[] };
     const role = await db.Role.findByPk(roleId);
     if (!role) return res.status(404).json({ message: "Role not found" });
 
-    // Tenant isolation check
+    if (role.isSystemRole) {
+      return res.status(403).json({ message: "System role permissions are protected and cannot be edited" });
+    }
+
     if (!req.user!.isPlatformSuperAdmin && role.businessId !== req.user!.businessId) {
       return res.status(403).json({ message: "Forbidden: You cannot manage roles of other businesses" });
     }
 
-    const perms = await db.Permission.findAll({
-      where: { key: permissionKeys }
+    const allPermissions = await db.Permission.findAll({
+      attributes: ["id", "key", "module", "action", "description"]
     });
+    const expandedKeys = expandPermissionDependencies(
+      Array.isArray(permissionKeys) ? permissionKeys : [],
+      allPermissions.map((permission: any) => permission.toJSON ? permission.toJSON() : permission),
+    );
+    const perms = allPermissions.filter((permission: any) => expandedKeys.includes(permission.key));
 
     await role.setPermissions(perms);
-    return ok(res, null, "Permissions assigned to role");
+    return ok(res, { permissionKeys: expandedKeys }, "Permissions assigned to role");
   };
 }
