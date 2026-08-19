@@ -1,6 +1,11 @@
 import { Op } from "sequelize";
 import { db } from "../../models";
-import { ROLE_DOMAIN_MAP, roleDomainsForKey, roleHasAllDomains } from "../../models/Role";
+import {
+  ROLE_DOMAIN_MAP,
+  isProtectedRoleKey,
+  roleDomainsForKey,
+  roleHasAllDomains,
+} from "../../models/Role";
 import { expandPermissionDependencies } from "../permission/permission.metadata";
 import { RoleDAL } from "./role.dal";
 
@@ -27,7 +32,7 @@ export class RoleService {
   }
 
   private assertCustomRole(role: any) {
-    if (role.isSystemRole) {
+    if (role.isSystemRole || isProtectedRoleKey(role.key)) {
       throw Object.assign(new Error("System roles are protected and cannot be modified"), { statusCode: 403 });
     }
   }
@@ -40,6 +45,62 @@ export class RoleService {
     if (role.domain && !ownedDomains.includes(role.domain)) {
       throw Object.assign(new Error("You can only manage roles in your domain"), { statusCode: 403 });
     }
+  }
+
+  private normalizeRole(role: any, userCount: number) {
+    const plain = role.toJSON ? role.toJSON() : role;
+    return {
+      ...plain,
+      isSystemRole: Boolean(plain.isSystemRole || isProtectedRoleKey(plain.key)),
+      userCount,
+    };
+  }
+
+  private effectiveBusinessId(role: any, requestedBusinessId?: string) {
+    return requestedBusinessId || role.businessId || undefined;
+  }
+
+  private async effectiveRoleIds(role: any, requestedBusinessId?: string): Promise<string[]> {
+    if (!isProtectedRoleKey(role.key)) return [String(role.id)];
+
+    const businessId = this.effectiveBusinessId(role, requestedBusinessId);
+    const where: any = { key: role.key };
+
+    if (businessId) {
+      where[Op.or] = [
+        { businessId },
+        { businessId: null },
+      ];
+    }
+
+    const matchingRoles = await db.Role.findAll({
+      where,
+      attributes: ["id"],
+    });
+
+    return matchingRoles.map((item: any) => String(item.id));
+  }
+
+  private async countUsersForRole(role: any, requestedBusinessId?: string): Promise<number> {
+    const roleIds = await this.effectiveRoleIds(role, requestedBusinessId);
+    if (roleIds.length === 0) return 0;
+
+    const businessId = this.effectiveBusinessId(role, requestedBusinessId);
+    const where: any = {};
+    if (businessId) where.businessId = businessId;
+
+    return db.User.count({
+      where,
+      include: [{
+        model: db.Role,
+        where: { id: { [Op.in]: roleIds } },
+        through: { attributes: [] },
+        attributes: [],
+        required: true,
+      }],
+      distinct: true,
+      col: "id",
+    });
   }
 
   async create(businessId: string, data: any) {
@@ -72,9 +133,8 @@ export class RoleService {
     const roles = await this.dal.findAll(where, { order: [["isSystemRole", "DESC"], ["name", "ASC"]] });
     return Promise.all(
       roles.map(async (role: any) => {
-        const plain = role.toJSON ? role.toJSON() : role;
-        const userCount = await role.countUsers();
-        return { ...plain, userCount };
+        const userCount = await this.countUsersForRole(role, businessId);
+        return this.normalizeRole(role, userCount);
       })
     );
   }
@@ -104,9 +164,8 @@ export class RoleService {
 
     return Promise.all(
       roles.map(async (role: any) => {
-        const plain = role.toJSON ? role.toJSON() : role;
-        const userCount = await role.countUsers();
-        return { ...plain, userCount };
+        const userCount = await this.countUsersForRole(role, businessId);
+        return this.normalizeRole(role, userCount);
       })
     );
   }
@@ -114,9 +173,8 @@ export class RoleService {
   async getById(id: string) {
     const role = await this.dal.findById(id, { include: [{ model: db.Permission }] });
     if (!role) return null;
-    const plain = role.toJSON ? role.toJSON() : role;
-    const userCount = await role.countUsers();
-    return { ...plain, userCount };
+    const userCount = await this.countUsersForRole(role);
+    return this.normalizeRole(role, userCount);
   }
 
   async update(id: string, businessId: string, data: any, callerRoleKeys?: string[]) {
@@ -144,6 +202,7 @@ export class RoleService {
     const source = await db.Role.findByPk(id, { include: [{ model: db.Permission }] });
     if (!source) return null;
     this.assertRoleInBusiness(source, businessId);
+    this.assertCustomRole(source);
 
     return this.create(businessId, {
       name: data.name,
@@ -159,9 +218,14 @@ export class RoleService {
     if (!role) return null;
     if (role.businessId && businessId && role.businessId !== businessId) return null;
 
+    const effectiveBusinessId = this.effectiveBusinessId(role, businessId);
+    const roleIds = await this.effectiveRoleIds(role, businessId);
+    if (roleIds.length === 0) {
+      return { rows: [], count: 0, page, size, pages: 1 };
+    }
+
     const where: any = {};
-    if (businessId) where.businessId = businessId;
-    else if (role.businessId) where.businessId = role.businessId;
+    if (effectiveBusinessId) where.businessId = effectiveBusinessId;
 
     if (search) {
       where[Op.or] = [
@@ -175,7 +239,7 @@ export class RoleService {
       attributes: ["id", "fullName", "email", "phone", "status", "lastLoginAt"],
       include: [{
         model: db.Role,
-        where: { id },
+        where: { id: { [Op.in]: roleIds } },
         through: { attributes: [] },
         attributes: [],
         required: true,
@@ -201,7 +265,7 @@ export class RoleService {
     this.assertCustomRole(role);
     this.assertDomain(role, callerRoleKeys);
     const before = role.toJSON ? role.toJSON() : role;
-    const userCount = await role.countUsers();
+    const userCount = await this.countUsersForRole(role, businessId);
     await role.destroy();
     return { role: { ...before, userCount }, userCount };
   }
