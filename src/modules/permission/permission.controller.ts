@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { db } from "../../models";
+import { isProtectedRoleKey } from "../../models/Role";
 import { ok } from "../../utils/apiResponse";
 import { buildPermissionMetadata, expandPermissionDependencies } from "./permission.metadata";
 import { SYSTEM_PERMISSIONS } from "./seed/permissions.seed";
@@ -99,7 +100,7 @@ export class PermissionController {
     const role = await db.Role.findByPk(roleId);
     if (!role) return res.status(404).json({ message: "Role not found" });
 
-    if (role.isSystemRole) {
+    if (role.isSystemRole || isProtectedRoleKey(role.key)) {
       return res.status(403).json({ message: "System role permissions are protected and cannot be edited" });
     }
 
