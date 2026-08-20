@@ -6,7 +6,13 @@ module.exports = {
   moduleFileExtensions: ["ts", "js", "json"],
   clearMocks: true,
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", { diagnostics: false }]
-  }
+    "^.+\\.[tj]sx?$": ["ts-jest", { diagnostics: false, tsconfig: { allowJs: true } }]
+  },
+  moduleNameMapper: {
+    "^puppeteer$": "<rootDir>/tests/__mocks__/puppeteerMock.js"
+  },
+  transformIgnorePatterns: [
+    "node_modules/(?!.*(sanitize-html|htmlparser2|dom.*|entities|puppeteer.*))"
+  ]
 };
 

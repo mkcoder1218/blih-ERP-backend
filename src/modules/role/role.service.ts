@@ -1,7 +1,13 @@
-import { RoleDAL } from "./role.dal";
-import { db } from "../../models";
-import { ROLE_DOMAIN_MAP, roleDomainsForKey, roleHasAllDomains } from "../../models/Role";
 import { Op } from "sequelize";
+import { db } from "../../models";
+import {
+  ROLE_DOMAIN_MAP,
+  isProtectedRoleKey,
+  roleDomainsForKey,
+  roleHasAllDomains,
+} from "../../models/Role";
+import { expandPermissionDependencies } from "../permission/permission.metadata";
+import { RoleDAL } from "./role.dal";
 
 export class RoleService {
   private dal: RoleDAL;
@@ -10,7 +16,104 @@ export class RoleService {
     this.dal = new RoleDAL();
   }
 
+  private async permissionsForKeys(keys: string[]) {
+    const allPermissions = await db.Permission.findAll({
+      attributes: ["id", "key", "module", "action", "description"]
+    });
+    const plain = allPermissions.map((permission: any) => permission.toJSON ? permission.toJSON() : permission);
+    const expandedKeys = expandPermissionDependencies(keys, plain);
+    return allPermissions.filter((permission: any) => expandedKeys.includes(permission.key));
+  }
+
+  private assertRoleInBusiness(role: any, businessId: string) {
+    if (role.businessId !== businessId && role.businessId !== null) {
+      throw Object.assign(new Error("Role not found"), { statusCode: 404 });
+    }
+  }
+
+  private assertCustomRole(role: any) {
+    if (role.isSystemRole || isProtectedRoleKey(role.key)) {
+      throw Object.assign(new Error("System roles are protected and cannot be modified"), { statusCode: 403 });
+    }
+  }
+
+  private assertDomain(role: any, callerRoleKeys?: string[]) {
+    if (!callerRoleKeys) return;
+    const isAdmin = callerRoleKeys.some((key) => roleHasAllDomains(key));
+    if (isAdmin) return;
+    const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap((key) => roleDomainsForKey(key))));
+    if (role.domain && !ownedDomains.includes(role.domain)) {
+      throw Object.assign(new Error("You can only manage roles in your domain"), { statusCode: 403 });
+    }
+  }
+
+  private normalizeRole(role: any, userCount: number) {
+    const plain = role.toJSON ? role.toJSON() : role;
+    return {
+      ...plain,
+      isSystemRole: Boolean(plain.isSystemRole || isProtectedRoleKey(plain.key)),
+      userCount,
+    };
+  }
+
+  private effectiveBusinessId(role: any, requestedBusinessId?: string) {
+    return requestedBusinessId || role.businessId || undefined;
+  }
+
+  private async effectiveRoleIds(role: any, requestedBusinessId?: string): Promise<string[]> {
+    if (!isProtectedRoleKey(role.key)) return [String(role.id)];
+
+    const businessId = this.effectiveBusinessId(role, requestedBusinessId);
+    const where: any = { key: role.key };
+
+    if (businessId) {
+      where[Op.or] = [
+        { businessId },
+        { businessId: null },
+      ];
+    }
+
+    const matchingRoles = await db.Role.findAll({
+      where,
+      attributes: ["id"],
+    });
+
+    return matchingRoles.map((item: any) => String(item.id));
+  }
+
+  private async countUsersForRole(role: any, requestedBusinessId?: string): Promise<number> {
+    const roleIds = await this.effectiveRoleIds(role, requestedBusinessId);
+    if (roleIds.length === 0) return 0;
+
+    const businessId = this.effectiveBusinessId(role, requestedBusinessId);
+    const where: any = {};
+    if (businessId) where.businessId = businessId;
+
+    return db.User.count({
+      where,
+      include: [{
+        model: db.Role,
+        where: { id: { [Op.in]: roleIds } },
+        through: { attributes: [] },
+        attributes: [],
+        required: true,
+      }],
+      distinct: true,
+      col: "id",
+    });
+  }
+
   async create(businessId: string, data: any) {
+    let permissionKeys: string[] = Array.isArray(data.permissionKeys) ? data.permissionKeys : [];
+
+    if (data.copyFromRoleId) {
+      const source = await db.Role.findByPk(data.copyFromRoleId, { include: [{ model: db.Permission }] });
+      if (!source) throw Object.assign(new Error("Source role not found"), { statusCode: 404 });
+      this.assertRoleInBusiness(source, businessId);
+      permissionKeys = (source.Permissions || []).map((permission: any) => String(permission.key));
+    }
+
+    const permissions = permissionKeys.length ? await this.permissionsForKeys(permissionKeys) : [];
     const role = await this.dal.create({
       businessId,
       name: data.name,
@@ -20,75 +123,65 @@ export class RoleService {
       isSystemRole: false
     });
 
-    if (data.permissionKeys && data.permissionKeys.length) {
-      const perms = await db.Permission.findAll({ where: { key: data.permissionKeys } });
-      await role.setPermissions(perms);
-    }
-    return role;
+    if (permissions.length) await role.setPermissions(permissions);
+    return this.getById(role.id);
   }
 
-  list(businessId?: string) {
+  async list(businessId?: string) {
     const where: any = { deletedAt: null };
-    if (businessId) {
-      where.businessId = businessId;
-    }
-    return this.dal.findAll(where, { order: [["createdAt", "DESC"]] });
+    if (businessId) where.businessId = businessId;
+    const roles = await this.dal.findAll(where, { order: [["isSystemRole", "DESC"], ["name", "ASC"]] });
+    return Promise.all(
+      roles.map(async (role: any) => {
+        const userCount = await this.countUsersForRole(role, businessId);
+        return this.normalizeRole(role, userCount);
+      })
+    );
   }
 
-  /**
-   * Returns only the roles the caller is allowed to manage based on their domain.
-   * BUSINESS_ADMIN / PLATFORM_SUPER_ADMIN → all roles for the business.
-   * Any other role key → only roles whose `domain` matches the caller's domain.
-   */
   async listForCaller(businessId: string, callerRoleKeys: string[]) {
-    // Check if caller has unrestricted access
-    const isAdmin = callerRoleKeys.some(k => roleHasAllDomains(k));
-    if (isAdmin) {
-      return this.list(businessId);
-    }
+    const isAdmin = callerRoleKeys.some((key) => roleHasAllDomains(key));
+    if (isAdmin) return this.list(businessId);
 
-    // Collect all domains the caller owns
-    const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap(k => roleDomainsForKey(k))));
-
-    if (ownedDomains.length === 0) {
-      return []; // no domain ownership → no roles to manage
-    }
+    const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap((key) => roleDomainsForKey(key))));
+    if (ownedDomains.length === 0) return [];
 
     const ownedRoleKeys = Object.entries(ROLE_DOMAIN_MAP)
       .filter(([key]) => roleDomainsForKey(key).some((domain) => ownedDomains.includes(domain)))
       .map(([key]) => key);
 
-    const where: any = {
-      businessId,
-      deletedAt: null,
-      [Op.or]: [
-        { domain: { [Op.in]: ownedDomains } },
-        { key: { [Op.in]: ownedRoleKeys } }
-      ],
-    };
+    const roles = await this.dal.findAll(
+      {
+        businessId,
+        deletedAt: null,
+        [Op.or]: [
+          { domain: { [Op.in]: ownedDomains } },
+          { key: { [Op.in]: ownedRoleKeys } }
+        ],
+      },
+      { order: [["isSystemRole", "DESC"], ["name", "ASC"]] }
+    );
 
-    return this.dal.findAll(where, { order: [["createdAt", "DESC"]] });
+    return Promise.all(
+      roles.map(async (role: any) => {
+        const userCount = await this.countUsersForRole(role, businessId);
+        return this.normalizeRole(role, userCount);
+      })
+    );
   }
 
-  getById(id: string) {
-    return this.dal.findById(id, { include: [{ model: db.Permission }] });
+  async getById(id: string) {
+    const role = await this.dal.findById(id, { include: [{ model: db.Permission }] });
+    if (!role) return null;
+    const userCount = await this.countUsersForRole(role);
+    return this.normalizeRole(role, userCount);
   }
 
   async update(id: string, businessId: string, data: any, callerRoleKeys?: string[]) {
     const role = await db.Role.findOne({ where: { id, businessId } });
     if (!role) return null;
-    if (role.isSystemRole) throw Object.assign(new Error("Cannot modify system role"), { statusCode: 403 });
-
-    // Domain check: non-admins can only update roles in their domain
-    if (callerRoleKeys) {
-      const isAdmin = callerRoleKeys.some(k => roleHasAllDomains(k));
-      if (!isAdmin) {
-        const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap(k => roleDomainsForKey(k))));
-        if (role.domain && !ownedDomains.includes(role.domain)) {
-          throw Object.assign(new Error("You can only update roles in your domain"), { statusCode: 403 });
-        }
-      }
-    }
+    this.assertCustomRole(role);
+    this.assertDomain(role, callerRoleKeys);
 
     await role.update({
       name: data.name !== undefined ? data.name : role.name,
@@ -97,31 +190,83 @@ export class RoleService {
       domain: data.domain !== undefined ? data.domain : role.domain,
     });
 
-    if (data.permissionKeys) {
-      const perms = await db.Permission.findAll({ where: { key: data.permissionKeys } });
-      await role.setPermissions(perms);
+    if (Array.isArray(data.permissionKeys)) {
+      const permissions = await this.permissionsForKeys(data.permissionKeys);
+      await role.setPermissions(permissions);
     }
 
-    return role;
+    return this.getById(role.id);
   }
 
-  async softDelete(id: string, businessId: string, callerRoleKeys?: string[]) {
-    const role = await db.Role.findOne({ where: { id, businessId } });
-    if (!role) return null;
-    if (role.isSystemRole) throw Object.assign(new Error("Cannot delete system role"), { statusCode: 403 });
+  async duplicate(id: string, businessId: string, data: any) {
+    const source = await db.Role.findByPk(id, { include: [{ model: db.Permission }] });
+    if (!source) return null;
+    this.assertRoleInBusiness(source, businessId);
+    this.assertCustomRole(source);
 
-    // Domain check
-    if (callerRoleKeys) {
-      const isAdmin = callerRoleKeys.some(k => roleHasAllDomains(k));
-      if (!isAdmin) {
-        const ownedDomains = Array.from(new Set(callerRoleKeys.flatMap(k => roleDomainsForKey(k))));
-        if (role.domain && !ownedDomains.includes(role.domain)) {
-          throw Object.assign(new Error("You can only delete roles in your domain"), { statusCode: 403 });
-        }
-      }
+    return this.create(businessId, {
+      name: data.name,
+      key: data.key,
+      description: data.description ?? source.description,
+      domain: data.domain ?? source.domain,
+      permissionKeys: (source.Permissions || []).map((permission: any) => String(permission.key)),
+    });
+  }
+
+  async listUsers(id: string, businessId: string | undefined, page: number, size: number, search?: string) {
+    const role = await db.Role.findByPk(id);
+    if (!role) return null;
+    if (role.businessId && businessId && role.businessId !== businessId) return null;
+
+    const effectiveBusinessId = this.effectiveBusinessId(role, businessId);
+    const roleIds = await this.effectiveRoleIds(role, businessId);
+    if (roleIds.length === 0) {
+      return { rows: [], count: 0, page, size, pages: 1 };
     }
 
+    const where: any = {};
+    if (effectiveBusinessId) where.businessId = effectiveBusinessId;
+
+    if (search) {
+      where[Op.or] = [
+        { fullName: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } },
+      ];
+    }
+
+    const result = await db.User.findAndCountAll({
+      where,
+      attributes: ["id", "fullName", "email", "phone", "status", "lastLoginAt"],
+      include: [{
+        model: db.Role,
+        where: { id: { [Op.in]: roleIds } },
+        through: { attributes: [] },
+        attributes: [],
+        required: true,
+      }],
+      distinct: true,
+      order: [["fullName", "ASC"]],
+      limit: size,
+      offset: (page - 1) * size,
+    });
+
+    return {
+      rows: result.rows,
+      count: result.count,
+      page,
+      size,
+      pages: Math.max(1, Math.ceil(result.count / size)),
+    };
+  }
+
+  async archive(id: string, businessId: string, callerRoleKeys?: string[]) {
+    const role = await db.Role.findOne({ where: { id, businessId } });
+    if (!role) return null;
+    this.assertCustomRole(role);
+    this.assertDomain(role, callerRoleKeys);
+    const before = role.toJSON ? role.toJSON() : role;
+    const userCount = await this.countUsersForRole(role, businessId);
     await role.destroy();
-    return true;
+    return { role: { ...before, userCount }, userCount };
   }
 }

@@ -30,4 +30,26 @@ export class BusinessModuleController {
     await AuditLogService.log('UPDATE', 'businessModule', mod.id, beforeData, mod, req);
     res.json({ module: mod });
   };
+
+  toggleModule = async (req: Request, res: Response) => {
+    const { businessId, moduleKey, moduleName, status } = req.body;
+    if (!businessId || !moduleKey) {
+      return res.status(400).json({ message: "businessId and moduleKey are required" });
+    }
+    const { db } = await import('../../models');
+    const [mod] = await db.BusinessModule.findOrCreate({
+      where: { businessId, moduleKey },
+      defaults: {
+        businessId,
+        moduleKey,
+        moduleName: moduleName || moduleKey.toUpperCase(),
+        status: status || 'active',
+        enabledAt: new Date()
+      }
+    });
+    if (status && mod.status !== status) {
+      await mod.update({ status, enabledAt: status === 'active' ? new Date() : mod.enabledAt });
+    }
+    res.json({ module: mod });
+  };
 }

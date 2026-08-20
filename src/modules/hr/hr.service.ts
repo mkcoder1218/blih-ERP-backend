@@ -35,8 +35,8 @@ export class HRService {
 
   async listRecords(where: any = {}, limit: number = 20, offset: number = 0) {
      const userWhere = where.employmentStatus === 'terminated'
-       ? { status: { [Op.in]: ['active', 'inactive'] } }
-       : { status: 'active' };
+       ? { status: { [Op.in]: ['active', 'inactive'] }, isTestAccount: false }
+       : { status: 'active', isTestAccount: false };
      return db.EmployeeRecord.findAndCountAll({
         where,
         limit,
@@ -55,7 +55,7 @@ export class HRService {
                    required: false,
                 },
              ],
-             // Exclude self-registered users awaiting HR approval
+             // Exclude self-registered users awaiting HR approval and tester identities.
              where: userWhere,
              required: true,
            },
@@ -105,9 +105,9 @@ export class HRService {
   }
 
   async getOrganogram(businessId: string) {
-    // ── 1. All active users ───────────────────────────────────────────────────
+    // ── 1. All active non-test users ──────────────────────────────────────────
     const users = await db.User.findAll({
-      where: { businessId, status: 'active' },
+      where: { businessId, status: 'active', isTestAccount: false },
       attributes: ['id', 'fullName', 'email', 'isPlatformSuperAdmin'],
       include: [
         {
@@ -128,7 +128,10 @@ export class HRService {
 
     // ── 2. Employee records ───────────────────────────────────────────────────
     const records = await db.EmployeeRecord.findAll({
-      where: { businessId },
+      where: {
+        businessId,
+        employmentStatus: { [Op.ne]: 'TEST' },
+      },
       attributes: ['userId', 'managerUserId', 'employmentStatus'],
       include: [
         { model: db.Department, as: 'department', attributes: ['id', 'name'] },

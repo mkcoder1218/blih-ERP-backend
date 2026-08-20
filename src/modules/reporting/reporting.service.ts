@@ -4,6 +4,54 @@ import { Op } from 'sequelize';
 
 export class ReportingService {
 
+  private async reportingExclusions(businessId: string) {
+    const testUsers = await db.User.findAll({
+      where: { businessId, isTestAccount: true },
+      attributes: ['id'],
+    });
+    const testUserIds = testUsers.map((user: any) => String(user.id));
+
+    const testEmployees = testUserIds.length
+      ? await db.EmployeeRecord.findAll({
+          where: { businessId, userId: { [Op.in]: testUserIds } },
+          attributes: ['id'],
+        })
+      : [];
+    const testEmployeeIds = testEmployees.map((employee: any) => String(employee.id));
+
+    return { testUserIds, testEmployeeIds };
+  }
+
+  private applyTesterExclusions(
+    Model: any,
+    baseWhere: any,
+    exclusions: { testUserIds: string[]; testEmployeeIds: string[] },
+  ) {
+    const where: any = { ...baseWhere };
+    const attributes = Model?.rawAttributes || {};
+
+    const exclude = (field: string, ids: string[]) => {
+      if (!ids.length || !attributes[field]) return;
+      const existing = where[field];
+      if (existing === undefined) {
+        where[field] = { [Op.notIn]: ids };
+        return;
+      }
+      where[Op.and] = [
+        ...(Array.isArray(where[Op.and]) ? where[Op.and] : []),
+        { [field]: existing },
+        { [field]: { [Op.notIn]: ids } },
+      ];
+      delete where[field];
+    };
+
+    exclude('userId', exclusions.testUserIds);
+    exclude('employeeUserId', exclusions.testUserIds);
+    exclude('employeeId', exclusions.testEmployeeIds);
+
+    return where;
+  }
+
   // -- Report Definitions --
   async createDefinition(businessId: string, data: any) {
     return db.ReportDefinition.create({ ...data, businessId });
@@ -44,7 +92,12 @@ export class ReportingService {
 
       if (qc && qc.entity && db[qc.entity]) {
         const Model = db[qc.entity];
-        const whereArgs = { businessId, ...run.filtersUsed };
+        const exclusions = await this.reportingExclusions(businessId);
+        const whereArgs = this.applyTesterExclusions(
+          Model,
+          { businessId, ...run.filtersUsed },
+          exclusions,
+        );
         
         if (qc.action === 'count') {
           if (qc.groupBy) {
@@ -85,7 +138,6 @@ export class ReportingService {
   // -- Metric Automation (Business Logic) --
   async generateBasicMetrics(businessId: string) {
     const metricsToCreate: any[] = [];
-    const now = new Date();
 
     // CRM
     if (db.Lead) {

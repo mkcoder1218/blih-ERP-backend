@@ -1,6 +1,7 @@
 import { db } from "../models";
 import { TemplateService } from "../modules/moduleTemplate/template.service";
 import { seedEthiopianLeaveTemplatesForAllBusinesses } from "../modules/leave/seed/ethiopianLeaveTemplates.seed";
+import { SYSTEM_PERMISSIONS } from "../modules/permission/seed/permissions.seed";
 
 export const SYSTEM_ROLES = {
   PLATFORM_SUPER_ADMIN: { name: "Platform Super Admin", key: "PLATFORM_SUPER_ADMIN" },
@@ -8,7 +9,8 @@ export const SYSTEM_ROLES = {
   HR_MANAGER: { name: "HR Manager", key: "HR_MANAGER" },
   FINANCE_MANAGER: { name: "Finance Manager", key: "FINANCE_MANAGER" },
   DEPARTMENT_HEAD: { name: "Department Head", key: "DEPARTMENT_HEAD" },
-  PROJECT_MANAGER: { name: "Project Manager", key: "PROJECT_MANAGER" }
+  PROJECT_MANAGER: { name: "Project Manager", key: "PROJECT_MANAGER" },
+  EMPLOYEE: { name: "Employee", key: "EMPLOYEE" }
 } as const;
 
 export const BASE_PERMISSIONS = [
@@ -39,7 +41,11 @@ export const DEFAULT_PLANS = [
 
 export async function seedDefaults() {
   const permissions: any[] = [];
-  for (const perm of BASE_PERMISSIONS) {
+  const allPermsToSeedMap = new Map<string, any>();
+  for (const perm of [...BASE_PERMISSIONS, ...SYSTEM_PERMISSIONS]) {
+    allPermsToSeedMap.set(perm.key, perm);
+  }
+  for (const perm of allPermsToSeedMap.values()) {
     const [p] = await db.Permission.findOrCreate({ where: { key: perm.key }, defaults: perm });
     permissions.push(p);
   }
@@ -74,6 +80,11 @@ export async function seedDefaults() {
     defaults: { ...SYSTEM_ROLES.PROJECT_MANAGER, businessId: null, isSystemRole: true }
   });
 
+  const [employeeRole] = await db.Role.findOrCreate({
+    where: { businessId: null, key: SYSTEM_ROLES.EMPLOYEE.key },
+    defaults: { ...SYSTEM_ROLES.EMPLOYEE, businessId: null, isSystemRole: true }
+  });
+
   await hrManagerRole.update({ domain: "hr" });
   await financeManagerRole.update({ domain: "finance" });
   await projectManagerRole.update({ domain: "project" });
@@ -83,12 +94,24 @@ export async function seedDefaults() {
   const businessAdminPerms = permissions.filter((p: any) => !["business.create", "business.delete"].includes(p.key));
   await businessAdminRole.setPermissions(businessAdminPerms);
 
-  // Finance/Dept/Project roles start with the same base permissions as Business Admin for now.
-  // Fine-grained permission keys can be added later without changing role keys.
   await financeManagerRole.setPermissions(businessAdminPerms);
-  await hrManagerRole.setPermissions(businessAdminPerms);
+  const hrExclusions = ["business.create", "business.delete", "policy.document.approve", "policy.document.supersede", "policy.public_share.manage", "policy.settings.manage"];
+  const hrManagerPerms = permissions.filter((p: any) => !hrExclusions.includes(p.key));
+  await hrManagerRole.setPermissions(hrManagerPerms);
   await departmentHeadRole.setPermissions(businessAdminPerms);
   await projectManagerRole.setPermissions(businessAdminPerms);
+
+  const employeeReaderPerms = permissions.filter((p: any) =>
+    [
+      "brain.access", "brain.category.view", "brain.article.view", "brain.training.view",
+      "brain.contacts.view", "brain.contacts.create", "brain.contacts.update", "brain.contacts.delete",
+      "brain.contacts.fields.manage", "brain.contacts.behaviors.manage", "brain.contacts.client_options.manage",
+      "policy.access", "policy.category.view", "policy.document.view",
+      "policy.acceptance.view_own", "policy.acceptance.accept", "policy.acceptance.sign",
+      "performance.self"
+    ].includes(p.key)
+  );
+  await employeeRole.setPermissions(employeeReaderPerms);
 
   for (const p of DEFAULT_PLANS) {
     const [plan] = await db.Plan.findOrCreate({

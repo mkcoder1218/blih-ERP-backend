@@ -8,7 +8,8 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): TaskCommentM
     businessId: { type: dataTypes.UUID, allowNull: false },
     projectId: { type: dataTypes.UUID, allowNull: false },
     taskId: { type: dataTypes.UUID, allowNull: false },
-    authorEmployeeId: { type: dataTypes.UUID, allowNull: false },
+    authorEmployeeId: { type: dataTypes.UUID, allowNull: true },
+    authorUserId: { type: dataTypes.UUID, allowNull: true },
     body: { type: dataTypes.TEXT, allowNull: false },
     metadata: { type: dataTypes.JSONB, defaultValue: {} }
   }, { tableName: "project_task_comments", timestamps: true, paranoid: true }) as TaskCommentModel;
@@ -18,6 +19,7 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): TaskCommentM
     models.TaskComment.belongsTo(models.Project, { foreignKey: "projectId" });
     models.TaskComment.belongsTo(models.ProjectTask, { foreignKey: "taskId" });
     models.TaskComment.belongsTo(models.EmployeeRecord, { foreignKey: "authorEmployeeId", as: "author" });
+    models.TaskComment.belongsTo(models.User, { foreignKey: "authorUserId", as: "authorUser" });
   };
 
   return TaskComment;

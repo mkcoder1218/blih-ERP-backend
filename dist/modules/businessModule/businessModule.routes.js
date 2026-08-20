@@ -103,4 +103,5 @@ router.get('/:id', (0, role_1.requireRole)('BUSINESS_ADMIN'), (0, asyncHandler_1
  *         $ref: '#/components/responses/500'
  */
 router.patch('/:id', (0, role_1.requireRole)('PLATFORM_SUPER_ADMIN'), (0, validate_1.validate)(businessModule_validator_1.updateBusinessModuleSchema), (0, asyncHandler_1.asyncHandler)(controller.update));
+router.post('/toggle', (0, role_1.requireRole)('PLATFORM_SUPER_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.toggleModule));
 exports.businessModuleRoutes = router;

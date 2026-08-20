@@ -1,15 +1,15 @@
+import { execFile } from "child_process";
 import crypto from "crypto";
 import fs from "fs/promises";
 import os from "os";
 import path from "path";
-import { execFile } from "child_process";
-import { promisify } from "util";
 import { Op } from "sequelize";
+import { promisify } from "util";
+import { env } from "../../config/env";
 import { db } from "../../models";
 import { AttendanceDailyReportService } from "../../services/attendanceDailyReport.service";
 import { AttendanceWeeklyReportService } from "../../services/attendanceWeeklyReport.service";
 import { toCsv } from "../../utils/csv";
-import { env } from "../../config/env";
 
 const execFileAsync = promisify(execFile);
 
@@ -724,6 +724,14 @@ export class AttendanceTelegramService {
         console.log(`[TelegramAttendanceSummary] skipped ${setting.businessId}: missing token/chat/time`);
         continue;
       }
+
+      // Skip sending on Sundays (day 0) — no attendance is tracked
+      const localDay = new Date(now.toLocaleString("en-US", { timeZone: setting.timezone || "UTC" })).getDay();
+      if (localDay === 0) {
+        console.log(`[TelegramAttendanceSummary] skipped ${setting.businessId}: Sunday, no attendance report sent`);
+        continue;
+      }
+
       const ymd = localDateYmd(now, setting.timezone || "UTC");
       if (setting.lastSentForDate === ymd) {
         console.log(`[TelegramAttendanceSummary] skipped ${setting.businessId}: already sent for ${ymd}`);

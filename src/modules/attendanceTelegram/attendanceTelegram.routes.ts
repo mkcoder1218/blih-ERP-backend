@@ -11,6 +11,7 @@ const controller = new AttendanceTelegramController();
 router.post("/webhook/:businessId", asyncHandler(controller.webhook));
 
 router.use(authRequired);
+router.get("/me/status", asyncHandler(controller.myStatus));
 router.post("/me/link-code", asyncHandler(controller.generateLinkCode));
 router.post("/me/unlink", asyncHandler(controller.unlinkMe));
 router.post("/business/:botType/test", requireRole("BUSINESS_ADMIN"), asyncHandler(controller.sendBusinessTest));

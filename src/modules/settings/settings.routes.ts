@@ -4,12 +4,12 @@ import { requireRole } from '../../middlewares/role';
 import { requireAnyPermission } from '../../middlewares/permission';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { SettingsController } from './settings.controller';
+import { projectTelegramRoutes } from '../projectTelegram/projectTelegram.routes';
+import { contentTranslationRoutes } from '../localization/contentTranslation.routes';
 
 const router = Router();
 const controller = new SettingsController();
 
-// ── Super-admin-or-business-admin helper ─────────────────────────────────────
-// Platform super admins bypass role checks; business admins use requireRole.
 function adminAccess() {
   return (req: any, res: any, next: any) => {
     if (req.user?.isPlatformSuperAdmin) return next();
@@ -17,6 +17,8 @@ function adminAccess() {
   };
 }
 
+router.use('/telegram-tasks', projectTelegramRoutes);
+router.use('/content-translations', contentTranslationRoutes);
 router.get('/public', asyncHandler(controller.getPublicConfiguration));
 
 router.patch('/branding',      authRequired, adminAccess(), asyncHandler(controller.updateBranding));

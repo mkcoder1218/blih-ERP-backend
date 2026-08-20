@@ -377,6 +377,18 @@ export class FinanceController {
     } catch (e: any) { errorResponse(res, e.message); }
   };
 
+  markSelectedEmployeeSalariesPaid = async (req: Request, res: Response) => {
+    try {
+      const result = await this.payrollTplSvc.markEmployeeSalaryIntervalPaid(
+        req.user!.businessId,
+        req.user!.id,
+        req.body || {}
+      );
+      await AuditLogService.log("MARK_EMPLOYEE_SALARY_INTERVAL_PAID", "finance_payroll", "salary_interval_bulk", null, result, req);
+      successResponse(res, result, `${result.paidCount} employee salary interval${result.paidCount === 1 ? "" : "s"} marked as paid`);
+    } catch (e: any) { errorResponse(res, e.message); }
+  };
+
   updateEmployeeBaseSalary = async (req: Request, res: Response) => {
     try {
       const result = await this.payrollTplSvc.updateEmployeeBaseSalaryWithEthiopianTax(
@@ -385,6 +397,24 @@ export class FinanceController {
         req.params.userId,
         req.body || {}
       );
+
+      // Keep the payroll link override in sync with the newly resolved base salary.
+      // Without this, EmployeeRecord.salaryInfo is updated but the next payroll
+      // recalculation still prefers the old baseSalaryOverride and the salary table
+      // appears to ignore the update.
+      const resolvedBaseSalary = Number(result?.baseSalary || 0);
+      if (Number.isFinite(resolvedBaseSalary) && resolvedBaseSalary > 0) {
+        const payrollLink = await db.EmployeePayrollLink.findOne({
+          where: {
+            businessId: req.user!.businessId,
+            employeeUserId: req.params.userId,
+          },
+        });
+        if (payrollLink && Number(payrollLink.baseSalaryOverride || 0) !== resolvedBaseSalary) {
+          await payrollLink.update({ baseSalaryOverride: resolvedBaseSalary });
+        }
+      }
+
       await AuditLogService.log('UPDATE_EMPLOYEE_BASE_SALARY', 'finance_salary', req.params.userId, null, result, req);
       successResponse(res, result, 'Employee base salary updated');
     } catch (e: any) { errorResponse(res, e.message); }

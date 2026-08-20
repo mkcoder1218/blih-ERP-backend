@@ -1,13 +1,19 @@
-name: Deploy Backend to Hostinger VPS
+name: Backend CI & Deploy
 
 on:
   push:
     branches:
-      - master
+      - integration
+      - "feat/**"
+
+  pull_request:
+    branches:
+      - integration
+
   workflow_dispatch:
 
 concurrency:
-  group: hostinger-backend-production
+  group: backend-${{ github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -70,6 +76,7 @@ jobs:
 
   deploy:
     name: Deploy to Hostinger VPS
+    if: github.event_name == 'push' && github.ref_name == 'integration'
     needs: validate
     runs-on: ubuntu-latest
     environment: production

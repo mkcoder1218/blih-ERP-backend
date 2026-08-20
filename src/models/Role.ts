@@ -6,6 +6,29 @@ export type RoleModel = ModelStatic<any> & {
 
 type RoleDomainValue = string | string[];
 
+/**
+ * Default business roles are backed by a global system-role definition and a
+ * business-scoped copy. Older businesses stored the scoped copy with
+ * isSystemRole=false, so the key is the stable source of truth for whether the
+ * role is protected in Access Control.
+ */
+export const PROTECTED_BUSINESS_ROLE_KEYS = [
+  "BUSINESS_ADMIN",
+  "HR_MANAGER",
+  "FINANCE_MANAGER",
+  "CRM_MANAGER",
+  "PROJECT_MANAGER",
+  "DEPARTMENT_HEAD",
+  "EMPLOYEE",
+  "CLIENT",
+] as const;
+
+const PROTECTED_BUSINESS_ROLE_KEY_SET = new Set<string>(PROTECTED_BUSINESS_ROLE_KEYS);
+
+export function isProtectedRoleKey(key: string | null | undefined): boolean {
+  return Boolean(key && PROTECTED_BUSINESS_ROLE_KEY_SET.has(String(key)));
+}
+
 // Maps each system role key to the domain(s) it owns.
 // A user with one of these roles can only manage roles in their domain(s).
 export const ROLE_DOMAIN_MAP: Record<string, RoleDomainValue> = {

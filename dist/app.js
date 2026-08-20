@@ -43,6 +43,7 @@ const requestId_1 = require("./middlewares/requestId");
 const security_1 = require("./middlewares/security");
 const notFound_1 = require("./middlewares/notFound");
 const errorHandler_1 = require("./middlewares/errorHandler");
+const probation_routes_1 = require("./modules/hr/probation.routes");
 const env_1 = require("./config/env");
 const swagger_1 = require("./config/swagger");
 const auth_routes_1 = require("./modules/auth/auth.routes");
@@ -76,6 +77,7 @@ const crm_routes_1 = require("./modules/crm/crm.routes");
 const projects_routes_1 = require("./modules/projects/projects.routes");
 const finance_routes_1 = require("./modules/finance/finance.routes");
 const brain_routes_1 = require("./modules/brain/brain.routes");
+const procedure_routes_1 = require("./modules/procedure/procedure.routes");
 const okr_routes_1 = require("./modules/okr/okr.routes");
 const clientPortal_routes_1 = require("./modules/clientPortal/clientPortal.routes");
 const reporting_routes_1 = require("./modules/reporting/reporting.routes");
@@ -92,6 +94,7 @@ const overtime_routes_1 = require("./modules/overtime/overtime.routes");
 const specialRequests_routes_1 = require("./modules/specialRequests/specialRequests.routes");
 const leave_routes_1 = require("./modules/leave/leave.routes");
 const policy_routes_1 = require("./modules/policy/policy.routes");
+const policy_public_routes_1 = require("./modules/policy/policy.public.routes");
 const devices_routes_1 = require("./modules/devices/devices.routes");
 const attendanceTelegram_routes_1 = require("./modules/attendanceTelegram/attendanceTelegram.routes");
 const inventory_routes_1 = require("./modules/inventory/inventory.routes");
@@ -226,6 +229,7 @@ apiRouter.use("/hr/employment-contracts", employmentContract_routes_1.employment
  * General HR routes
  */
 apiRouter.use("/hr", hr_routes_1.hrRoutes);
+apiRouter.use("/hr/probation", probation_routes_1.probationRoutes);
 /**
  * Offer letters
  *
@@ -249,6 +253,10 @@ apiRouter.use("/finance", finance_routes_1.financeRoutes);
  * Brain / AI
  */
 apiRouter.use("/brain", brain_routes_1.brainRoutes);
+/**
+ * Company Procedures
+ */
+apiRouter.use("/procedures", procedure_routes_1.procedureRoutes);
 /**
  * OKR
  */
@@ -343,6 +351,7 @@ apiRouter.use("/overtime-requests", overtime_routes_1.overtimeRoutes);
  * Leave
  */
 apiRouter.use("/leave-requests", leave_routes_1.leaveRoutes);
+apiRouter.use("/public", policy_public_routes_1.policyPublicRoutes);
 /**
  * Policies
  */
@@ -365,6 +374,8 @@ apiRouter.use("/approval-requests", request_routes_1.approvalRequestRoutes);
  * Mount versioned API.
  */
 app.use(`/api/${env_1.env.apiVersion}`, apiRouter);
+// Fallback to support unversioned /api/ path used by some frontend components
+app.use('/api', apiRouter);
 /**
  * Health endpoint is intentionally outside API versioning.
  */

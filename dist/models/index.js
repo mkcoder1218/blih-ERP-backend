@@ -22,6 +22,7 @@ const ProfileDraft_1 = __importDefault(require("./ProfileDraft"));
 const AuditLog_1 = __importDefault(require("./AuditLog"));
 const Department_1 = __importDefault(require("./Department"));
 const Position_1 = __importDefault(require("./Position"));
+const PositionCompetency_1 = __importDefault(require("./PositionCompetency"));
 const BusinessUserProfile_1 = __importDefault(require("./BusinessUserProfile"));
 const ApprovalWorkflow_1 = __importDefault(require("./ApprovalWorkflow"));
 const ApprovalStep_1 = __importDefault(require("./ApprovalStep"));
@@ -41,6 +42,8 @@ const ModuleTemplate_1 = __importDefault(require("./ModuleTemplate"));
 const ModuleTemplateForm_1 = __importDefault(require("./ModuleTemplateForm"));
 const ModuleTemplateWorkflow_1 = __importDefault(require("./ModuleTemplateWorkflow"));
 const EmployeeRecord_1 = __importDefault(require("./EmployeeRecord"));
+const EmployeeProbation_1 = __importDefault(require("./EmployeeProbation"));
+const EmployeeProbationCriterion_1 = __importDefault(require("./EmployeeProbationCriterion"));
 const LeaveBalance_1 = __importDefault(require("./LeaveBalance"));
 const AttendanceRecord_1 = __importDefault(require("./AttendanceRecord"));
 const Lead_1 = __importDefault(require("./Lead"));
@@ -69,6 +72,8 @@ const KnowledgeCategory_1 = __importDefault(require("./KnowledgeCategory"));
 const KnowledgeArticle_1 = __importDefault(require("./KnowledgeArticle"));
 const KnowledgeRevision_1 = __importDefault(require("./KnowledgeRevision"));
 const TrainingMaterial_1 = __importDefault(require("./TrainingMaterial"));
+const Procedure_1 = __importDefault(require("./Procedure"));
+const ProcedureRevision_1 = __importDefault(require("./ProcedureRevision"));
 const Objective_1 = __importDefault(require("./Objective"));
 const KeyResult_1 = __importDefault(require("./KeyResult"));
 const OKRProgressUpdate_1 = __importDefault(require("./OKRProgressUpdate"));
@@ -111,8 +116,6 @@ const ProjectChangeRequest_1 = __importDefault(require("./ProjectChangeRequest")
 const Vendor_1 = __importDefault(require("./Vendor"));
 const OfferLetterTemplate_1 = __importDefault(require("./OfferLetterTemplate"));
 const OfferLetter_1 = __importDefault(require("./OfferLetter"));
-const EmploymentContractTemplate_1 = __importDefault(require("./EmploymentContractTemplate"));
-const EmploymentContract_1 = __importDefault(require("./EmploymentContract"));
 const RecruitmentTemplate_1 = __importDefault(require("./RecruitmentTemplate"));
 const PayrollTemplate_1 = __importDefault(require("./PayrollTemplate"));
 const EmployeePayrollLink_1 = __importDefault(require("./EmployeePayrollLink"));
@@ -139,6 +142,11 @@ const CalendarSyncRetryJob_1 = __importDefault(require("./CalendarSyncRetryJob")
 const CalendarSyncAuditLog_1 = __importDefault(require("./CalendarSyncAuditLog"));
 const Policy_1 = __importDefault(require("./Policy"));
 const PolicyAcceptance_1 = __importDefault(require("./PolicyAcceptance"));
+const PolicyCategory_1 = __importDefault(require("./PolicyCategory"));
+const PolicyVersion_1 = __importDefault(require("./PolicyVersion"));
+const PolicyAssignment_1 = __importDefault(require("./PolicyAssignment"));
+const PolicyPublicShare_1 = __importDefault(require("./PolicyPublicShare"));
+const PolicyNotificationLog_1 = __importDefault(require("./PolicyNotificationLog"));
 const InventoryItem_1 = __importDefault(require("./InventoryItem"));
 const TrustedDevice_1 = __importDefault(require("./TrustedDevice"));
 const TelegramBotSetting_1 = __importDefault(require("./TelegramBotSetting"));
@@ -148,6 +156,8 @@ const TelegramNotificationLog_1 = __importDefault(require("./TelegramNotificatio
 const UserExemption_1 = __importDefault(require("./UserExemption"));
 const SmtpProvider_1 = __importDefault(require("./SmtpProvider"));
 const BusinessSmtpSetting_1 = __importDefault(require("./BusinessSmtpSetting"));
+const EmploymentContractTemplate_1 = __importDefault(require("./EmploymentContractTemplate"));
+const EmploymentContract_1 = __importDefault(require("./EmploymentContract"));
 exports.db = {
     sequelize: sequelize_2.sequelize,
     Business: (0, Business_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -175,6 +185,7 @@ exports.db = {
     AuditLog: (0, AuditLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Department: (0, Department_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Position: (0, Position_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PositionCompetency: (0, PositionCompetency_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     BusinessUserProfile: (0, BusinessUserProfile_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ApprovalWorkflow: (0, ApprovalWorkflow_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ApprovalStep: (0, ApprovalStep_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -194,6 +205,8 @@ exports.db = {
     ModuleTemplateForm: (0, ModuleTemplateForm_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     ModuleTemplateWorkflow: (0, ModuleTemplateWorkflow_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     EmployeeRecord: (0, EmployeeRecord_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    EmployeeProbation: (0, EmployeeProbation_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    EmployeeProbationCriterion: (0, EmployeeProbationCriterion_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     LeaveBalance: (0, LeaveBalance_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     AttendanceRecord: (0, AttendanceRecord_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Lead: (0, Lead_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -222,6 +235,8 @@ exports.db = {
     KnowledgeArticle: (0, KnowledgeArticle_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     KnowledgeRevision: (0, KnowledgeRevision_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     TrainingMaterial: (0, TrainingMaterial_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    Procedure: (0, Procedure_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    ProcedureRevision: (0, ProcedureRevision_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Objective: (0, Objective_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     KeyResult: (0, KeyResult_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     OKRProgressUpdate: (0, OKRProgressUpdate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -265,9 +280,9 @@ exports.db = {
     Vendor: (0, Vendor_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     OfferLetterTemplate: (0, OfferLetterTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     OfferLetter: (0, OfferLetter_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    RecruitmentTemplate: (0, RecruitmentTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     EmploymentContractTemplate: (0, EmploymentContractTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     EmploymentContract: (0, EmploymentContract_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
-    RecruitmentTemplate: (0, RecruitmentTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     PayrollTemplate: (0, PayrollTemplate_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     EmployeePayrollLink: (0, EmployeePayrollLink_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     SalaryDeduction: (0, SalaryDeduction_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -283,6 +298,11 @@ exports.db = {
     CalendarSyncAuditLog: (0, CalendarSyncAuditLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     Policy: (0, Policy_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     PolicyAcceptance: (0, PolicyAcceptance_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PolicyCategory: (0, PolicyCategory_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PolicyVersion: (0, PolicyVersion_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PolicyAssignment: (0, PolicyAssignment_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PolicyPublicShare: (0, PolicyPublicShare_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
+    PolicyNotificationLog: (0, PolicyNotificationLog_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     InventoryItem: (0, InventoryItem_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     TrustedDevice: (0, TrustedDevice_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
     TelegramBotSetting: (0, TelegramBotSetting_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
@@ -294,6 +314,7 @@ exports.db = {
     BusinessSmtpSetting: (0, BusinessSmtpSetting_1.default)(sequelize_2.sequelize, sequelize_1.DataTypes),
 };
 Object.values(exports.db).forEach((model) => {
-    if (model && typeof model.associate === "function")
+    if (model && typeof model.associate === "function") {
         model.associate(exports.db);
+    }
 });

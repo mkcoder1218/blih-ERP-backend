@@ -156,6 +156,11 @@ router.get(
   asyncHandler(controller.exportEmployeeSalaries)
 );
 router.post(
+  "/employee-salaries/pay-selected",
+  requireAnyPermission("finance.manage"),
+  asyncHandler(controller.markSelectedEmployeeSalariesPaid)
+);
+router.post(
   "/employee-salaries/sync-ethiopian-tax",
   requireAnyPermission("salary_employee_read", "finance.manage"),
   asyncHandler(controller.syncEthiopianTax)

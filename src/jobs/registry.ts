@@ -15,6 +15,8 @@ import { googleCalendarImportSync } from './handlers/googleCalendarImportSync';
 import { googleCalendarWatchRenewal } from './handlers/googleCalendarWatchRenewal';
 import { googleCalendarSyncRetry } from './handlers/googleCalendarSyncRetry';
 import { probationCompletionNotifier } from './handlers/probationCompletionNotifier';
+import { employmentChangeEffectiveDate } from './handlers/employmentChangeEffectiveDate';
+import { registerPolicyJobs } from '../modules/policy/policy.job-registration';
 
 export function initJobs() {
    console.log(`Background job worker flag: ${env.jobWorkerEnabled ? 'ENABLED' : 'DISABLED'} (timezone: ${env.jobTimezone})`);
@@ -41,4 +43,7 @@ export function initJobs() {
    JobRunner.register(googleCalendarWatchRenewal);
    JobRunner.register(googleCalendarSyncRetry);
    JobRunner.register(probationCompletionNotifier);
+   JobRunner.register(employmentChangeEffectiveDate);
+
+   registerPolicyJobs();
 }

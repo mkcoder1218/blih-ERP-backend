@@ -6,6 +6,10 @@ export type AuthUser = {
   email: string;
   fullName: string;
   isPlatformSuperAdmin: boolean;
+  isTestAccount: boolean;
+  testerLevel: "MASTER" | "STANDARD" | null;
+  isMasterTester: boolean;
+  testerSafetyMode: "RESTRICTED" | "FULL" | null;
   roles: string[];
   permissions: string[];
 };

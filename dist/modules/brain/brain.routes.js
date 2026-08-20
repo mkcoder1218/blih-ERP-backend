@@ -3,324 +3,48 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.brainRoutes = void 0;
 const express_1 = require("express");
 const auth_1 = require("../../middlewares/auth");
-const role_1 = require("../../middlewares/role");
+const permission_1 = require("../../middlewares/permission");
 const module_1 = require("../../middlewares/module");
 const asyncHandler_1 = require("../../utils/asyncHandler");
+const validate_1 = require("../../middlewares/validate");
 const brain_controller_1 = require("./brain.controller");
+const brain_validation_1 = require("./brain.validation");
 const router = (0, express_1.Router)();
 const controller = new brain_controller_1.BrainController();
-router.use(auth_1.authRequired, (0, module_1.requireActiveModule)('brain'));
-// Categories
-/**
- * @openapi
- * /api/v1/brain/categories:
- *   post:
- *     tags: [brain]
- *     summary: POST /categories
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/categories', (0, role_1.requireRole)('KNOWLEDGE_MANAGER', 'BUSINESS_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.createCategory));
-/**
- * @openapi
- * /api/v1/brain/categories:
- *   get:
- *     tags: [brain]
- *     summary: GET /categories
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: size
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/categories', (0, asyncHandler_1.asyncHandler)(controller.listCategories));
-// Articles
-/**
- * @openapi
- * /api/v1/brain/articles:
- *   post:
- *     tags: [brain]
- *     summary: POST /articles
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/articles', (0, asyncHandler_1.asyncHandler)(controller.createArticle));
-/**
- * @openapi
- * /api/v1/brain/articles:
- *   get:
- *     tags: [brain]
- *     summary: GET /articles
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: size
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/articles', (0, asyncHandler_1.asyncHandler)(controller.listArticles));
-/**
- * @openapi
- * /api/v1/brain/articles/{id}:
- *   get:
- *     tags: [brain]
- *     summary: GET /articles/:id
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/articles/:id', (0, asyncHandler_1.asyncHandler)(controller.getArticle));
-/**
- * @openapi
- * /api/v1/brain/articles/{id}:
- *   patch:
- *     tags: [brain]
- *     summary: PATCH /articles/:id
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.patch('/articles/:id', (0, asyncHandler_1.asyncHandler)(controller.updateArticle));
-/**
- * @openapi
- * /api/v1/brain/articles/{id}/publish:
- *   patch:
- *     tags: [brain]
- *     summary: PATCH /articles/:id/publish
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.patch('/articles/:id/publish', (0, role_1.requireRole)('KNOWLEDGE_MANAGER', 'BUSINESS_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.publishArticle));
-/**
- * @openapi
- * /api/v1/brain/articles/{id}/unpublish:
- *   patch:
- *     tags: [brain]
- *     summary: PATCH /articles/:id/unpublish
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.patch('/articles/:id/unpublish', (0, role_1.requireRole)('KNOWLEDGE_MANAGER', 'BUSINESS_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.unpublishArticle));
-/**
- * @openapi
- * /api/v1/brain/articles/{id}/submit-review:
- *   patch:
- *     tags: [brain]
- *     summary: PATCH /articles/:id/submit-review
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.patch('/articles/:id/submit-review', (0, asyncHandler_1.asyncHandler)(controller.submitForReview));
-// Training Materials
-/**
- * @openapi
- * /api/v1/brain/training:
- *   post:
- *     tags: [brain]
- *     summary: POST /training
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.post('/training', (0, role_1.requireRole)('KNOWLEDGE_MANAGER', 'BUSINESS_ADMIN'), (0, asyncHandler_1.asyncHandler)(controller.createTrainingMaterial));
-/**
- * @openapi
- * /api/v1/brain/training:
- *   get:
- *     tags: [brain]
- *     summary: GET /training
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: size
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       403:
- *         $ref: '#/components/responses/403'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get('/training', (0, asyncHandler_1.asyncHandler)(controller.listTrainingMaterials));
+// Mandatory module guard and base permission check preserving Super Admin bypass
+router.use(auth_1.authRequired, (0, module_1.requireActiveModule)('brain'), (0, permission_1.requirePermission)('brain.access'));
+// ── Categories ──
+router.post('/categories', (0, permission_1.requirePermission)('brain.category.create'), (0, validate_1.validate)(brain_validation_1.createCategorySchema, 'body'), (0, asyncHandler_1.asyncHandler)(controller.createCategory));
+router.get('/categories', (0, permission_1.requirePermission)('brain.category.view'), (0, validate_1.validate)(brain_validation_1.listCategoriesQuerySchema, 'query'), (0, asyncHandler_1.asyncHandler)(controller.listCategories));
+router.get('/categories/:id', (0, permission_1.requirePermission)('brain.category.view'), (0, validate_1.validate)(brain_validation_1.categoryIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.getCategory));
+router.patch('/categories/:id', (0, permission_1.requirePermission)('brain.category.update'), (0, validate_1.validate)(brain_validation_1.categoryIdParamSchema, 'params'), (0, validate_1.validate)(brain_validation_1.updateCategorySchema, 'body'), (0, asyncHandler_1.asyncHandler)(controller.updateCategory));
+router.delete('/categories/:id', (0, permission_1.requirePermission)('brain.category.delete'), (0, validate_1.validate)(brain_validation_1.categoryIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.deleteCategory));
+router.patch('/categories/:id/restore', (0, permission_1.requirePermission)('brain.category.restore'), (0, validate_1.validate)(brain_validation_1.categoryIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.restoreCategory));
+// ── Articles ──
+router.post('/articles', (0, permission_1.requirePermission)('brain.article.create'), (0, validate_1.validate)(brain_validation_1.createArticleSchema, 'body'), (0, asyncHandler_1.asyncHandler)(controller.createArticle));
+router.get('/articles', (0, permission_1.requirePermission)('brain.article.view'), (0, validate_1.validate)(brain_validation_1.listArticlesQuerySchema, 'query'), (0, asyncHandler_1.asyncHandler)(controller.listArticles));
+router.get('/articles/:id', (0, permission_1.requirePermission)('brain.article.view'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.getArticle));
+router.patch('/articles/:id', (0, permission_1.requireAnyPermission)('brain.article.update_own', 'brain.article.update_any'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, validate_1.validate)(brain_validation_1.updateArticleSchema, 'body'), (0, asyncHandler_1.asyncHandler)(controller.updateArticle));
+router.delete('/articles/:id', (0, permission_1.requirePermission)('brain.article.delete'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.deleteArticle));
+router.patch('/articles/:id/restore', (0, permission_1.requirePermission)('brain.article.restore'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.restoreArticle));
+// ── Article Workflow Actions (POST) ──
+router.post('/articles/:id/submit-review', (0, permission_1.requirePermission)('brain.article.submit_review'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.submitForReview));
+router.post('/articles/:id/approve', (0, permission_1.requirePermission)('brain.article.review'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.approveArticle));
+router.post('/articles/:id/request-changes', (0, permission_1.requirePermission)('brain.article.review'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, validate_1.validate)(brain_validation_1.reviewDecisionSchema, 'body'), (0, asyncHandler_1.asyncHandler)(controller.requestChanges));
+router.post('/articles/:id/publish', (0, permission_1.requirePermission)('brain.article.publish'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.publishArticle));
+router.post('/articles/:id/unpublish', (0, permission_1.requirePermission)('brain.article.publish'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.unpublishArticle));
+router.post('/articles/:id/archive', (0, permission_1.requirePermission)('brain.article.archive'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.archiveArticle));
+// Backward compatibility patch endpoints (pointing to same controller handlers)
+router.patch('/articles/:id/publish', (0, permission_1.requirePermission)('brain.article.publish'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.publishArticle));
+router.patch('/articles/:id/unpublish', (0, permission_1.requirePermission)('brain.article.publish'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.unpublishArticle));
+router.patch('/articles/:id/submit-review', (0, permission_1.requirePermission)('brain.article.submit_review'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.submitForReview));
+// ── Revisions ──
+router.get('/articles/:id/revisions', (0, permission_1.requirePermission)('brain.article.view_revisions'), (0, validate_1.validate)(brain_validation_1.articleIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.listRevisions));
+router.get('/articles/:id/revisions/:revisionId', (0, permission_1.requirePermission)('brain.article.view_revisions'), (0, validate_1.validate)(brain_validation_1.revisionIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.getRevision));
+router.post('/articles/:id/revisions/:revisionId/restore', (0, permission_1.requirePermission)('brain.article.restore_revision'), (0, validate_1.validate)(brain_validation_1.revisionIdParamSchema, 'params'), (0, asyncHandler_1.asyncHandler)(controller.restoreRevision));
+// ── Training Materials ──
+router.post('/training', (0, permission_1.requirePermission)('brain.training.create'), (0, validate_1.validate)(brain_validation_1.createTrainingSchema, 'body'), (0, asyncHandler_1.asyncHandler)(controller.createTrainingMaterial));
+router.get('/training', (0, permission_1.requirePermission)('brain.training.view'), (0, asyncHandler_1.asyncHandler)(controller.listTrainingMaterials));
+router.patch('/training/:id', (0, permission_1.requirePermission)('brain.training.update'), (0, validate_1.validate)(brain_validation_1.updateTrainingSchema, 'body'), (0, asyncHandler_1.asyncHandler)(controller.updateTrainingMaterial));
+router.delete('/training/:id', (0, permission_1.requirePermission)('brain.training.delete'), (0, asyncHandler_1.asyncHandler)(controller.deleteTrainingMaterial));
 exports.brainRoutes = router;

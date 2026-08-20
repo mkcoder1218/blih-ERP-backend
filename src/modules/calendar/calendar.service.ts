@@ -1,12 +1,12 @@
 import { Op } from "sequelize";
 import { db } from "../../models";
 import { InternalNotifier } from "../notification/notification.service";
+import { normalizeRecurrenceRule } from "./calendarRecurrence";
 import { GoogleCalendarSyncService } from "./googleCalendarSync.service";
 
 const VALID_AVAILABILITY = new Set(["AVAILABLE", "UNAVAILABLE"]);
 const VALID_ITEM_TYPES = new Set(["TASK", "EVENT", "AVAILABILITY", "MEETING"]);
 const VALID_MEETING_STATUS = new Set(["PENDING", "ACCEPTED", "DECLINED"]);
-import { normalizeRecurrenceRule } from "./calendarRecurrence";
 function assertAvailability(value: string) {
   if (!VALID_AVAILABILITY.has(value)) throw Object.assign(new Error("Invalid availability status."), { statusCode: 400 });
 }
@@ -181,10 +181,35 @@ export class CalendarService {
     return this.googleSync.syncUpdateFromBlih(reloaded, { id: userId, businessId });
   }
 
-  async remove(businessId: string, userId: string, eventId: string) {
+  async remove(businessId: string, userId: string, eventId: string, deleteScope?: 'THIS_EVENT' | 'ALL_EVENTS', instanceDate?: string) {
     if (eventId.startsWith("project-task:")) throw Object.assign(new Error("Project tasks must be deleted from Project Management."), { statusCode: 400 });
     const event = await db.UserCalendarEvent.findOne({ where: { id: eventId, businessId, employeeUserId: userId } });
     if (!event) throw Object.assign(new Error("Calendar event not found."), { statusCode: 404 });
+    
+    // If this is a recurring event and user wants to delete only one instance
+    if (event.isRecurring && event.recurrenceRule && deleteScope === 'THIS_EVENT' && instanceDate) {
+      // Add the instance date to EXDATE in the recurrence rule
+      const currentRule = event.recurrenceRule || '';
+      const exdateToAdd = new Date(instanceDate).toISOString().split('T')[0].replace(/-/g, '');
+      
+      // Check if EXDATE already exists in the rule
+      if (currentRule.includes('EXDATE:')) {
+        // Append to existing EXDATE
+        const updatedRule = currentRule.replace(/EXDATE:([^\n;]+)/, `EXDATE:$1,${exdateToAdd}`);
+        await event.update({ recurrenceRule: updatedRule });
+      } else {
+        // Add new EXDATE line
+        const updatedRule = `${currentRule}\nEXDATE:${exdateToAdd}`;
+        await event.update({ recurrenceRule: updatedRule });
+      }
+      
+      // Sync the updated event to Google Calendar
+      await this.googleSync.syncUpdateFromBlih(event, { id: userId, businessId });
+      
+      return; // Don't delete the event, just updated the recurrence rule
+    }
+    
+    // Delete the entire event (or non-recurring event)
     await event.update({ deletedSource: "BLIH" });
     await event.destroy();
     await this.googleSync.syncDeleteFromBlih(event, { id: userId, businessId });

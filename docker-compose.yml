@@ -71,6 +71,7 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_SYNC: "false"
+      JOB_WORKER_ENABLED: "false"
       API_VERSION: ${API_VERSION:-v1}
 
     volumes:
@@ -92,6 +93,35 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  worker:
+    build:
+      context: .
+      target: runner
+
+    image: blih-erp-backend:latest
+    restart: unless-stopped
+
+    command:
+      - node
+      - dist/worker.js
+
+    env_file:
+      - .env.production
+
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_SYNC: "false"
+      JOB_WORKER_ENABLED: "true"
+      POLICY_JOBS_ENABLED: "true"
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:
