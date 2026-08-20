@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authRequired } from "../../middlewares/auth";
 import { requirePermission } from "../../middlewares/permission";
+import { requireFeature } from "../../middlewares/subscription";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { createUserSchema, updateUserSchema } from "../../validators/user.validator";
@@ -45,7 +46,6 @@ router.use(authRequired);
 router.get("/", requirePermission("user.read"), asyncHandler(controller.list));
 router.get("/me/preferences", asyncHandler(controller.getPreferences));
 router.patch("/me/preferences", asyncHandler(controller.updatePreferences));
-
 /**
  * @openapi
  * /api/v1/users/{id}:
@@ -75,7 +75,6 @@ router.patch("/me/preferences", asyncHandler(controller.updatePreferences));
  *         $ref: '#/components/responses/500'
  */
 router.get("/:id", requirePermission("user.read"), asyncHandler(controller.get));
-
 /**
  * @openapi
  * /api/v1/users:
@@ -98,8 +97,7 @@ router.get("/:id", requirePermission("user.read"), asyncHandler(controller.get))
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post("/", requirePermission("user.create"), validate(createUserSchema), asyncHandler(controller.create));
-
+router.post("/", requirePermission("user.create"), requireFeature("employee_limit", 1), validate(createUserSchema), asyncHandler(controller.create));
 /**
  * @openapi
  * /api/v1/users/{id}:
@@ -129,7 +127,6 @@ router.post("/", requirePermission("user.create"), validate(createUserSchema), a
  *         $ref: '#/components/responses/500'
  */
 router.patch("/:id", requirePermission("user.update"), validate(updateUserSchema), asyncHandler(controller.update));
-
 /**
  * @openapi
  * /api/v1/users/{id}:

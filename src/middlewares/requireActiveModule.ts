@@ -1,8 +1,10 @@
-
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { db } from "../models";
+import { SubscriptionService } from "../modules/subscription/subscription.service";
+
+const subscriptionService = new SubscriptionService();
 
 function parseBearer(req: Request): string | null {
   const header = req.headers.authorization;
@@ -29,8 +31,22 @@ export const requireActiveModule = (moduleKey: string) => {
       if (isPlatformSuperAdmin) return next();
       if (!businessId) return next({ statusCode: 401, message: "Invalid access token" });
 
+      const access = await subscriptionService.evaluateAccess(businessId, req.method, roles);
+      if (!access.allowed) {
+        return next({
+          statusCode: 403,
+          message: access.mode === "billing_only"
+            ? "Billing action is required before ERP access can continue."
+            : access.mode === "read_only"
+              ? "Subscription is currently read-only."
+              : "Subscription does not currently allow this action.",
+          subscriptionStatus: access.status,
+          accessMode: access.mode,
+        });
+      }
+
       const bm = await db.BusinessModule.findOne({
-        where: { businessId, moduleKey, status: "active" }
+        where: { businessId, moduleKey, status: "active" },
       });
       if (!bm) return next({ statusCode: 403, message: `Module '${moduleKey}' is not active` });
       next();

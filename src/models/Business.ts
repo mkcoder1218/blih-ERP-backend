@@ -83,6 +83,14 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): BusinessMode
     models.Business.hasOne(models.BusinessBranding, { foreignKey: "businessId" });
     models.Business.hasOne(models.BusinessLocalization, { foreignKey: "businessId" });
     models.Business.hasOne(models.Subscription, { foreignKey: "businessId" });
+    if (models.SubscriptionPolicy) {
+      models.Business.hasOne(models.SubscriptionPolicy, {
+        foreignKey: "businessId",
+        as: "subscriptionPolicy",
+        scope: { scopeType: "business" },
+        constraints: false,
+      });
+    }
     models.Business.hasMany(models.SubscriptionInvoice, { foreignKey: "businessId" });
     models.Business.hasMany(models.SubscriptionPayment, { foreignKey: "businessId" });
     models.Business.hasMany(models.UsageLimit, { foreignKey: "businessId" });

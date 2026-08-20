@@ -19,16 +19,17 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): PlanModel =>
       currency: { type: dataTypes.STRING(3), allowNull: false, defaultValue: "ETB" },
       isActive: { type: dataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       sortOrder: { type: dataTypes.INTEGER, allowNull: false, defaultValue: 0 },
-      priceMonthly: { type: dataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
-      userLimit: { type: dataTypes.INTEGER, allowNull: true }, // null meaning infinite
+      priceMonthly: { type: dataTypes.DECIMAL(14, 2), allowNull: false, defaultValue: 0 },
+      priceYearly: { type: dataTypes.DECIMAL(14, 2), allowNull: false, defaultValue: 0 },
+      userLimit: { type: dataTypes.INTEGER, allowNull: true },
       settings: { type: dataTypes.JSONB, allowNull: false, defaultValue: {} },
-      status: { type: dataTypes.STRING(50), allowNull: false, defaultValue: "active" }
+      status: { type: dataTypes.STRING(50), allowNull: false, defaultValue: "active" },
     },
     {
       tableName: "plans",
       timestamps: true,
-      paranoid: true
-    }
+      paranoid: true,
+    },
   ) as PlanModel;
 
   Plan.associate = (models: any) => {
@@ -36,6 +37,14 @@ export default (sequelize: Sequelize, dataTypes: typeof DataTypes): PlanModel =>
     models.Plan.hasMany(models.PlanModule, { foreignKey: "planId", as: "modules" });
     models.Plan.hasMany(models.PlanFeature, { foreignKey: "planId", as: "features" });
     models.Plan.hasMany(models.Subscription, { foreignKey: "planId", as: "subscriptions" });
+    if (models.SubscriptionPolicy) {
+      models.Plan.hasOne(models.SubscriptionPolicy, {
+        foreignKey: "planId",
+        as: "subscriptionPolicy",
+        scope: { scopeType: "plan" },
+        constraints: false,
+      });
+    }
   };
 
   return Plan;

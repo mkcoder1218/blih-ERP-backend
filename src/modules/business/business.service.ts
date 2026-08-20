@@ -1,12 +1,12 @@
 import { BusinessDAL } from "./business.dal";
 import { slugify } from "../../utils/slugify";
-import { TemplateService } from "../moduleTemplate/template.service";
 import { db } from "../../models";
 import { roleDomainForKey } from "../../models/Role";
 import { seedEthiopianLeaveTemplatesForBusiness } from "../leave/seed/ethiopianLeaveTemplates.seed";
+import { SubscriptionService } from "../subscription/subscription.service";
 
 export class BusinessService {
-  private templateService = new TemplateService();
+  private subscriptionService = new SubscriptionService();
   private dal: BusinessDAL;
 
   constructor() {
@@ -14,7 +14,8 @@ export class BusinessService {
   }
 
   async create(data: any) {
-    const payload: any = { ...data };
+    const { subscription: subscriptionSetup, ...businessData } = data || {};
+    const payload: any = { ...businessData };
     if (!payload.slug && payload.name) payload.slug = slugify(payload.name);
 
     // Ensure slug is unique — check including soft-deleted rows (paranoid: false)
@@ -64,22 +65,11 @@ export class BusinessService {
     }
 
     if (business.planId) {
-      const planModules = await db.PlanModule.findAll({ where: { planId: business.planId, isEnabled: true } });
-      for (const pm of planModules) {
-        await db.BusinessModule.create({
-          businessId: business.id,
-          moduleKey: pm.moduleKey,
-          moduleName: pm.moduleName,
-          status: "active",
-          enabledAt: new Date()
-        });
-
-        try {
-          await this.templateService.applyTemplate(business.id, pm.moduleKey, false);
-        } catch(err) {
-          console.warn(`Failed to auto-apply template for ${pm.moduleKey} on business setup:`, err);
-        }
-      }
+      await this.subscriptionService.ensureSubscriptionForBusiness(
+        business.id,
+        business.planId,
+        subscriptionSetup || {},
+      );
     }
 
     await seedEthiopianLeaveTemplatesForBusiness(business.id);
@@ -95,10 +85,27 @@ export class BusinessService {
     return this.dal.findById(id);
   }
 
-  update(id: string, data: any) {
+  async update(id: string, data: any) {
     const payload = { ...data };
     if (payload.name && !payload.slug) payload.slug = slugify(payload.name);
-    return this.dal.update(id, payload);
+
+    const before = await db.Business.findByPk(id);
+    if (!before) return null;
+
+    const requestedPlanId = payload.planId;
+    const business = await this.dal.update(id, payload);
+    if (!business) return null;
+
+    if (requestedPlanId && requestedPlanId !== before.planId) {
+      const subscription = await db.Subscription.findOne({ where: { businessId: id } });
+      if (subscription) {
+        await this.subscriptionService.changePlan(id, requestedPlanId, true);
+      } else {
+        await this.subscriptionService.ensureSubscriptionForBusiness(id, requestedPlanId, {});
+      }
+    }
+
+    return this.dal.findById(id);
   }
 
   softDelete(id: string) {
@@ -218,6 +225,7 @@ export class BusinessService {
     await db.Department.destroy(opts);
 
     // ── Subscriptions ─────────────────────────────────────────────────────────
+    await db.SubscriptionPolicy.destroy(opts);
     await db.SubscriptionPayment.destroy(opts);
     await db.SubscriptionInvoice.destroy(opts);
     await db.Subscription.destroy(opts);
