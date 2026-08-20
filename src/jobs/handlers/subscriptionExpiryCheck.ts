@@ -1,17 +1,12 @@
-
-import { JobDefinition } from '../runner';
-import { db } from '../../models';
-import { Op } from 'sequelize';
+import { JobDefinition } from "../runner";
+import { SubscriptionService } from "../../modules/subscription/subscription.service";
 
 export const subscriptionExpiryCheck: JobDefinition = {
-  name: 'SubscriptionExpiryCheck',
-  type: 'billing',
-  cronExpression: '0 0 * * *', // Midnight
+  name: "SubscriptionExpiryCheck",
+  type: "billing",
+  cronExpression: "0 * * * *", // Hourly: trials, renewals, grace and retention transitions.
   handler: async () => {
-     const now = new Date();
-     await db.Subscription.update(
-        { status: 'expired' },
-        { where: { endDate: { [Op.lt]: now }, status: 'active' } }
-     );
-  }
+    const service = new SubscriptionService();
+    await service.processLifecycle(new Date());
+  },
 };
