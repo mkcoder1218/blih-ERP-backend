@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authRequired } from "../../middlewares/auth";
 import { requirePermission } from "../../middlewares/permission";
+import { requireFeature } from "../../middlewares/subscription";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { createUserSchema, updateUserSchema } from "../../validators/user.validator";
@@ -94,7 +95,7 @@ router.get("/:id", requirePermission("user.read"), asyncHandler(controller.get))
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post("/", requirePermission("user.create"), validate(createUserSchema), asyncHandler(controller.create));
+router.post("/", requirePermission("user.create"), requireFeature("employee_limit", 1), validate(createUserSchema), asyncHandler(controller.create));
 /**
  * @openapi
  * /api/v1/users/{id}:

@@ -84,6 +84,7 @@ import defineBusinessLocalization from "./BusinessLocalization";
 import defineSubscription from "./Subscription";
 import defineSubscriptionInvoice from "./SubscriptionInvoice";
 import defineSubscriptionPayment from "./SubscriptionPayment";
+import defineSubscriptionPolicy from "./SubscriptionPolicy";
 import defineUsageLimit from "./UsageLimit";
 import defineFeature from "./Feature";
 import definePlanFeature from "./PlanFeature";
@@ -261,6 +262,7 @@ export type DB = {
   Subscription: any;
   SubscriptionInvoice: any;
   SubscriptionPayment: any;
+  SubscriptionPolicy: any;
   UsageLimit: any;
 
   Feature: any;
@@ -566,6 +568,8 @@ export const db: DB = {
     sequelize,
     DataTypes,
   ),
+
+  SubscriptionPolicy: defineSubscriptionPolicy(sequelize, DataTypes),
 
   UsageLimit: defineUsageLimit(sequelize, DataTypes),
 
