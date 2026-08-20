@@ -100,8 +100,11 @@ export class PermissionController {
     const role = await db.Role.findByPk(roleId);
     if (!role) return res.status(404).json({ message: "Role not found" });
 
-    if (role.isSystemRole || isProtectedRoleKey(role.key)) {
-      return res.status(403).json({ message: "System role permissions are protected and cannot be edited" });
+    const isProtectedSystemRole = role.isSystemRole || isProtectedRoleKey(role.key);
+    if (isProtectedSystemRole && !req.user!.isPlatformSuperAdmin) {
+      return res.status(403).json({
+        message: "System role permissions can only be edited by a platform super admin"
+      });
     }
 
     if (!req.user!.isPlatformSuperAdmin && role.businessId !== req.user!.businessId) {
