@@ -18,6 +18,12 @@ function parseBearer(req: Request): string | null {
   return token;
 }
 
+function normalizedRequestPath(req: Request) {
+  return String(req.originalUrl || req.url || "")
+    .split("?")[0]
+    .replace(/\/+$/, "");
+}
+
 export async function authRequired(req: Request, res: Response, next: NextFunction) {
   try {
     const token = parseBearer(req);
@@ -69,6 +75,44 @@ export async function authRequired(req: Request, res: Response, next: NextFuncti
       "career.request",
     ].forEach((key) => permissions.add(key));
 
+    /**
+     * Job-request permission compatibility.
+     *
+     * Recruitment originally authorized new hiring requests by the literal
+     * DEPARTMENT_HEAD / DEPT_HEAD role key. Custom roles therefore could not
+     * submit a hiring request even when the business intended them to do so.
+     *
+     * `job.request` is now the explicit capability. The aliases below are
+     * deliberately request-scoped so they only bridge the legacy recruitment
+     * guards and do not grant Department Head authority anywhere else.
+     */
+    const requestPath = normalizedRequestPath(req);
+    const requestScopedRoles = [...roles];
+    const hasJobRequestPermission = permissions.has("job.request");
+
+    if (hasJobRequestPermission) {
+      const isJobOpeningCollection = requestPath.endsWith("/hr/recruitment/job-openings");
+      const isJobRequestCollection = requestPath.endsWith("/hr/recruitment/job-requests");
+      const isTemplateCollection = requestPath.endsWith("/hr/recruitment/templates");
+
+      if (
+        req.method === "POST" &&
+        isJobOpeningCollection &&
+        !requestScopedRoles.includes("DEPARTMENT_HEAD") &&
+        !requestScopedRoles.includes("DEPT_HEAD")
+      ) {
+        requestScopedRoles.push("DEPARTMENT_HEAD");
+      }
+
+      if (req.method === "GET" && isJobRequestCollection) {
+        permissions.add("job.read");
+      }
+
+      if (req.method === "GET" && isTemplateCollection) {
+        permissions.add("job_template.read");
+      }
+    }
+
     // Master Tester authority is stored separately from normal RBAC. We expose
     // an effective super-admin bit in request context only so legacy guards that
     // already understand super-admin bypasses keep working without assigning a
@@ -91,7 +135,7 @@ export async function authRequired(req: Request, res: Response, next: NextFuncti
         testerSafetyMode === "FULL" || testerSafetyMode === "RESTRICTED"
           ? testerSafetyMode
           : null,
-      roles,
+      roles: requestScopedRoles,
       permissions: Array.from(permissions)
     };
 
