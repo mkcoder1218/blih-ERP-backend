@@ -1,11 +1,13 @@
-import { Model, Optional, DataTypes, Sequelize } from 'sequelize';
+import { Model, Optional, DataTypes, Sequelize } from "sequelize";
 
 interface OfferLetterTemplateAttributes {
   id: string;
   businessId: string;
   name: string;
   subject: string;
+  headerHtml: string | null;
   bodyHtml: string;
+  footerHtml: string | null;
   bodyText: string;
   variables: string[];
   isActive: boolean;
@@ -13,14 +15,23 @@ interface OfferLetterTemplateAttributes {
   updatedById: string;
 }
 
-interface OfferLetterTemplateCreationAttributes extends Optional<OfferLetterTemplateAttributes, 'id' | 'isActive'> {}
+interface OfferLetterTemplateCreationAttributes
+  extends Optional<
+    OfferLetterTemplateAttributes,
+    "id" | "headerHtml" | "footerHtml" | "isActive"
+  > {}
 
-export class OfferLetterTemplate extends Model<OfferLetterTemplateAttributes, OfferLetterTemplateCreationAttributes> implements OfferLetterTemplateAttributes {
+export class OfferLetterTemplate
+  extends Model<OfferLetterTemplateAttributes, OfferLetterTemplateCreationAttributes>
+  implements OfferLetterTemplateAttributes
+{
   public id!: string;
   public businessId!: string;
   public name!: string;
   public subject!: string;
+  public headerHtml!: string | null;
   public bodyHtml!: string;
+  public footerHtml!: string | null;
   public bodyText!: string;
   public variables!: string[];
   public isActive!: boolean;
@@ -31,9 +42,15 @@ export class OfferLetterTemplate extends Model<OfferLetterTemplateAttributes, Of
   public readonly updatedAt!: Date;
 
   static associate(models: any) {
-    OfferLetterTemplate.belongsTo(models.Business, { foreignKey: 'businessId' });
-    OfferLetterTemplate.belongsTo(models.User, { foreignKey: 'createdById', as: 'Creator' });
-    OfferLetterTemplate.belongsTo(models.User, { foreignKey: 'updatedById', as: 'Updater' });
+    OfferLetterTemplate.belongsTo(models.Business, { foreignKey: "businessId" });
+    OfferLetterTemplate.belongsTo(models.User, {
+      foreignKey: "createdById",
+      as: "Creator",
+    });
+    OfferLetterTemplate.belongsTo(models.User, {
+      foreignKey: "updatedById",
+      as: "Updater",
+    });
   }
 }
 
@@ -57,9 +74,19 @@ export default (sequelize: Sequelize, dt: typeof DataTypes) => {
         type: dt.STRING,
         allowNull: false,
       },
+      headerHtml: {
+        type: dt.TEXT,
+        allowNull: true,
+        defaultValue: null,
+      },
       bodyHtml: {
         type: dt.TEXT,
         allowNull: false,
+      },
+      footerHtml: {
+        type: dt.TEXT,
+        allowNull: true,
+        defaultValue: null,
       },
       bodyText: {
         type: dt.TEXT,
@@ -82,12 +109,12 @@ export default (sequelize: Sequelize, dt: typeof DataTypes) => {
       updatedById: {
         type: dt.UUID,
         allowNull: false,
-      }
+      },
     },
     {
       sequelize,
-      tableName: 'offer_letter_templates',
-    }
+      tableName: "offer_letter_templates",
+    },
   );
   return OfferLetterTemplate;
 };
