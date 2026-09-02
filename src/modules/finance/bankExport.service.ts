@@ -103,7 +103,7 @@ export type BankSalaryExportQuery = {
   departmentId?: string;
   employmentStatus?: string;
   payrollStatus?: string;
-  templateId?: string;
+  payrollTemplateId?: string;
   dateFrom?: string;
   dateTo?: string;
 };
@@ -209,12 +209,13 @@ export class BankExportService {
     const salaryQuery: any = {
       ...query,
       q: query.q || query.search || "",
+      templateId: query.payrollTemplateId || "",
       page: 1,
       limit: 5000,
       exportAll: "true",
     };
     delete salaryQuery.search;
-    delete salaryQuery.templateId;
+    delete salaryQuery.payrollTemplateId;
 
     const salaryData = await this.payrollService.listEmployeeSalaries(
       businessId,
