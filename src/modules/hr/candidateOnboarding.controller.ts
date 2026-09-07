@@ -181,7 +181,7 @@ export class CandidateOnboardingController {
         sendOnboardingInviteEmail({
           candidateName:  existing.candidateName,
           candidateEmail: existing.candidateEmail,
-          companyName:    business?.name || "Pops",
+          companyName:    business?.name || "Blih",
           onboardingUrl,
           startDate:      existing.metadata?.startDate || undefined,
           positionTitle:  existing.metadata?.positionTitle || existing.metadata?.position || undefined,
@@ -274,7 +274,7 @@ export class CandidateOnboardingController {
       const onboardingUrl = this.buildOnboardingUrl(business?.slug || "", onboardingId);
 
       // Send onboarding invite email to candidate (fire-and-forget)
-      const companyName = business?.name || "Pops";
+      const companyName = business?.name || "Blih";
 
       sendOnboardingInviteEmail({
         candidateName:  offer.candidateName,
