@@ -707,7 +707,7 @@ app.use(
     swaggerSpec,
     {
       customSiteTitle:
-        "Pops API Docs",
+        "Blih ERP API Docs",
 
       customCss:
         ".swagger-ui .topbar { display: none }",
