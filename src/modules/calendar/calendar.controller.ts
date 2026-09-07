@@ -132,7 +132,7 @@ export class CalendarController {
           </head>
           <body>
             <h1>Google Calendar connected</h1>
-            <p>You can close this window and return to Blih.</p>
+            <p>You can close this window and return to Pops.</p>
             <script>window.setTimeout(function(){ window.close(); }, 800);</script>
           </body>
         </html>
