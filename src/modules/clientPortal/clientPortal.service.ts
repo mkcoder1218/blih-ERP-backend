@@ -185,6 +185,6 @@ export class ClientPortalService {
   }
 
   private generateTemporaryPassword() {
-    return `Pops-${Math.random().toString(36).slice(2, 8)}-${Math.random().toString(36).slice(2, 6)}`;
+    return `Blih-${Math.random().toString(36).slice(2, 8)}-${Math.random().toString(36).slice(2, 6)}`;
   }
 }
