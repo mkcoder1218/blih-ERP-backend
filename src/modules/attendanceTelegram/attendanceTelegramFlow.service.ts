@@ -228,7 +228,7 @@ export class AttendanceTelegramFlowService {
     else if (day?.checkOutAtUtc) headline = "Workday complete";
     else if (summary?.disabledReason) headline = String(summary.disabledReason);
 
-    const lines = [fullName ? `Pops Attendance · ${fullName}` : "Pops Attendance", headline];
+    const lines = [fullName ? `Blih Attendance · ${fullName}` : "Blih Attendance", headline];
     if (!summary?.attendanceExemption) {
       lines.push(`Worked: ${worked}`);
       lines.push(`Remaining: ${remaining}`);
@@ -243,7 +243,7 @@ export class AttendanceTelegramFlowService {
       await this.send(
         setting,
         chatId,
-        prefix || "Link Telegram from Pops to use attendance actions.",
+        prefix || "Link Telegram from Blih ERP to use attendance actions.",
         { inline_keyboard: [[{ text: "Link account", callback_data: "account:link" }]] },
       );
       return;
@@ -473,7 +473,7 @@ export class AttendanceTelegramFlowService {
       },
     });
     if (!row) {
-      await this.send(setting, chatId, "This link is invalid or expired. Generate a new Telegram link from Pops.");
+      await this.send(setting, chatId, "This link is invalid or expired. Generate a new Telegram link from Blih ERP.");
       return true;
     }
 
@@ -507,7 +507,7 @@ export class AttendanceTelegramFlowService {
       }
     });
 
-    await this.send(setting, chatId, "✅ Telegram is connected to your Pops account.", removeReplyKeyboard(), "account_linked");
+    await this.send(setting, chatId, "✅ Telegram is connected to your Blih ERP account.", removeReplyKeyboard(), "account_linked");
     await this.sendMenu(setting, businessId, chatId, telegramUserId);
     return true;
   }
@@ -518,7 +518,7 @@ export class AttendanceTelegramFlowService {
     await this.send(
       setting,
       chatId,
-      "Telegram attendance has been disconnected from Pops.",
+      "Telegram attendance has been disconnected from Blih ERP.",
       removeReplyKeyboard(),
       "account_unlinked",
     );
