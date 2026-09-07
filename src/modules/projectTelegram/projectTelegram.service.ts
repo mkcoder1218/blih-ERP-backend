@@ -317,7 +317,7 @@ export class ProjectTelegramService {
         chat_id: channel.chatId,
         parse_mode: "HTML",
         disable_web_page_preview: true,
-        text: `🧪 <b>Blih Telegram Task Sync</b>\n\nDepartment: <b>${escapeHtml(department.name)}</b>\nConnection and group routing are working.`,
+        text: `🧪 <b>Pops Telegram Task Sync</b>\n\nDepartment: <b>${escapeHtml(department.name)}</b>\nConnection and group routing are working.`,
       });
     }
     return { sent: true, groups: channels.length };
