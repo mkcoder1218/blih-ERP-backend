@@ -251,13 +251,13 @@ export class SmtpService {
     let transporter: nodemailer.Transporter;
     let providerForError: any = null;
     let senderEmail = "";
-    let senderName = "Blih";
+    let senderName = "Pops";
     if (input?.providerId && input?.senderEmail && input?.smtpUsername && (input.smtpPassword || input.appPassword)) {
       const provider = await db.SmtpProvider.findOne({ where: { id: input.providerId, isActive: true } });
       if (!provider) throw Object.assign(new Error("Active SMTP provider not found"), { statusCode: 400 });
       providerForError = typeof provider.toJSON === "function" ? provider.toJSON() : provider;
       senderEmail = input.senderEmail;
-      senderName = input.senderName || "Blih";
+      senderName = input.senderName || "Pops";
       transporter = nodemailer.createTransport(buildTransportOptions(provider, { user: input.smtpUsername, pass: input.appPassword || input.smtpPassword || "" }));
     } else {
       const resolved = await this.resolveBusinessTransport(businessId);
@@ -265,7 +265,7 @@ export class SmtpService {
       transporter = resolved.transporter;
       providerForError = resolved.provider;
       senderEmail = resolved.senderEmail;
-      senderName = resolved.senderName || "Blih";
+      senderName = resolved.senderName || "Pops";
     }
 
     const recipient = input?.testRecipientEmail ? String(input.testRecipientEmail).trim() : "";
@@ -277,9 +277,9 @@ export class SmtpService {
         await transporter.sendMail({
           from: `"${senderName}" <${senderEmail}>`,
           to: recipient,
-          subject: "Blih SMTP test email",
-          text: "Your SMTP settings are working. This test email was sent from Blih.",
-          html: "<p>Your SMTP settings are working.</p><p>This test email was sent from Blih.</p>",
+          subject: "Pops SMTP test email",
+          text: "Your SMTP settings are working. This test email was sent from Pops.",
+          html: "<p>Your SMTP settings are working.</p><p>This test email was sent from Pops.</p>",
         });
       }
       await db.BusinessSmtpSetting.update(
@@ -307,9 +307,9 @@ export class SmtpService {
       await resolved.transporter.sendMail({
         from: resolved.from,
         to: recipient,
-        subject: input.subject || "Blih punctuality test email",
-        text: input.body || "This is a Blih punctuality test email.",
-        html: `<p>${escapeHtml(input.body || "This is a Blih punctuality test email.").replace(/\n/g, "<br>")}</p>`,
+        subject: input.subject || "Pops punctuality test email",
+        text: input.body || "This is a Pops punctuality test email.",
+        html: `<p>${escapeHtml(input.body || "This is a Pops punctuality test email.").replace(/\n/g, "<br>")}</p>`,
       });
       await db.BusinessSmtpSetting.update(
         { lastTestedAt: new Date(), lastTestStatus: "success" },
