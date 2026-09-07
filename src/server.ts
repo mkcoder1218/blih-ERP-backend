@@ -25,7 +25,7 @@ async function start() {
 
   server.listen(env.port, () => {
     // -disable-next-line no-console
-    console.log(`Pops backend listening on :${env.port} (${env.nodeEnv})`);
+    console.log(`Blih ERP backend listening on :${env.port} (${env.nodeEnv})`);
   });
 }
 
