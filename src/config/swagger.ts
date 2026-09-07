@@ -5,9 +5,9 @@ const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Blih ERP API',
+      title: 'Pops API',
       version: pkg.version,
-      description: 'API documentation for Blih ERP backend system. Tenant isolation applied on most routes requiring Bearer Token and implicit business logic boundaries.',
+      description: 'API documentation for the Pops backend system. Tenant isolation applied on most routes requiring Bearer Token and implicit business logic boundaries.',
     },
     components: {
       securitySchemes: {
