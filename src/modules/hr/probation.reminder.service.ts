@@ -59,7 +59,7 @@ export class ProbationReminderService {
             to: recipient.email,
             subject: title,
             text: message,
-            html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>${title}</h2><p>${message}</p><p>Please open Pops and complete the required probation action.</p></div>`,
+            html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>${title}</h2><p>${message}</p><p>Please open Blih ERP and complete the required probation action.</p></div>`,
           });
           emailsSent += 1;
         }
