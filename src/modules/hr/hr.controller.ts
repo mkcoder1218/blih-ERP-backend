@@ -733,7 +733,7 @@ export class HRController {
                   position: pos?.title || 'Staff',
                   positionTitle: pos?.title || 'Staff',
                   department: dept?.name || 'General',
-                  businessName: biz?.name || 'Blih ERP'
+                  businessName: biz?.name || 'Pops'
                };
 
                const letter = await db.OfferLetter.create({
