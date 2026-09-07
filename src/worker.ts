@@ -3,7 +3,7 @@ import { initDatabase } from "./database";
 import { initJobs } from "./jobs/registry";
 
 async function startWorker() {
-  console.log(`[Worker] Starting Pops Dedicated Background Worker (${env.nodeEnv})...`);
+  console.log(`[Worker] Starting Blih ERP Dedicated Background Worker (${env.nodeEnv})...`);
   
   // Ensure job worker is enabled for this dedicated process
   env.jobWorkerEnabled = true;
