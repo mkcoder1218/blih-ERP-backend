@@ -1,5 +1,5 @@
 /**
- * Blih ERP — Mailer Service
+ * Pops — Mailer Service
  * Thin wrapper around nodemailer. Uses SMTP creds from .env.
  * Falls back to console logging when SMTP is not configured (e.g. in test env).
  */
@@ -22,7 +22,7 @@ function createTransport(): Transporter {
 }
 
 const transport = createTransport();
-const FROM = `"${process.env.SMTP_FROM_NAME || "Blih ERP"}" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || "noreply@blih.app"}>`;
+const FROM = `"${process.env.SMTP_FROM_NAME || "Pops"}" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || "noreply@blih.app"}>`;
 
 export async function sendMail(opts: {
   to: string;
