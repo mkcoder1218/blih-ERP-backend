@@ -38,7 +38,7 @@ export async function sendApprovalEmail(opts: {
     </td></tr>
     <tr><td style="padding:20px 0;text-align:center;">
       <p style="color:#cbd5e1;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin:0;">
-        Powered by <span style="color:#64748b">Pops</span>
+        Powered by <span style="color:#64748b">Blih CORE</span>
       </p>
     </td></tr>
   </table>
@@ -104,7 +104,7 @@ export async function sendRejectionEmail(opts: {
     </td></tr>
     <tr><td style="padding:20px 0;text-align:center;">
       <p style="color:#cbd5e1;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin:0;">
-        Powered by <span style="color:#64748b">Pops</span>
+        Powered by <span style="color:#64748b">Blih CORE</span>
       </p>
     </td></tr>
   </table>
