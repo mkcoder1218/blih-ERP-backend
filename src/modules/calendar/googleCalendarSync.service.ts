@@ -189,7 +189,7 @@ export class GoogleCalendarSyncService {
         direction: "BLIH_TO_GOOGLE",
         action: "DELETE",
         status: "SUCCESS",
-        message: "Deleted Google Calendar event from Pops deletion.",
+        message: "Deleted Google Calendar event from Blih deletion.",
       });
       return true;
     } catch (err: any) {
@@ -599,7 +599,7 @@ export class GoogleCalendarSyncService {
       direction: "GOOGLE_TO_BLIH",
       action: "IMPORT",
       status: "SUCCESS",
-      message: "Imported Google Calendar event into Pops.",
+      message: "Imported Google Calendar event into Blih.",
       metadata: { recurringEventId: googleEvent.recurringEventId || null },
     });
     return "imported" as const;
@@ -626,7 +626,7 @@ export class GoogleCalendarSyncService {
         direction: "GOOGLE_TO_BLIH",
         action: "CONFLICT",
         status: "SUCCESS",
-        message: "Both Pops and Google changed after last sync. Latest update wins.",
+        message: "Both Blih and Google changed after last sync. Latest update wins.",
         metadata: { blihUpdatedAt, googleUpdatedAt, lastSyncedAt },
       });
       if (blihUpdatedAt && googleUpdatedAt && blihUpdatedAt > googleUpdatedAt) {
@@ -643,7 +643,7 @@ export class GoogleCalendarSyncService {
       direction: "GOOGLE_TO_BLIH",
       action: "UPDATE",
       status: "SUCCESS",
-      message: "Updated Pops event from Google Calendar.",
+      message: "Updated Blih event from Google Calendar.",
     });
     return "updated" as const;
   }
@@ -664,7 +664,7 @@ export class GoogleCalendarSyncService {
       direction: "GOOGLE_TO_BLIH",
       action: "DELETE",
       status: "SUCCESS",
-      message: "Soft-deleted Pops event because Google event was cancelled.",
+      message: "Soft-deleted Blih event because Google event was cancelled.",
     });
     return true;
   }
