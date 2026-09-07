@@ -73,7 +73,7 @@ export async function sendEmploymentChangeReviewEmail(input: {
   await sendMail({
     to,
     subject,
-    text: `${requesterName} submitted an employment change request for ${employeeName}. Review it in Blih: ${url}`,
+    text: `${requesterName} submitted an employment change request for ${employeeName}. Review it in Pops: ${url}`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#0f172a">
         <h2 style="margin-bottom:6px">Employment change needs your review</h2>
@@ -82,7 +82,7 @@ export async function sendEmploymentChangeReviewEmail(input: {
           ${requestSummaryHtml(request)}
         </div>
         <a href="${esc(url)}" style="display:inline-block;background:#2563eb;color:white;text-decoration:none;padding:11px 18px;border-radius:10px;font-weight:700">Review Request</a>
-        <p style="margin-top:18px;color:#94a3b8;font-size:12px">For security, approval and rejection are completed inside authenticated Blih ERP.</p>
+        <p style="margin-top:18px;color:#94a3b8;font-size:12px">For security, approval and rejection are completed inside authenticated Pops.</p>
       </div>
     `,
   });
@@ -110,7 +110,7 @@ export async function sendEmploymentChangeStatusEmail(input: {
         <div style="margin:18px 0;padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc">
           ${requestSummaryHtml(request)}
         </div>
-        <a href="${esc(url)}" style="display:inline-block;background:#2563eb;color:white;text-decoration:none;padding:11px 18px;border-radius:10px;font-weight:700">Open in Blih</a>
+        <a href="${esc(url)}" style="display:inline-block;background:#2563eb;color:white;text-decoration:none;padding:11px 18px;border-radius:10px;font-weight:700">Open in Pops</a>
       </div>
     `,
   });
