@@ -95,7 +95,7 @@ async function notifyUser(args: {
       to: args.recipient.email,
       subject: args.title,
       text: args.message,
-      html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>${args.title}</h2><p>${args.message}</p><p>Open Pops to review the probation record.</p></div>`,
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>${args.title}</h2><p>${args.message}</p><p>Open Blih ERP to review the probation record.</p></div>`,
     });
   }
 }
@@ -292,7 +292,7 @@ export class ProbationLifecycleService {
         message: input.decision === "CONFIRM_EMPLOYMENT"
           ? "Your probation has been completed and your employment has been confirmed."
           : input.decision === "EXTEND_PROBATION"
-            ? "Your probation period has been extended. Open Pops for the updated dates."
+            ? "Your probation period has been extended. Open Blih ERP for the updated dates."
             : "Your probation has ended with a termination decision. Please contact HR for details.",
         probationId,
         type: "PROBATION_FINAL_DECISION",
