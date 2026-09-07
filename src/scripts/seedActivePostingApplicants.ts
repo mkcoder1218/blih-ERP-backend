@@ -180,7 +180,7 @@ async function seedPendingOffersForOpening(opening: any, template: any, creator:
     const salary = String(25000 + index * 3500);
     const startDate = addDays(new Date(), 14 + index * 3);
     const positionTitle = position?.title || opening.title;
-    const company = business?.name || "Blih";
+    const company = business?.name || "Pops";
     const renderedSubject = `Offer Letter for ${application.fullName}`;
     const renderedHtml = [
       `<p>Dear ${application.fullName},</p>`,
