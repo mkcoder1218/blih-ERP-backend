@@ -111,7 +111,7 @@ async function run() {
         slug: "published-employee-handbook",
         status: "published",
         visibility: "company",
-        content: "<h1>Employee Handbook</h1><p>Welcome to Blih ERP!</p>",
+        content: "<h1>Employee Handbook</h1><p>Welcome to Pops!</p>",
         categoryId: brainParent.id
       },
       {
