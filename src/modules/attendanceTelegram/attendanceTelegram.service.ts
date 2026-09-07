@@ -252,7 +252,7 @@ export class AttendanceTelegramService {
       return { sent: true };
     }
 
-    const text = "Telegram attendance bot test from Pops. Employees can use /start for attendance actions and summaries.";
+    const text = "Telegram attendance bot test from Blih. Employees can use /start for attendance actions and summaries.";
     await this.sendAndLog(setting, "manual_test", { chat_id: setting.chatId, text });
     return { sent: true };
   }
@@ -824,7 +824,7 @@ export class AttendanceTelegramService {
       const content = await fs.readFile(filePath);
       await this.sendAndLog(setting, isTest ? "database_backup_test" : "database_backup", {
         chat_id: setting.chatId,
-        caption: `${isTest ? "Test: " : ""}Database backup for ${business?.name || "Pops"}\nDate: ${dateYmd}\nDatabase: ${env.db.name}`,
+        caption: `${isTest ? "Test: " : ""}Database backup for ${business?.name || "Blih ERP"}\nDate: ${dateYmd}\nDatabase: ${env.db.name}`,
         document: fileName,
         documentContent: content
       });
