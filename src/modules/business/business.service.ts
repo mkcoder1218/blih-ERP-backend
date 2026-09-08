@@ -140,7 +140,15 @@ export class BusinessService {
     await db.HRCase.destroy(opts);
     await db.OnboardingTask.destroy(opts);
     await db.AttendanceRecord.destroy(opts);
+
+    // LeaveRequest references LeaveTemplate, and every business is seeded with
+    // default leave templates during creation. Requests must therefore be
+    // removed before templates, otherwise the final Business delete is blocked
+    // by leave_templates_businessId_fkey.
+    await db.LeaveRequest.destroy(opts);
+    await db.LeaveTemplate.destroy(opts);
     await db.LeaveBalance.destroy(opts);
+
     await db.EmployeeRecord.destroy(opts);
 
     // ── OKR ───────────────────────────────────────────────────────────────────
