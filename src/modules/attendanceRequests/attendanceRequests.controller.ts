@@ -1,11 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
+import { db } from "../../models";
 import { AuditLogService } from "../../services/auditLog.service";
+import { AttendanceTelegramService } from "../attendanceTelegram/attendanceTelegram.service";
 import { AttendanceRequestsService } from "./attendanceRequests.service";
 import { WorkFromHomeService } from "./workFromHome.service";
 
 export class AttendanceRequestsController {
   private svc = new AttendanceRequestsService();
   private workFromHomeSvc = new WorkFromHomeService();
+  private telegram = new AttendanceTelegramService();
 
   listAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -193,6 +196,11 @@ export class AttendanceRequestsController {
         { status: "approved" },
         req,
       );
+      await this.notifyWorkFromHomeDecision(
+        req.user!.businessId,
+        record,
+        "approved",
+      );
       res.json({ attendanceRequest: record });
     } catch (err: any) {
       next({ statusCode: err.statusCode || 400, message: err.message });
@@ -217,6 +225,11 @@ export class AttendanceRequestsController {
         { status: "rejected" },
         req,
         "warning",
+      );
+      await this.notifyWorkFromHomeDecision(
+        req.user!.businessId,
+        record,
+        "rejected",
       );
       res.json({ attendanceRequest: record });
     } catch (err: any) {
@@ -351,6 +364,63 @@ export class AttendanceRequestsController {
       res.json({ attendanceRequest: record });
     } catch (err: any) {
       next({ statusCode: err.statusCode || 400, message: err.message });
+    }
+  };
+
+  private notifyWorkFromHomeDecision = async (
+    businessId: string,
+    record: any,
+    status: "approved" | "rejected",
+  ) => {
+    if (!record || record.requestType !== "work_from_home") return;
+
+    try {
+      const settings = await db.BusinessAttendanceSettings.findOne({
+        where: { businessId },
+        attributes: ["timezone"],
+      });
+      const timeZone = settings?.timezone || "Africa/Addis_Ababa";
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const formatDateTime = (value: unknown) => {
+        if (!value) return "N/A";
+        const date = new Date(String(value));
+        return Number.isNaN(date.getTime())
+          ? String(value)
+          : `${formatter.format(date)} (${timeZone})`;
+      };
+
+      const employeeName = record.employee?.fullName || "Unknown employee";
+      const actionedBy = record.actionedBy?.fullName || "HR / Business Admin";
+      const message = [
+        status === "approved"
+          ? "✅ Work From Home request approved"
+          : "❌ Work From Home request rejected",
+        `Employee: ${employeeName}`,
+        `Type: ${record.category || "N/A"}`,
+        `From: ${formatDateTime(record.fromAt)}`,
+        `To: ${formatDateTime(record.toAt)}`,
+        `Decision by: ${actionedBy}`,
+        ...(status === "rejected" && record.actionNote
+          ? [`Rejection reason: ${String(record.actionNote).trim()}`]
+          : []),
+      ].join("\n");
+
+      await this.telegram.sendAttendanceGroupMessage(
+        businessId,
+        message,
+        `wfh_request_${status}`,
+      );
+    } catch (error: any) {
+      console.error(
+        `[AttendanceRequests] Telegram WFH ${status} notification failed for ${record.id}: ${error?.message || error}`,
+      );
     }
   };
 
